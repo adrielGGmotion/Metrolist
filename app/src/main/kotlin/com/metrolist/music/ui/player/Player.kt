@@ -168,7 +168,7 @@ fun BottomSheetPlayer(
         UseNewPlayerDesignKey,
         defaultValue = true
     )
-    
+
     val (useNewMiniPlayerDesign) = rememberPreference(
         UseNewMiniPlayerDesignKey,
         defaultValue = true
@@ -249,11 +249,11 @@ fun BottomSheetPlayer(
     var gradientColors by remember {
         mutableStateOf<List<Color>>(emptyList())
     }
-    
+
     // Previous background states for smooth transitions
     var previousThumbnailUrl by remember { mutableStateOf<String?>(null) }
     var previousGradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
-    
+
     // Cache for gradient colors to prevent re-extraction for same songs
     val gradientColorsCache = remember { mutableMapOf<String, List<Color>>() }
 
@@ -264,7 +264,7 @@ fun BottomSheetPlayer(
     // Default gradient colors for fallback
     val defaultGradientColors = listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
-    
+
     // Update previous states when media changes
     LaunchedEffect(mediaMetadata?.id) {
         val currentThumbnail = mediaMetadata?.thumbnailUrl
@@ -273,7 +273,7 @@ fun BottomSheetPlayer(
             previousGradientColors = gradientColors
         }
     }
-    
+
     LaunchedEffect(mediaMetadata?.id, playerBackground) {
         if (playerBackground == PlayerBackgroundStyle.GRADIENT) {
             val currentMetadata = mediaMetadata
@@ -289,10 +289,10 @@ fun BottomSheetPlayer(
                         .allowHardware(false)
                         .build()
 
-                    val result = runCatching { 
+                    val result = runCatching {
                         context.imageLoader.execute(request)
                     }.getOrNull()
-                    
+
                     if (result != null) {
                         val bitmap = result.image?.toBitmap()
                         if (bitmap != null) {
@@ -302,13 +302,13 @@ fun BottomSheetPlayer(
                                     .resizeBitmapArea(PlayerColorExtractor.Config.BITMAP_AREA)
                                     .generate()
                             }
-                        
+
                         // Use the new color extraction system
                         val extractedColors = PlayerColorExtractor.extractGradientColors(
                             palette = palette,
                             fallbackColor = fallbackColor
                         )
-                        
+
                         // Cache the extracted colors
                         gradientColorsCache[currentMetadata.id] = extractedColors
                         gradientColors = extractedColors
@@ -469,7 +469,7 @@ fun BottomSheetPlayer(
         collapsedBound = dismissedBound + 1.dp,
         initialAnchor = 1
     )
-    
+
     val lyricsSheetState = rememberBottomSheetState(
         dismissedBound = 0.dp,
         expandedBound = state.expandedBound,
@@ -485,14 +485,14 @@ fun BottomSheetPlayer(
                 // Apply same enhanced fade logic to blur/gradient backgrounds
                 val progress = ((state.value - state.collapsedBound) / (state.expandedBound - state.collapsedBound))
                     .coerceIn(0f, 1f)
-                
+
                 // Only start fading when very close to dismissal (last 20%)
                 val fadeProgress = if (progress < 0.2f) {
                     ((0.2f - progress) / 0.2f).coerceIn(0f, 1f)
                 } else {
                     0f
                 }
-                
+
                 MaterialTheme.colorScheme.surface.copy(alpha = 1f - fadeProgress)
             }
             else -> {
@@ -500,14 +500,14 @@ fun BottomSheetPlayer(
                 // Calculate progress for fade effect
                 val progress = ((state.value - state.collapsedBound) / (state.expandedBound - state.collapsedBound))
                     .coerceIn(0f, 1f)
-                
+
                 // Only start fading when very close to dismissal (last 20%)
                 val fadeProgress = if (progress < 0.2f) {
                     ((0.2f - progress) / 0.2f).coerceIn(0f, 1f)
                 } else {
                     0f
                 }
-                
+
                 if (useBlackBackground) {
                     // Apply same logic to pure black background
                     Color.Black.copy(alpha = 1f - fadeProgress)
@@ -531,197 +531,174 @@ fun BottomSheetPlayer(
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            val playPauseRoundness by animateDpAsState(
-                targetValue = if (isPlaying) 24.dp else 36.dp,
-                animationSpec = tween(durationMillis = 90, easing = LinearEasing),
-                label = "playPauseRoundness",
-            )
+            if (useNewPlayerDesign) {
+                PlayerMD3(
+                    mediaMetadata = mediaMetadata,
+                    currentSong = currentSong,
+                    toggleLike = playerConnection::toggleLike,
+                    sliderStyle = sliderStyle,
+                    sliderPosition = sliderPosition,
+                    position = position,
+                    duration = duration,
+                    onSliderChange = { sliderPosition = it },
+                    onSliderChangeFinished = {
+                        sliderPosition?.let {
+                            playerConnection.player.seekTo(it)
+                            position = it
+                        }
+                        sliderPosition = null
+                    },
+                    textButtonColor = textButtonColor,
+                    iconButtonColor = iconButtonColor,
+                    TextBackgroundColor = TextBackgroundColor,
+                    canSkipPrevious = canSkipPrevious,
+                    onSeekToPrevious = playerConnection::seekToPrevious,
+                    playbackState = playbackState,
+                    isPlaying = isPlaying,
+                    onTogglePlayPause = {
+                        if (playbackState == STATE_ENDED) {
+                            playerConnection.player.seekTo(0, 0)
+                            playerConnection.player.playWhenReady = true
+                        } else {
+                            playerConnection.player.togglePlayPause()
+                        }
+                    },
+                    canSkipNext = canSkipNext,
+                    onSeekToNext = playerConnection::seekToNext,
+                    repeatMode = repeatMode,
+                    onToggleRepeatMode = { playerConnection.player.toggleRepeatMode() },
+                    onShowQueue = { queueSheetState.expandSoft() },
+                    onShowLyrics = { lyricsSheetState.expandSoft() },
+                    onShowSleepTimer = { showSleepTimerDialog = true },
+                    navController = navController,
+                    bottomSheetState = state
+                )
+            } else {
+                val playPauseRoundness by animateDpAsState(
+                    targetValue = if (isPlaying) 24.dp else 36.dp,
+                    animationSpec = tween(durationMillis = 90, easing = LinearEasing),
+                    label = "playPauseRoundness",
+                )
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding),
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PlayerHorizontalPadding),
                 ) {
-                    AnimatedContent(
-                        targetState = mediaMetadata.title,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "",
-                    ) { title ->
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = TextBackgroundColor,
-                            modifier =
-                            Modifier
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        AnimatedContent(
+                            targetState = mediaMetadata.title,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "",
+                        ) { title ->
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = TextBackgroundColor,
+                                modifier =
+                                Modifier
+                                    .basicMarquee()
+                                    .combinedClickable(
+                                        enabled = true,
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        onClick = {
+                                            if(mediaMetadata.album!=null){
+                                                navController.navigate("album/${mediaMetadata.album.id}")
+                                                state.collapseSoft()
+                                            }
+                                        },
+                                        onLongClick = {
+                                            val clip = ClipData.newPlainText("Copied Title", title)
+                                            clipboardManager.setPrimaryClip(clip)
+                                            Toast.makeText(context, "Copied Title", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                ,
+                            )
+                        }
+
+                        Spacer(Modifier.height(6.dp))
+
+                        val annotatedString = buildAnnotatedString {
+                            mediaMetadata.artists.forEachIndexed { index, artist ->
+                                val tag = "artist_${artist.id.orEmpty()}"
+                                pushStringAnnotation(tag = tag, annotation = artist.id.orEmpty())
+                                withStyle(SpanStyle(color = TextBackgroundColor, fontSize = 16.sp)) {
+                                    append(artist.name)
+                                }
+                                pop()
+                                if (index != mediaMetadata.artists.lastIndex) append(", ")
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
                                 .basicMarquee()
-                                .combinedClickable(
+                                .padding(end = 12.dp)
+                        ) {
+                            var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+                            var clickOffset by remember { mutableStateOf<Offset?>(null) }
+                            Text(
+                                text = annotatedString,
+                                style = MaterialTheme.typography.titleMedium.copy(color = TextBackgroundColor),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                onTextLayout = { layoutResult = it },
+                                modifier = Modifier
+                                    .pointerInput(Unit) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                val event = awaitPointerEvent()
+                                                val tapPosition = event.changes.firstOrNull()?.position
+                                                if (tapPosition != null) {
+                                                    clickOffset = tapPosition
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .combinedClickable(
                                     enabled = true,
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() },
                                     onClick = {
-                                        if(mediaMetadata.album!=null){
-                                            navController.navigate("album/${mediaMetadata.album.id}")
-                                            state.collapseSoft()
+                                        //moving to temp val to avoid changes mid operation.
+                                        val tapPosition = clickOffset
+                                        val layout = layoutResult
+                                        if(tapPosition!=null && layout!=null){
+                                            val offset = layout.getOffsetForPosition(tapPosition)
+                                            annotatedString.getStringAnnotations(offset, offset)
+                                                .firstOrNull()
+                                                ?.let { ann ->
+                                                    val artistId = ann.item
+                                                    if (artistId.isNotBlank()) {
+                                                        navController.navigate("artist/$artistId")
+                                                        state.collapseSoft()
+                                                    }
+                                                }
                                         }
                                     },
                                     onLongClick = {
-                                        val clip = ClipData.newPlainText("Copied Title", title)
+                                        val clip = ClipData.newPlainText("Copied Artist", annotatedString)
                                         clipboardManager.setPrimaryClip(clip)
-                                        Toast.makeText(context, "Copied Title", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Copied Artist", Toast.LENGTH_SHORT).show()
                                     }
                                 )
-                            ,
-                        )
-                    }
-
-                    Spacer(Modifier.height(6.dp))
-
-                    val annotatedString = buildAnnotatedString {
-                        mediaMetadata.artists.forEachIndexed { index, artist ->
-                            val tag = "artist_${artist.id.orEmpty()}"
-                            pushStringAnnotation(tag = tag, annotation = artist.id.orEmpty())
-                            withStyle(SpanStyle(color = TextBackgroundColor, fontSize = 16.sp)) {
-                                append(artist.name)
-                            }
-                            pop()
-                            if (index != mediaMetadata.artists.lastIndex) append(", ")
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .basicMarquee()
-                            .padding(end = 12.dp)
-                    ) {
-                        var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-                        var clickOffset by remember { mutableStateOf<Offset?>(null) }
-                        Text(
-                            text = annotatedString,
-                            style = MaterialTheme.typography.titleMedium.copy(color = TextBackgroundColor),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            onTextLayout = { layoutResult = it },
-                            modifier = Modifier
-                                .pointerInput(Unit) {
-                                    awaitPointerEventScope {
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val tapPosition = event.changes.firstOrNull()?.position
-                                            if (tapPosition != null) {
-                                                clickOffset = tapPosition
-                                            }
-                                        }
-                                    }
-                                }
-                                .combinedClickable(
-                                enabled = true,
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() },
-                                onClick = {
-                                    //moving to temp val to avoid changes mid operation.
-                                    val tapPosition = clickOffset
-                                    val layout = layoutResult
-                                    if(tapPosition!=null && layout!=null){
-                                        val offset = layout.getOffsetForPosition(tapPosition)
-                                        annotatedString.getStringAnnotations(offset, offset)
-                                            .firstOrNull()
-                                            ?.let { ann ->
-                                                val artistId = ann.item
-                                                if (artistId.isNotBlank()) {
-                                                    navController.navigate("artist/$artistId")
-                                                    state.collapseSoft()
-                                                }
-                                            }
-                                    }
-                                },
-                                onLongClick = {
-                                    val clip = ClipData.newPlainText("Copied Artist", annotatedString)
-                                    clipboardManager.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Copied Artist", Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                if (useNewPlayerDesign) {
-                    val shareShape = RoundedCornerShape(
-                        topStart = 50.dp, bottomStart = 50.dp,
-                        topEnd = 10.dp, bottomEnd = 10.dp
-                    )
-
-                    val favShape = RoundedCornerShape(
-                        topStart = 10.dp, bottomStart = 10.dp,
-                        topEnd = 50.dp, bottomEnd = 50.dp  
-                    )
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(shareShape)
-                                .background(textButtonColor)
-                                .clickable {
-                                    val intent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.youtube.com/watch?v=${mediaMetadata.id}"
-                                        )
-                                    }
-                                    context.startActivity(Intent.createChooser(intent, null))
-                                }
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.share),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(iconButtonColor),
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(24.dp)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(favShape)
-                                .background(textButtonColor)
-                                .clickable {
-                                    playerConnection.toggleLike()
-                                }
-                        ) {
-                            Image(
-                                painter = painterResource(
-                                    if (currentSong?.song?.liked == true)
-                                        R.drawable.favorite
-                                    else R.drawable.favorite_border
-                                ),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(iconButtonColor),
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(24.dp)
                             )
                         }
                     }
-                } else {
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
                     Box(
                         modifier =
                         Modifier
@@ -753,7 +730,7 @@ fun BottomSheetPlayer(
                     }
 
                     Spacer(modifier = Modifier.size(12.dp))
-                
+
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier =
@@ -786,197 +763,108 @@ fun BottomSheetPlayer(
                         )
                     }
                 }
-            }
 
-            Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(12.dp))
 
-            when (sliderStyle) {
-                SliderStyle.DEFAULT -> {
-                    Slider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                        onValueChange = {
-                            sliderPosition = it.toLong()
-                        },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
-                            sliderPosition = null
-                        },
-                        colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                    )
-                }
-
-                SliderStyle.SQUIGGLY -> {
-                    SquigglySlider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                        onValueChange = {
-                            sliderPosition = it.toLong()
-                        },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
-                            sliderPosition = null
-                        },
-                        colors = PlayerSliderColors.squigglySliderColors(textButtonColor, playerBackground, useDarkTheme),
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                        squigglesSpec =
-                        SquigglySlider.SquigglesSpec(
-                            amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
-                            strokeWidth = 3.dp,
-                        ),
-                    )
-                }
-
-                SliderStyle.SLIM -> {
-                    Slider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                        onValueChange = {
-                            sliderPosition = it.toLong()
-                        },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
-                            sliderPosition = null
-                        },
-                        thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                        track = { sliderState ->
-                            PlayerSliderTrack(
-                                sliderState = sliderState,
-                                colors = PlayerSliderColors.slimSliderColors(textButtonColor, playerBackground, useDarkTheme)
-                            )
-                        },
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding + 4.dp),
-            ) {
-                Text(
-                    text = makeTimeString(sliderPosition ?: position),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextBackgroundColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Text(
-                    text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextBackgroundColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            if (useNewPlayerDesign) {
-                BoxWithConstraints(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val maxW = maxWidth
-                    val playButtonHeight = maxW / 6f
-                    val playButtonWidth = playButtonHeight * 1.6f
-                    val sideButtonHeight = playButtonHeight * 0.8f
-                    val sideButtonWidth = sideButtonHeight * 1.3f
-
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-
-                        FilledTonalIconButton(
-                            onClick = playerConnection::seekToPrevious,
-                            enabled = canSkipPrevious,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = textButtonColor,
-                                contentColor = iconButtonColor
-                            ),
-                            modifier = Modifier
-                                .size(width = sideButtonWidth, height = sideButtonHeight)
-                                .clip(RoundedCornerShape(32.dp))
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.skip_previous),
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        FilledIconButton(
-                            onClick = {
-                                if (playbackState == STATE_ENDED) {
-                                    playerConnection.player.seekTo(0, 0)
-                                    playerConnection.player.playWhenReady = true
-                                } else {
-                                    playerConnection.player.togglePlayPause()
-                                }
+                when (sliderStyle) {
+                    SliderStyle.DEFAULT -> {
+                        Slider(
+                            value = (sliderPosition ?: position).toFloat(),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            onValueChange = {
+                                sliderPosition = it.toLong()
                             },
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = textButtonColor,
-                                contentColor = iconButtonColor
-                            ),
-                            modifier = Modifier
-                                .size(width = playButtonWidth, height = playButtonHeight)
-                                .clip(RoundedCornerShape(32.dp))
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    when {
-                                        playbackState == STATE_ENDED -> R.drawable.replay
-                                        isPlaying -> R.drawable.pause
-                                        else -> R.drawable.play
-                                    }
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(42.dp)
-                            )
-                        }
+                            onValueChangeFinished = {
+                                sliderPosition?.let {
+                                    playerConnection.player.seekTo(it)
+                                    position = it
+                                }
+                                sliderPosition = null
+                            },
+                            colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
+                        )
+                    }
 
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        FilledTonalIconButton(
-                            onClick = playerConnection::seekToNext,
-                            enabled = canSkipNext,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = textButtonColor,
-                                contentColor = iconButtonColor
+                    SliderStyle.SQUIGGLY -> {
+                        SquigglySlider(
+                            value = (sliderPosition ?: position).toFloat(),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            onValueChange = {
+                                sliderPosition = it.toLong()
+                            },
+                            onValueChangeFinished = {
+                                sliderPosition?.let {
+                                    playerConnection.player.seekTo(it)
+                                    position = it
+                                }
+                                sliderPosition = null
+                            },
+                            colors = PlayerSliderColors.squigglySliderColors(textButtonColor, playerBackground, useDarkTheme),
+                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
+                            squigglesSpec =
+                            SquigglySlider.SquigglesSpec(
+                                amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
+                                strokeWidth = 3.dp,
                             ),
-                            modifier = Modifier
-                                .size(width = sideButtonWidth, height = sideButtonHeight)
-                                .clip(RoundedCornerShape(32.dp))
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.skip_next),
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }      
+                        )
+                    }
+
+                    SliderStyle.SLIM -> {
+                        Slider(
+                            value = (sliderPosition ?: position).toFloat(),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            onValueChange = {
+                                sliderPosition = it.toLong()
+                            },
+                            onValueChangeFinished = {
+                                sliderPosition?.let {
+                                    playerConnection.player.seekTo(it)
+                                    position = it
+                                }
+                                sliderPosition = null
+                            },
+                            thumb = { Spacer(modifier = Modifier.size(0.dp)) },
+                            track = { sliderState ->
+                                PlayerSliderTrack(
+                                    sliderState = sliderState,
+                                    colors = PlayerSliderColors.slimSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                )
+                            },
+                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
+                        )
                     }
                 }
-            } else {            
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PlayerHorizontalPadding + 4.dp),
+                ) {
+                    Text(
+                        text = makeTimeString(sliderPosition ?: position),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextBackgroundColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Text(
+                        text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextBackgroundColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
@@ -1228,7 +1116,7 @@ fun BottomSheetPlayer(
             onShowLyrics = { lyricsSheetState.expandSoft() },
             pureBlack = pureBlack,
         )
-        
+
         // Lyrics BottomSheet - separate from Queue
         mediaMetadata?.let { metadata ->
             BottomSheet(
