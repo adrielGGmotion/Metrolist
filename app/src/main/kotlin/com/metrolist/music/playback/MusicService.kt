@@ -1427,6 +1427,7 @@ class MusicService :
                 .Builder(this@MusicService)
                 .setEnableFloatOutput(enableFloatOutput)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .setEnableGapless(true)
                 .setAudioProcessorChain(
                     DefaultAudioSink.DefaultAudioProcessorChain(
                         emptyArray(),
