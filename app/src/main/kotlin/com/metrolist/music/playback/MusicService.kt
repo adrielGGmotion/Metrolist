@@ -1430,7 +1430,7 @@ class MusicService :
                 .setAudioProcessorChain(
                     DefaultAudioSink.DefaultAudioProcessorChain(
                         emptyArray(),
-                        SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
+                        SilenceSkippingAudioProcessor(2_000_000, 0, 256),
                         SonicAudioProcessor(),
                     ),
                 ).build()
