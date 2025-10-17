@@ -38,6 +38,9 @@ class OnlinePlaylistViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
 
+    private val _isCloning = MutableStateFlow(false)
+    val isCloning = _isCloning.asStateFlow()
+
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
@@ -146,8 +149,9 @@ class OnlinePlaylistViewModel @Inject constructor(
         proactiveLoadJob?.cancel()
     }
 
-    fun clonePlaylist() {
+    fun clonePlaylist(onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            _isCloning.value = true
             val originalPlaylist = playlist.value ?: return@launch
             val originalSongs = playlistSongs.value
 
@@ -172,6 +176,58 @@ class OnlinePlaylistViewModel @Inject constructor(
                     }
                     .forEach(::insert)
             }
+            _isCloning.value = false
+            onSuccess()
+        }
+    }
+
+    fun syncWithYouTube(onSuccess: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isCloning.value = true
+            val dbPlaylistValue = dbPlaylist.value
+
+            if (dbPlaylistValue?.playlist == null) {
+                database.transaction {
+                    val playlistEntity = playlist.value?.let {
+                        PlaylistEntity(
+                            name = it.title,
+                            browseId = it.id,
+                            thumbnailUrl = it.thumbnail,
+                            isEditable = it.isEditable,
+                            playEndpointParams = it.playEndpoint?.params,
+                            shuffleEndpointParams = it.shuffleEndpoint?.params,
+                            radioEndpointParams = it.radioEndpoint?.params
+                        ).toggleLike()
+                    }
+                    if (playlistEntity != null) {
+                        insert(playlistEntity)
+                    }
+                    playlistSongs.value.map(SongItem::toMediaMetadata)
+                        .onEach(::insert)
+                        .mapIndexed { index, song ->
+                            if (playlistEntity != null) {
+                                PlaylistSongMap(
+                                    songId = song.id,
+                                    playlistId = playlistEntity.id,
+                                    position = index
+                                )
+                            } else {
+                                null
+                            }
+                        }
+                        .filterNotNull()
+                        .forEach(::insert)
+                }
+            } else {
+                database.transaction {
+                    // Update playlist information including thumbnail before toggling like
+                    val currentPlaylist = dbPlaylistValue.playlist
+                    playlist.value?.let { update(currentPlaylist, it) }
+                    update(currentPlaylist.toggleLike())
+                }
+            }
+            _isCloning.value = false
+            onSuccess()
         }
     }
 }
