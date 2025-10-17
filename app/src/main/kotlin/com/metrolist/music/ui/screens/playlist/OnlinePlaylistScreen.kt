@@ -96,6 +96,7 @@ import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.ui.component.AutoResizeText
+import com.metrolist.music.ui.component.ClonePlaylistDialog
 import com.metrolist.music.ui.component.DraggableScrollbar
 import com.metrolist.music.ui.component.FontSizeRange
 import com.metrolist.music.ui.component.IconButton
@@ -142,6 +143,17 @@ fun OnlinePlaylistScreen(
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var showCloneDialog by remember { mutableStateOf(false) }
+
+    if (showCloneDialog) {
+        ClonePlaylistDialog(
+            onConfirm = {
+                viewModel.clonePlaylist()
+            },
+            onDismiss = { showCloneDialog = false }
+        )
+    }
 
     var isSearching by rememberSaveable { mutableStateOf(false) }
 
@@ -377,6 +389,19 @@ fun OnlinePlaylistScreen(
                                                         ),
                                                         contentDescription = null,
                                                         tint = if (dbPlaylist?.playlist?.bookmarkedAt != null) MaterialTheme.colorScheme.error else LocalContentColor.current
+                                                    )
+                                                }
+                                            }
+
+                                            if (playlist.isEditable == false) {
+                                                IconButton(
+                                                    onClick = {
+                                                        showCloneDialog = true
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.add),
+                                                        contentDescription = stringResource(R.string.clone_playlist),
                                                     )
                                                 }
                                             }
