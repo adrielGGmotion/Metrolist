@@ -117,6 +117,11 @@ import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.filterExplicit
+import com.metrolist.music.sync.Command
+import com.metrolist.music.sync.PlaybackState
+import com.metrolist.music.sync.RepeatMode as SyncRepeatMode
+import com.metrolist.music.sync.SyncManager
+import com.metrolist.music.sync.TrackInfo
 import com.metrolist.music.utils.CoilBitmapLoader
 import com.metrolist.music.utils.DiscordRPC
 import com.metrolist.music.utils.NetworkConnectivityObserver
@@ -236,8 +241,26 @@ class MusicService :
 
     private var consecutivePlaybackErr = 0
 
+    var syncManager: SyncManager? = null
+
     override fun onCreate() {
         super.onCreate()
+
+        scope.launch {
+            dataStore.data
+                .map { it[com.metrolist.music.constants.EnableMultiDeviceSyncKey] ?: false }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    if (enabled) {
+                        syncManager = SyncManager(this@MusicService, this@MusicService, scope)
+                        syncManager?.start()
+                    } else {
+                        syncManager?.stop()
+                        syncManager = null
+                    }
+                }
+        }
+
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
                 this,
@@ -1179,6 +1202,17 @@ class MusicService :
     ) {
         if (events.containsAny(
                 Player.EVENT_PLAYBACK_STATE_CHANGED,
+                Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                Player.EVENT_MEDIA_ITEM_TRANSITION,
+                Player.EVENT_REPEAT_MODE_CHANGED,
+                Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
+            )
+        ) {
+            broadcastPlaybackState()
+        }
+
+        if (events.containsAny(
+                Player.EVENT_PLAYBACK_STATE_CHANGED,
                 Player.EVENT_PLAY_WHEN_READY_CHANGED
             )
         ) {
@@ -1552,7 +1586,98 @@ class MusicService :
         player.removeListener(sleepTimer)
         player.release()
         discordUpdateJob?.cancel()
+        syncManager?.stop()
         super.onDestroy()
+    }
+
+    fun handleSyncCommand(command: Command) {
+        when (command) {
+            is Command.Play -> player.play()
+            is Command.Pause -> player.pause()
+            is Command.Seek -> player.seekTo(command.positionMs)
+            is Command.PlayTrack -> {
+                player.seekTo(command.positionInQueue, C.TIME_UNSET)
+            }
+            is Command.AddToQueue -> {
+                scope.launch {
+                    val mediaItem = database.song(command.trackId).first()?.toMediaItem()
+                    if (mediaItem != null) {
+                        addToQueue(listOf(mediaItem))
+                    }
+                }
+            }
+            is Command.RequestState -> {
+                val currentState = createPlaybackState()
+                syncManager?.broadcastPlaybackState(currentState)
+            }
+        }
+    }
+
+    fun handleSyncStateUpdate(state: PlaybackState) {
+        player.playWhenReady = state.isPlaying
+        player.seekTo(state.positionMs)
+        player.volume = state.volume / 100f
+        player.shuffleModeEnabled = state.shuffleMode
+        player.repeatMode = when (state.repeatMode) {
+            SyncRepeatMode.ONE -> REPEAT_MODE_ONE
+            SyncRepeatMode.ALL -> REPEAT_MODE_ALL
+            else -> REPEAT_MODE_OFF
+        }
+        val mediaItems = state.queue.map {
+            MediaItem.Builder()
+                .setMediaId(it.id)
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(it.title)
+                        .setArtist(it.artist)
+                        .setAlbumTitle(it.album)
+                        .setArtworkUri(it.artworkUrl?.toUri())
+                        .build()
+                )
+                .build()
+        }
+        player.setMediaItems(mediaItems, 0, C.TIME_UNSET)
+        player.prepare()
+    }
+
+    private fun broadcastPlaybackState() {
+        val state = createPlaybackState()
+        syncManager?.broadcastPlaybackState(state)
+    }
+
+    private fun createPlaybackState(): PlaybackState {
+        return PlaybackState(
+            isPlaying = player.isPlaying,
+            currentTrack = player.currentMediaItem?.let {
+                TrackInfo(
+                    id = it.mediaId,
+                    title = it.mediaMetadata.title.toString(),
+                    artist = it.mediaMetadata.artist.toString(),
+                    album = it.mediaMetadata.albumTitle.toString(),
+                    artworkUrl = it.mediaMetadata.artworkUri.toString(),
+                    durationMs = player.duration
+                )
+            },
+            positionMs = player.currentPosition,
+            durationMs = player.duration,
+            volume = (player.volume * 100).toInt(),
+            shuffleMode = player.shuffleModeEnabled,
+            repeatMode = when (player.repeatMode) {
+                REPEAT_MODE_ONE -> SyncRepeatMode.ONE
+                REPEAT_MODE_ALL -> SyncRepeatMode.ALL
+                else -> SyncRepeatMode.NONE
+            },
+            queue = player.mediaItems.map {
+                TrackInfo(
+                    id = it.mediaId,
+                    title = it.mediaMetadata.title.toString(),
+                    artist = it.mediaMetadata.artist.toString(),
+                    album = it.mediaMetadata.albumTitle.toString(),
+                    artworkUrl = it.mediaMetadata.artworkUri.toString(),
+                    durationMs = it.mediaMetadata.extras?.getLong("duration") ?: 0L
+                )
+            }
+        )
     }
 
     override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
