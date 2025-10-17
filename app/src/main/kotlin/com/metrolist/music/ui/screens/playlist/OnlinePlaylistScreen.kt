@@ -33,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -96,6 +97,7 @@ import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.ui.component.AutoResizeText
+import com.metrolist.music.ui.component.ClonePlaylistDialog
 import com.metrolist.music.ui.component.DraggableScrollbar
 import com.metrolist.music.ui.component.FontSizeRange
 import com.metrolist.music.ui.component.IconButton
@@ -112,6 +114,7 @@ import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.ui.utils.ItemWrapper
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.OnlinePlaylistViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -131,6 +134,7 @@ fun OnlinePlaylistScreen(
     val songs by viewModel.playlistSongs.collectAsState()
     val dbPlaylist by viewModel.dbPlaylist.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isCloning by viewModel.isCloning.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -142,6 +146,34 @@ fun OnlinePlaylistScreen(
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var showCloneDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    if (showCloneDialog) {
+        ClonePlaylistDialog(
+            onCloneLocally = {
+                viewModel.clonePlaylist {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.playlist_cloned)
+                        )
+                    }
+                }
+            },
+            onSyncWithYouTube = {
+                viewModel.syncWithYouTube {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.playlist_synced)
+                        )
+                    }
+                }
+            },
+            onDismiss = { showCloneDialog = false }
+        )
+    }
 
     var isSearching by rememberSaveable { mutableStateOf(false) }
 
@@ -208,6 +240,9 @@ fun OnlinePlaylistScreen(
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
+        if (isCloning) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        }
         LazyColumn(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime)
@@ -377,6 +412,19 @@ fun OnlinePlaylistScreen(
                                                         ),
                                                         contentDescription = null,
                                                         tint = if (dbPlaylist?.playlist?.bookmarkedAt != null) MaterialTheme.colorScheme.error else LocalContentColor.current
+                                                    )
+                                                }
+                                            }
+
+                                            if (playlist.isEditable == false) {
+                                                IconButton(
+                                                    onClick = {
+                                                        showCloneDialog = true
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.add),
+                                                        contentDescription = stringResource(R.string.clone_playlist),
                                                     )
                                                 }
                                             }
