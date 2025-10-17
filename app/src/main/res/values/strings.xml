@@ -84,6 +84,7 @@
     <string name="clone_locally">Clone locally</string>
     <string name="sync_with_youtube">Sync with YouTube</string>
     <string name="playlist_cloned">Playlist cloned</string>
+    <string name="playlist_synced">Playlist synced</string>
 
     <!-- Button -->
     <string name="retry">Retry</string>
@@ -201,7 +202,6 @@
     <!-- Snackbar -->
     <string name="playlist_imported">Playlist imported</string>
     <string name="removed_song_from_playlist">Removed \"%s\" from playlist</string>
-    <string name="playlist_synced">Playlist synced</string>
     <string name="undo">Undo</string>
 
     <!-- Player -->

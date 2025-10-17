@@ -159,6 +159,7 @@ class OnlinePlaylistViewModel @Inject constructor(
                 name = originalPlaylist.title,
                 thumbnailUrl = originalPlaylist.thumbnail,
                 isEditable = true,
+                isLocal = true,
                 createdAt = LocalDateTime.now(),
                 lastUpdateTime = LocalDateTime.now(),
             )
@@ -184,46 +185,14 @@ class OnlinePlaylistViewModel @Inject constructor(
     fun syncWithYouTube(onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             _isCloning.value = true
-            val dbPlaylistValue = dbPlaylist.value
+            val originalPlaylist = playlist.value ?: return@launch
+            val originalSongs = playlistSongs.value
 
-            if (dbPlaylistValue?.playlist == null) {
-                database.transaction {
-                    val playlistEntity = playlist.value?.let {
-                        PlaylistEntity(
-                            name = it.title,
-                            browseId = it.id,
-                            thumbnailUrl = it.thumbnail,
-                            isEditable = it.isEditable,
-                            playEndpointParams = it.playEndpoint?.params,
-                            shuffleEndpointParams = it.shuffleEndpoint?.params,
-                            radioEndpointParams = it.radioEndpoint?.params
-                        ).toggleLike()
-                    }
-                    if (playlistEntity != null) {
-                        insert(playlistEntity)
-                    }
-                    playlistSongs.value.map(SongItem::toMediaMetadata)
-                        .onEach(::insert)
-                        .mapIndexed { index, song ->
-                            if (playlistEntity != null) {
-                                PlaylistSongMap(
-                                    songId = song.id,
-                                    playlistId = playlistEntity.id,
-                                    position = index
-                                )
-                            } else {
-                                null
-                            }
-                        }
-                        .filterNotNull()
-                        .forEach(::insert)
-                }
-            } else {
-                database.transaction {
-                    // Update playlist information including thumbnail before toggling like
-                    val currentPlaylist = dbPlaylistValue.playlist
-                    playlist.value?.let { update(currentPlaylist, it) }
-                    update(currentPlaylist.toggleLike())
+            val newPlaylistId = YouTube.createPlaylist(originalPlaylist.title)
+
+            if (newPlaylistId != null) {
+                originalSongs.forEach { song ->
+                    YouTube.addToPlaylist(newPlaylistId, song.id)
                 }
             }
             _isCloning.value = false
