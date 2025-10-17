@@ -19,10 +19,16 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.metrolist.music.db.entities.PlaylistEntity
+import com.metrolist.music.db.entities.PlaylistSongMap
+import com.metrolist.music.models.toMediaMetadata
+import kotlinx.coroutines.flow.first
+import java.time.LocalDateTime
+
 @HiltViewModel
 class OnlinePlaylistViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    database: MusicDatabase
+    private val database: MusicDatabase
 ) : ViewModel() {
     private val playlistId = savedStateHandle.get<String>("playlistId")!!
 
@@ -138,5 +144,34 @@ class OnlinePlaylistViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         proactiveLoadJob?.cancel()
+    }
+
+    fun clonePlaylist() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val originalPlaylist = playlist.value ?: return@launch
+            val originalSongs = playlistSongs.value
+
+            val newPlaylist = PlaylistEntity(
+                name = originalPlaylist.title,
+                thumbnailUrl = originalPlaylist.thumbnail,
+                isEditable = true,
+                createdAt = LocalDateTime.now(),
+                lastUpdateTime = LocalDateTime.now(),
+            )
+
+            database.transaction {
+                insert(newPlaylist)
+                originalSongs.map(SongItem::toMediaMetadata)
+                    .onEach(::insert)
+                    .mapIndexed { index, song ->
+                        PlaylistSongMap(
+                            songId = song.id,
+                            playlistId = newPlaylist.id,
+                            position = index
+                        )
+                    }
+                    .forEach(::insert)
+            }
+        }
     }
 }
