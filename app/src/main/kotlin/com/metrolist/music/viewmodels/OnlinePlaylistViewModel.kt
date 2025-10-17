@@ -186,14 +186,11 @@ class OnlinePlaylistViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             _isCloning.value = true
             val originalPlaylist = playlist.value ?: return@launch
-            val originalSongs = playlistSongs.value
 
             val newPlaylistId = YouTube.createPlaylist(originalPlaylist.title)
 
             if (newPlaylistId != null) {
-                originalSongs.forEach { song ->
-                    YouTube.addToPlaylist(newPlaylistId, song.id)
-                }
+                YouTube.addPlaylistToPlaylist(newPlaylistId, originalPlaylist.id)
             }
             _isCloning.value = false
             onSuccess()
