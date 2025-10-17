@@ -19,16 +19,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-import com.metrolist.music.db.entities.PlaylistEntity
-import com.metrolist.music.db.entities.PlaylistSongMap
-import com.metrolist.music.models.toMediaMetadata
-import kotlinx.coroutines.flow.first
-import java.time.LocalDateTime
-
 @HiltViewModel
 class OnlinePlaylistViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val database: MusicDatabase
+    database: MusicDatabase
 ) : ViewModel() {
     private val playlistId = savedStateHandle.get<String>("playlistId")!!
 
@@ -37,12 +31,6 @@ class OnlinePlaylistViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
-
-    private val _isCloning = MutableStateFlow(false)
-    val isCloning = _isCloning.asStateFlow()
-
-    private val _syncProgress = MutableStateFlow(0)
-    val syncProgress = _syncProgress.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
@@ -150,65 +138,5 @@ class OnlinePlaylistViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         proactiveLoadJob?.cancel()
-    }
-
-    fun clonePlaylist(onSuccess: () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isCloning.value = true
-            val originalPlaylist = playlist.value ?: return@launch
-            val originalSongs = playlistSongs.value
-
-            val newPlaylist = PlaylistEntity(
-                name = originalPlaylist.title,
-                thumbnailUrl = originalPlaylist.thumbnail,
-                isEditable = true,
-                isLocal = true,
-                createdAt = LocalDateTime.now(),
-                lastUpdateTime = LocalDateTime.now(),
-            )
-
-            database.transaction {
-                insert(newPlaylist)
-                originalSongs.map(SongItem::toMediaMetadata)
-                    .onEach {
-                        val existingSong = getSongByIdBlocking(it.id)
-                        if (existingSong != null) {
-                            update(existingSong, it)
-                        } else {
-                            insert(it)
-                        }
-                    }
-                    .mapIndexed { index, song ->
-                        PlaylistSongMap(
-                            songId = song.id,
-                            playlistId = newPlaylist.id,
-                            position = index
-                        )
-                    }
-                    .forEach(::insert)
-            }
-            _isCloning.value = false
-            onSuccess()
-        }
-    }
-
-    fun syncWithYouTube(onSuccess: () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isCloning.value = true
-            _syncProgress.value = 0
-            val originalPlaylist = playlist.value ?: return@launch
-            val originalSongs = playlistSongs.value
-
-            val newPlaylistId = YouTube.createPlaylist(originalPlaylist.title)
-
-            if (newPlaylistId != null) {
-                originalSongs.forEachIndexed { index, song ->
-                    YouTube.addToPlaylist(newPlaylistId, song.id)
-                    _syncProgress.value = index + 1
-                }
-            }
-            _isCloning.value = false
-            onSuccess()
-        }
     }
 }
