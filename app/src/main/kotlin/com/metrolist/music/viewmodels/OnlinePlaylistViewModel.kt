@@ -41,6 +41,9 @@ class OnlinePlaylistViewModel @Inject constructor(
     private val _isCloning = MutableStateFlow(false)
     val isCloning = _isCloning.asStateFlow()
 
+    private val _syncProgress = MutableStateFlow(0)
+    val syncProgress = _syncProgress.asStateFlow()
+
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
@@ -167,7 +170,14 @@ class OnlinePlaylistViewModel @Inject constructor(
             database.transaction {
                 insert(newPlaylist)
                 originalSongs.map(SongItem::toMediaMetadata)
-                    .onEach(::insert)
+                    .onEach {
+                        val existingSong = getSongByIdBlocking(it.id)
+                        if (existingSong != null) {
+                            update(existingSong, it)
+                        } else {
+                            insert(it)
+                        }
+                    }
                     .mapIndexed { index, song ->
                         PlaylistSongMap(
                             songId = song.id,
@@ -185,12 +195,17 @@ class OnlinePlaylistViewModel @Inject constructor(
     fun syncWithYouTube(onSuccess: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             _isCloning.value = true
+            _syncProgress.value = 0
             val originalPlaylist = playlist.value ?: return@launch
+            val originalSongs = playlistSongs.value
 
             val newPlaylistId = YouTube.createPlaylist(originalPlaylist.title)
 
             if (newPlaylistId != null) {
-                YouTube.addPlaylistToPlaylist(newPlaylistId, originalPlaylist.id)
+                originalSongs.forEachIndexed { index, song ->
+                    YouTube.addToPlaylist(newPlaylistId, song.id)
+                    _syncProgress.value = index + 1
+                }
             }
             _isCloning.value = false
             onSuccess()

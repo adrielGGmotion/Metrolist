@@ -1073,34 +1073,6 @@ fun BottomSheetPlayer(
                     }
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                var showDevicesDialog by remember { mutableStateOf(false) }
-
-                TextButton(onClick = { showDevicesDialog = true }) {
-                    Icon(
-                        painter = painterResource(R.drawable.cast_connected),
-                        contentDescription = stringResource(R.string.connect_to_a_device),
-                        tint = TextBackgroundColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.connect_to_a_device),
-                        color = TextBackgroundColor
-                    )
-                }
-
-                if (showDevicesDialog) {
-                    DevicesDialog(
-                        onDismissRequest = { showDevicesDialog = false },
-                        playerConnection = playerConnection
-                    )
-                }
-            }
         }
 
         when (LocalConfiguration.current.orientation) {

@@ -85,6 +85,7 @@
     <string name="sync_with_youtube">Sync with YouTube</string>
     <string name="playlist_cloned">Playlist cloned</string>
     <string name="playlist_synced">Playlist synced</string>
+    <string name="syncing_progress">Syncing %1$d/%2$d...</string>
 
     <!-- Button -->
     <string name="retry">Retry</string>
@@ -345,9 +346,4 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
-    <string name="connect_to_a_device">Connect to a device</string>
-    <string name="multi_device_sync">Multi-device sync</string>
-    <string name="enable_multi_device_sync">Enable multi-device sync</string>
-    <string name="enable_multi_device_sync_desc">Allow other devices on the same network to control this device\'s playback.</string>
-    <string name="disconnect">Disconnect</string>
 </resources>

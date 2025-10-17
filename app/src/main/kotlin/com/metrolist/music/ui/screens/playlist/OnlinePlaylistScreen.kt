@@ -135,6 +135,7 @@ fun OnlinePlaylistScreen(
     val dbPlaylist by viewModel.dbPlaylist.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isCloning by viewModel.isCloning.collectAsState()
+    val syncProgress by viewModel.syncProgress.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -241,7 +242,21 @@ fun OnlinePlaylistScreen(
         modifier = Modifier.fillMaxSize(),
     ) {
         if (isCloning) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CircularProgressIndicator()
+                if (syncProgress > 0) {
+                    Text(
+                        text = stringResource(
+                            R.string.syncing_progress,
+                            syncProgress,
+                            songs.size
+                        )
+                    )
+                }
+            }
         }
         LazyColumn(
             state = lazyListState,
