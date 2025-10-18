@@ -3,6 +3,7 @@ package com.metrolist.music.discovery
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,8 @@ class NsdServiceManager @Inject constructor(
     private val _discoveredDevices = MutableStateFlow<List<Device>>(emptyList())
     val discoveredDevices = _discoveredDevices.asStateFlow()
 
+    private val TAG = "NsdServiceManager"
+
     fun registerService(port: Int) {
         val serviceInfo = NsdServiceInfo().apply {
             serviceName = "Metrolist"
@@ -34,19 +37,19 @@ class NsdServiceManager @Inject constructor(
 
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-                // Service registered
+                Log.d(TAG, "Service registered: ${serviceInfo.serviceName}")
             }
 
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                // Registration failed
+                Log.e(TAG, "Registration failed for ${serviceInfo.serviceName}. Error code: $errorCode")
             }
 
             override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
-                // Service unregistered
+                Log.d(TAG, "Service unregistered: ${serviceInfo.serviceName}")
             }
 
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                // Unregistration failed
+                Log.e(TAG, "Unregistration failed for ${serviceInfo.serviceName}. Error code: $errorCode")
             }
         }
 
@@ -63,26 +66,30 @@ class NsdServiceManager @Inject constructor(
     fun discoverServices() {
         val discoveryListener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(regType: String) {
-                // Discovery started
+                Log.d(TAG, "Discovery started")
             }
 
             override fun onServiceFound(service: NsdServiceInfo) {
+                Log.d(TAG, "Service found: ${service.serviceName}")
                 nsdManager.resolveService(service, createResolveListener())
             }
 
             override fun onServiceLost(service: NsdServiceInfo) {
+                Log.d(TAG, "Service lost: ${service.serviceName}")
                 _discoveredDevices.value = _discoveredDevices.value.filter { it.name != service.serviceName }
             }
 
             override fun onDiscoveryStopped(serviceType: String) {
-                // Discovery stopped
+                Log.d(TAG, "Discovery stopped")
             }
 
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+                Log.e(TAG, "Start discovery failed. Error code: $errorCode")
                 nsdManager.stopServiceDiscovery(this)
             }
 
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
+                Log.e(TAG, "Stop discovery failed. Error code: $errorCode")
                 nsdManager.stopServiceDiscovery(this)
             }
         }
@@ -93,10 +100,11 @@ class NsdServiceManager @Inject constructor(
     private fun createResolveListener(): NsdManager.ResolveListener {
         return object : NsdManager.ResolveListener {
             override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                // Resolution failed
+                Log.e(TAG, "Resolve failed for ${serviceInfo.serviceName}. Error code: $errorCode")
             }
 
             override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
+                Log.d(TAG, "Service resolved: ${serviceInfo.serviceName}")
                 val device = Device(
                     name = serviceInfo.serviceName,
                     host = serviceInfo.host.hostAddress,

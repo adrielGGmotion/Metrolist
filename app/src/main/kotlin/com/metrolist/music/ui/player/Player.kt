@@ -107,6 +107,7 @@ import com.metrolist.music.R
 import com.metrolist.music.communication.CommunicationManager
 import com.metrolist.music.viewmodels.MainViewModel
 import com.metrolist.music.constants.DarkModeKey
+import com.metrolist.music.constants.MultiDeviceControlEnabledKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.discovery.NsdServiceManager
 import com.metrolist.music.constants.PlayerBackgroundStyle
@@ -162,6 +163,10 @@ fun BottomSheetPlayer(
     val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
         UseNewPlayerDesignKey,
         defaultValue = true
+    )
+    val (multiDeviceControlEnabled, onMultiDeviceControlEnabled) = rememberPreference(
+        MultiDeviceControlEnabledKey,
+        defaultValue = false
     )
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
@@ -728,7 +733,7 @@ fun BottomSheetPlayer(
                             )
                         }
 
-                        if (discoveredDevices.isNotEmpty()) {
+                        if (multiDeviceControlEnabled) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Box(
                                 modifier = Modifier
