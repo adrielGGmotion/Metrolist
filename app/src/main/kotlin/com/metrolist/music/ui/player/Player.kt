@@ -1142,25 +1142,6 @@ fun BottomSheetPlayer(
             }
         }
 
-        Row(
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = PlayerHorizontalPadding)
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp)
-        ) {
-            ResizableIconButton(
-                icon = R.drawable.queue_music,
-                color = TextBackgroundColor,
-                modifier = Modifier
-                    .size(32.dp)
-                    .padding(4.dp),
-                onClick = { queueSheetState.expandSoft() },
-            )
-        }
-
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 Row(
