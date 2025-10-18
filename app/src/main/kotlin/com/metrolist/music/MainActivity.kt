@@ -227,11 +227,8 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var syncUtils: SyncUtils
 
-    @Inject
-    lateinit var nsdServiceManager: NsdServiceManager
-
-    @Inject
-    lateinit var communicationManager: CommunicationManager
+    private lateinit var nsdServiceManager: NsdServiceManager
+    private lateinit var communicationManager: CommunicationManager
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
@@ -303,6 +300,10 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val mainViewModel: MainViewModel by viewModels()
+        nsdServiceManager = mainViewModel.nsdServiceManager
+        communicationManager = mainViewModel.communicationManager
 
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -1019,9 +1020,7 @@ class MainActivity : ComponentActivity() {
                                         BottomSheetPlayer(
                                             state = playerBottomSheetState,
                                             navController = navController,
-                                            pureBlack = pureBlack,
-                                            nsdServiceManager = nsdServiceManager,
-                                            communicationManager = communicationManager
+                                            pureBlack = pureBlack
                                         )
                                         NavigationBar(
                                             modifier = Modifier
@@ -1108,9 +1107,7 @@ class MainActivity : ComponentActivity() {
                                     BottomSheetPlayer(
                                         state = playerBottomSheetState,
                                         navController = navController,
-                                        pureBlack = pureBlack,
-                                        nsdServiceManager = nsdServiceManager,
-                                        communicationManager = communicationManager
+                                        pureBlack = pureBlack
                                     )
 
                                     Box(
