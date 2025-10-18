@@ -253,6 +253,21 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            val multiDeviceControlEnabled = dataStore.data.map { it[MultiDeviceControlEnabledKey] ?: false }.first()
+            if (multiDeviceControlEnabled) {
+                nsdServiceManager.registerService(8080)
+                nsdServiceManager.discoverServices()
+                communicationManager.startServer()
+            } else {
+                nsdServiceManager.unregisterService()
+                communicationManager.stopServer()
+            }
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         // Request notification permission on Android 13+
@@ -334,22 +349,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = true)
-
-            LaunchedEffect(Unit) {
-                dataStore.data
-                    .map { it[MultiDeviceControlEnabledKey] ?: false }
-                    .distinctUntilChanged()
-                    .collectLatest { enabled ->
-                        if (enabled) {
-                            nsdServiceManager.registerService(8080)
-                            nsdServiceManager.discoverServices()
-                            communicationManager.startServer()
-                        } else {
-                            nsdServiceManager.unregisterService()
-                            communicationManager.stopServer()
-                        }
-                    }
-            }
 
             LaunchedEffect(checkForUpdates) {
                 if (checkForUpdates) {

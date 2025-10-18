@@ -727,6 +727,26 @@ fun BottomSheetPlayer(
                                     .size(24.dp)
                             )
                         }
+
+                        if (discoveredDevices.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(textButtonColor)
+                                    .clickable { showDeviceListDialog = true }
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.devices),
+                                    contentDescription = null,
+                                    colorFilter = ColorFilter.tint(iconButtonColor),
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(24.dp)
+                                )
+                            }
+                        }
                     }
                 } else {
                     Box(
@@ -1118,7 +1138,7 @@ fun BottomSheetPlayer(
         }
 
         Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1126,15 +1146,6 @@ fun BottomSheetPlayer(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp)
         ) {
-            ResizableIconButton(
-                icon = R.drawable.devices,
-                color = TextBackgroundColor,
-                modifier = Modifier
-                    .size(32.dp)
-                    .padding(4.dp),
-                onClick = { showDeviceListDialog = true },
-            )
-
             ResizableIconButton(
                 icon = R.drawable.queue_music,
                 color = TextBackgroundColor,
