@@ -1020,7 +1020,8 @@ class MainActivity : ComponentActivity() {
                                         BottomSheetPlayer(
                                             state = playerBottomSheetState,
                                             navController = navController,
-                                            pureBlack = pureBlack
+                                            pureBlack = pureBlack,
+                                            mainViewModel = mainViewModel
                                         )
                                         NavigationBar(
                                             modifier = Modifier
@@ -1107,7 +1108,8 @@ class MainActivity : ComponentActivity() {
                                     BottomSheetPlayer(
                                         state = playerBottomSheetState,
                                         navController = navController,
-                                        pureBlack = pureBlack
+                                        pureBlack = pureBlack,
+                                        mainViewModel = mainViewModel
                                     )
 
                                     Box(
