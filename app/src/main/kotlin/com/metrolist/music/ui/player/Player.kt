@@ -90,6 +90,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Player.STATE_ENDED
@@ -104,8 +105,10 @@ import coil3.toBitmap
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.communication.CommunicationManager
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.discovery.NsdServiceManager
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerButtonsStyle
@@ -146,7 +149,10 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    nsdServiceManager: NsdServiceManager = hiltViewModel(),
+    communicationManager: CommunicationManager = hiltViewModel()
 ) {
+    val discoveredDevices by nsdServiceManager.discoveredDevices.collectAsState()
     val context = LocalContext.current
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val menuState = LocalMenuState.current
@@ -378,6 +384,18 @@ fun BottomSheetPlayer(
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
+    }
+
+    var showDeviceListDialog by remember {
+        mutableStateOf(false)
+    }
+
+    if (showDeviceListDialog) {
+        DeviceListDialog(
+            devices = discoveredDevices,
+            onDismiss = { showDeviceListDialog = false },
+            playerConnection = playerConnection
+        )
     }
 
     LaunchedEffect(playbackState) {
@@ -789,7 +807,11 @@ fun BottomSheetPlayer(
                         },
                         onValueChangeFinished = {
                             sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
+                                if (communicationManager.isConnected()) {
+                                    communicationManager.sendSeek(it)
+                                } else {
+                                    playerConnection.player.seekTo(it)
+                                }
                                 position = it
                             }
                             sliderPosition = null
@@ -895,7 +917,13 @@ fun BottomSheetPlayer(
                     ) {
 
                         FilledTonalIconButton(
-                            onClick = playerConnection::seekToPrevious,
+                            onClick = {
+                                if (communicationManager.isConnected()) {
+                                    communicationManager.sendPrevious()
+                                } else {
+                                    playerConnection.player.seekToPrevious()
+                                }
+                            },
                             enabled = canSkipPrevious,
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = textButtonColor,
@@ -916,11 +944,19 @@ fun BottomSheetPlayer(
 
                         FilledIconButton(
                             onClick = {
-                                if (playbackState == STATE_ENDED) {
-                                    playerConnection.player.seekTo(0, 0)
-                                    playerConnection.player.playWhenReady = true
+                                if (communicationManager.isConnected()) {
+                                    if (isPlaying) {
+                                        communicationManager.sendPause()
+                                    } else {
+                                        communicationManager.sendPlay()
+                                    }
                                 } else {
-                                    playerConnection.player.togglePlayPause()
+                                    if (playbackState == STATE_ENDED) {
+                                        playerConnection.player.seekTo(0, 0)
+                                        playerConnection.player.playWhenReady = true
+                                    } else {
+                                        playerConnection.player.togglePlayPause()
+                                    }
                                 }
                             },
                             colors = IconButtonDefaults.filledIconButtonColors(
@@ -947,7 +983,13 @@ fun BottomSheetPlayer(
                         Spacer(modifier = Modifier.width(16.dp))
 
                         FilledTonalIconButton(
-                            onClick = playerConnection::seekToNext,
+                            onClick = {
+                                if (communicationManager.isConnected()) {
+                                    communicationManager.sendNext()
+                                } else {
+                                    playerConnection.player.seekToNext()
+                                }
+                            },
                             enabled = canSkipNext,
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = textButtonColor,
@@ -1073,34 +1115,34 @@ fun BottomSheetPlayer(
                     }
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                var showDevicesDialog by remember { mutableStateOf(false) }
+        }
 
-                TextButton(onClick = { showDevicesDialog = true }) {
-                    Icon(
-                        painter = painterResource(R.drawable.cast_connected),
-                        contentDescription = stringResource(R.string.connect_to_a_device),
-                        tint = TextBackgroundColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.connect_to_a_device),
-                        color = TextBackgroundColor
-                    )
-                }
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PlayerHorizontalPadding)
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp)
+        ) {
+            ResizableIconButton(
+                icon = R.drawable.devices,
+                color = TextBackgroundColor,
+                modifier = Modifier
+                    .size(32.dp)
+                    .padding(4.dp),
+                onClick = { showDeviceListDialog = true },
+            )
 
-                if (showDevicesDialog) {
-                    DevicesDialog(
-                        onDismissRequest = { showDevicesDialog = false },
-                        playerConnection = playerConnection
-                    )
-                }
-            }
+            ResizableIconButton(
+                icon = R.drawable.queue_music,
+                color = TextBackgroundColor,
+                modifier = Modifier
+                    .size(32.dp)
+                    .padding(4.dp),
+                onClick = { queueSheetState.expandSoft() },
+            )
         }
 
         when (LocalConfiguration.current.orientation) {

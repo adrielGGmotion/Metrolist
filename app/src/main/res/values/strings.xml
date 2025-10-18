@@ -79,12 +79,6 @@
     <string name="playlist_is_empty">The playlist is empty</string>
     <string name="remove_download_playlist_confirm">Do you really want to remove all \"%s\" playlist songs from the Downloaded Songs storage?</string>
     <string name="delete_playlist_confirm">Do you really want to delete the playlist \"%s\"?</string>
-    <string name="clone_playlist_confirm">Choose an option:</string>
-    <string name="clone_playlist">Clone playlist</string>
-    <string name="clone_locally">Clone locally</string>
-    <string name="sync_with_youtube">Sync with YouTube</string>
-    <string name="playlist_cloned">Playlist cloned</string>
-    <string name="playlist_synced">Playlist synced</string>
 
     <!-- Button -->
     <string name="retry">Retry</string>
@@ -202,6 +196,7 @@
     <!-- Snackbar -->
     <string name="playlist_imported">Playlist imported</string>
     <string name="removed_song_from_playlist">Removed \"%s\" from playlist</string>
+    <string name="playlist_synced">Playlist synced</string>
     <string name="undo">Undo</string>
 
     <!-- Player -->
@@ -216,6 +211,8 @@
     <string name="error_no_internet">No network connection</string>
     <string name="error_timeout">Timeout</string>
     <string name="error_unknown">Unknown error</string>
+    <string name="connect_to_device">Connect to a device</string>
+    <string name="listening_on_this_device">Listening on this device</string>
 
     <!-- Player action -->
     <string name="action_like">Like</string>
@@ -332,6 +329,9 @@
     <string name="backup_create_failed">Couldn\'t create backup</string>
     <string name="restore_failed">Failed to restore backup</string>
 
+    <string name="multi_device_control">Multi-device Control</string>
+    <string name="multi_device_control_description">Control and sync playback across your devices.</string>
+
     <string name="discord_integration">Discord Integration</string>
     <string name="discord_information">Metrolist uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\Metrolist will only extract your token, and everything else is stored locally.</string>
     <string name="dismiss">Dismiss</string>
@@ -345,9 +345,4 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
-    <string name="connect_to_a_device">Connect to a device</string>
-    <string name="multi_device_sync">Multi-device sync</string>
-    <string name="enable_multi_device_sync">Enable multi-device sync</string>
-    <string name="enable_multi_device_sync_desc">Allow other devices on the same network to control this device\'s playback.</string>
-    <string name="disconnect">Disconnect</string>
 </resources>

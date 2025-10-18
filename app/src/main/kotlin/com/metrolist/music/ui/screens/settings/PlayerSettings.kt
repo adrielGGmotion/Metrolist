@@ -253,23 +253,6 @@ fun PlayerSettings(
             checked = stopMusicOnTaskClear,
             onCheckedChange = onStopMusicOnTaskClearChange
         )
-
-        PreferenceGroupTitle(
-            title = stringResource(R.string.multi_device_sync)
-        )
-
-        val (enableMultiDeviceSync, onEnableMultiDeviceSyncChange) = rememberPreference(
-            com.metrolist.music.constants.EnableMultiDeviceSyncKey,
-            defaultValue = false
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_multi_device_sync)) },
-            description = stringResource(R.string.enable_multi_device_sync_desc),
-            icon = { Icon(painterResource(R.drawable.cast_connected), null) },
-            checked = enableMultiDeviceSync,
-            onCheckedChange = onEnableMultiDeviceSyncChange
-        )
     }
 
     TopAppBar(

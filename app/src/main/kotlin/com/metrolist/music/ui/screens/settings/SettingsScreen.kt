@@ -18,12 +18,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
@@ -34,6 +37,7 @@ import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.ReleaseNotesCard
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.Updater
+import com.metrolist.music.viewmodels.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +45,9 @@ fun SettingsScreen(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val multiDeviceControlEnabled by viewModel.multiDeviceControlEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val isAndroid12OrLater = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -72,6 +78,27 @@ fun SettingsScreen(
             )
         )
         
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Integrations Section
+        Material3SettingsGroup(
+            title = stringResource(R.string.integrations),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.devices),
+                    title = { Text(stringResource(R.string.multi_device_control)) },
+                    description = { Text(stringResource(R.string.multi_device_control_description)) },
+                    onClick = { viewModel.setMultiDeviceControl(!multiDeviceControlEnabled) },
+                    trailingContent = {
+                        Switch(
+                            checked = multiDeviceControlEnabled,
+                            onCheckedChange = { viewModel.setMultiDeviceControl(it) }
+                        )
+                    }
+                )
+            )
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
         
         // Player & Content Section (moved up and combined with content)
