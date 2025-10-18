@@ -90,7 +90,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Player.STATE_ENDED
@@ -106,6 +105,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.communication.CommunicationManager
+import com.metrolist.music.viewmodels.MainViewModel
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.discovery.NsdServiceManager
@@ -149,10 +149,10 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
-    nsdServiceManager: NsdServiceManager = hiltViewModel(),
-    communicationManager: CommunicationManager = hiltViewModel()
+    mainViewModel: MainViewModel
 ) {
-    val discoveredDevices by nsdServiceManager.discoveredDevices.collectAsState()
+    val discoveredDevices by mainViewModel.nsdServiceManager.discoveredDevices.collectAsState()
+    val communicationManager = mainViewModel.communicationManager
     val context = LocalContext.current
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val menuState = LocalMenuState.current
