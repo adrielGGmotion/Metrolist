@@ -255,17 +255,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        lifecycleScope.launch {
-            val multiDeviceControlEnabled = dataStore.data.map { it[MultiDeviceControlEnabledKey] ?: false }.first()
-            if (multiDeviceControlEnabled) {
-                nsdServiceManager.registerService(8080)
-                nsdServiceManager.discoverServices()
-                communicationManager.startServer()
-            } else {
-                nsdServiceManager.unregisterService()
-                communicationManager.stopServer()
-            }
-        }
     }
 
     override fun onStart() {
@@ -274,6 +263,9 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1000)
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 1001)
             }
         }
         startService(Intent(this, MusicService::class.java))
@@ -470,6 +462,22 @@ class MainActivity : ComponentActivity() {
                     val navigationItems = remember { Screens.MainScreens }
                     val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
                     val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
+            val (multiDeviceControlEnabled, onMultiDeviceControlEnabled) = rememberPreference(
+                MultiDeviceControlEnabledKey,
+                defaultValue = false
+            )
+
+            LaunchedEffect(multiDeviceControlEnabled) {
+                if (multiDeviceControlEnabled) {
+                    nsdServiceManager.registerService(8080)
+                    nsdServiceManager.discoverServices()
+                    communicationManager.startServer()
+                } else {
+                    nsdServiceManager.unregisterService()
+                    communicationManager.stopServer()
+                }
+            }
+
                     val defaultOpenTab = remember {
                         dataStore[DefaultOpenTabKey].toEnum(defaultValue = NavigationTab.HOME)
                     }
