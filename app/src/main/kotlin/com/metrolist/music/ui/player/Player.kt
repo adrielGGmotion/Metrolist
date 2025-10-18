@@ -149,8 +149,8 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
-    nsdServiceManager: NsdServiceManager = hiltViewModel(),
-    communicationManager: CommunicationManager = hiltViewModel()
+    nsdServiceManager: NsdServiceManager,
+    communicationManager: CommunicationManager
 ) {
     val discoveredDevices by nsdServiceManager.discoveredDevices.collectAsState()
     val context = LocalContext.current

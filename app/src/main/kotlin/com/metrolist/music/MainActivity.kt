@@ -1020,7 +1020,9 @@ class MainActivity : ComponentActivity() {
                                         BottomSheetPlayer(
                                             state = playerBottomSheetState,
                                             navController = navController,
-                                            pureBlack = pureBlack
+                                            pureBlack = pureBlack,
+                                            nsdServiceManager = nsdServiceManager,
+                                            communicationManager = communicationManager
                                         )
                                         NavigationBar(
                                             modifier = Modifier
@@ -1107,7 +1109,9 @@ class MainActivity : ComponentActivity() {
                                     BottomSheetPlayer(
                                         state = playerBottomSheetState,
                                         navController = navController,
-                                        pureBlack = pureBlack
+                                        pureBlack = pureBlack,
+                                        nsdServiceManager = nsdServiceManager,
+                                        communicationManager = communicationManager
                                     )
 
                                     Box(
