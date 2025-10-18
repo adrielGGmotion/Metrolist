@@ -13,3 +13,7 @@ annotation class DownloadCache
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class ApplicationScope
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MainCoroutineDispatcher

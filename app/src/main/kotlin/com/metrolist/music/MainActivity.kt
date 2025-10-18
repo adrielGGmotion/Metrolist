@@ -152,9 +152,12 @@ import com.metrolist.music.constants.SearchSource
 import com.metrolist.music.constants.SearchSourceKey
 import com.metrolist.music.constants.SlimNavBarHeight
 import com.metrolist.music.constants.SlimNavBarKey
+import com.metrolist.music.communication.CommunicationManager
+import com.metrolist.music.constants.MultiDeviceControlEnabledKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
+import com.metrolist.music.discovery.NsdServiceManager
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.DownloadUtil
@@ -195,6 +198,7 @@ import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.reportException
 import com.metrolist.music.utils.setAppLocale
 import com.metrolist.music.viewmodels.HomeViewModel
+import com.metrolist.music.viewmodels.MainViewModel
 import com.valentinilk.shimmer.LocalShimmerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -223,11 +227,13 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var syncUtils: SyncUtils
 
+    private lateinit var nsdServiceManager: NsdServiceManager
+    private lateinit var communicationManager: CommunicationManager
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
 
-    private var playerConnection by mutableStateOf<PlayerConnection?>(null)
+    var playerConnection by mutableStateOf<PlayerConnection?>(null)
 
     private val serviceConnection =
         object : ServiceConnection {
@@ -294,6 +300,11 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val mainViewModel: MainViewModel by viewModels()
+        nsdServiceManager = mainViewModel.nsdServiceManager
+        communicationManager = mainViewModel.communicationManager
+
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -323,6 +334,22 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = true)
+
+            LaunchedEffect(Unit) {
+                dataStore.data
+                    .map { it[MultiDeviceControlEnabledKey] ?: false }
+                    .distinctUntilChanged()
+                    .collectLatest { enabled ->
+                        if (enabled) {
+                            nsdServiceManager.registerService(8080)
+                            nsdServiceManager.discoverServices()
+                            communicationManager.startServer()
+                        } else {
+                            nsdServiceManager.unregisterService()
+                            communicationManager.stopServer()
+                        }
+                    }
+            }
 
             LaunchedEffect(checkForUpdates) {
                 if (checkForUpdates) {

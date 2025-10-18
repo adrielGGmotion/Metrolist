@@ -109,6 +109,8 @@ import com.metrolist.music.extensions.setOffloadEnabled
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.extensions.toPersistQueue
 import com.metrolist.music.extensions.toQueue
+import com.metrolist.music.communication.CommunicationManager
+import com.metrolist.music.communication.PlaybackCommand
 import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
@@ -173,6 +175,9 @@ class MusicService :
 
     @Inject
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
+
+    @Inject
+    lateinit var communicationManager: CommunicationManager
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -521,6 +526,48 @@ class MusicService :
                 if (dataStore.get(PersistentQueueKey, true) && player.isPlaying) {
                     saveQueueToDisk()
                 }
+            }
+        }
+
+        scope.launch {
+            communicationManager.incomingCommands.collect { command ->
+                when (command) {
+                    is PlaybackCommand.Play -> player.play()
+                    is PlaybackCommand.Pause -> player.pause()
+                    is PlaybackCommand.Seek -> player.seekTo(command.position)
+                    is PlaybackCommand.Next -> player.seekToNext()
+                    is PlaybackCommand.Previous -> player.seekToPrevious()
+                    is PlaybackCommand.StateUpdate -> handleStateUpdate(command)
+                }
+            }
+        }
+
+        scope.launch {
+            communicationManager.incomingCommands.collect { command ->
+                when (command) {
+                    is PlaybackCommand.Play -> player.play()
+                    is PlaybackCommand.Pause -> player.pause()
+                    is PlaybackCommand.Seek -> player.seekTo(command.position)
+                    is PlaybackCommand.Next -> player.seekToNext()
+                    is PlaybackCommand.Previous -> player.seekToPrevious()
+                    is PlaybackCommand.StateUpdate -> handleStateUpdate(command)
+                }
+            }
+        }
+    }
+
+    private fun handleStateUpdate(state: PlaybackCommand.StateUpdate) {
+        scope.launch {
+            val mediaItems = state.queue.map { mediaId ->
+                database.song(mediaId).first()?.toMediaItem() ?: MediaItem.fromUri(mediaId)
+            }
+            player.setMediaItems(mediaItems)
+            player.prepare()
+            player.seekTo(state.position)
+            if (state.isPlaying) {
+                player.play()
+            } else {
+                player.pause()
             }
         }
     }
@@ -1177,6 +1224,15 @@ class MusicService :
         player: Player,
         events: Player.Events,
     ) {
+        communicationManager.broadcastPlaybackState(
+            PlaybackCommand.StateUpdate(
+                trackId = player.currentMediaItem?.mediaId,
+                isPlaying = player.isPlaying,
+                position = player.currentPosition,
+                queue = player.mediaItems.map { it.mediaId }
+            )
+        )
+
         if (events.containsAny(
                 Player.EVENT_PLAYBACK_STATE_CHANGED,
                 Player.EVENT_PLAY_WHEN_READY_CHANGED
