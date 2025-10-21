@@ -47,6 +47,7 @@
     <string name="radio">Rádió</string>
     <string name="shuffle">Keverés</string>
     <string name="reset">Visszaállítás</string>
+    <string name="blacklist">Feketelista</string>
     <string name="details">Részletek</string>
     <string name="edit">Szerkesztés</string>
     <string name="start_radio">Rádió indítása</string>

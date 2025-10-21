@@ -47,6 +47,7 @@
     <string name="radio">Radio</string>
     <string name="shuffle">Sekoita</string>
     <string name="reset">Nollaa</string>
+    <string name="blacklist">Musta lista</string>
     <string name="details">Yksityiskohdat</string>
     <string name="edit">Muokkaa</string>
     <string name="start_radio">Käynnistä radio</string>

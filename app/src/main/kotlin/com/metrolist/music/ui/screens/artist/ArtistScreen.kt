@@ -124,6 +124,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import com.metrolist.music.db.entities.BlacklistedArtist
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -765,10 +767,41 @@ fun ArtistScreen(
             }
         },
         actions = {
+            val isBlacklisted by viewModel.isBlacklisted.collectAsState()
+            IconButton(
+                onClick = {
+                    coroutineScope.launch {
+                        if (isBlacklisted) {
+                            viewModel.database.delete(
+                                BlacklistedArtist(
+                                    id = viewModel.artistId,
+                                    name = libraryArtist?.artist?.name
+                                        ?: artistPage?.artist?.title ?: "Unknown"
+                                )
+                            )
+                        } else {
+                            viewModel.database.insert(
+                                BlacklistedArtist(
+                                    id = viewModel.artistId,
+                                    name = libraryArtist?.artist?.name
+                                        ?: artistPage?.artist?.title ?: "Unknown"
+                                )
+                            )
+                        }
+                    }
+                }
+            ) {
+                Icon(
+                    painter = painterResource(if (isBlacklisted) R.drawable.remove else R.drawable.add),
+                    contentDescription = stringResource(R.string.blacklist),
+                    tint = if (isBlacklisted) MaterialTheme.colorScheme.error else LocalContentColor.current
+                )
+            }
             IconButton(
                 onClick = {
                     viewModel.artistPage?.artist?.shareLink?.let { link ->
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clipboard =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("Artist Link", link)
                         clipboard.setPrimaryClip(clip)
                         Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()

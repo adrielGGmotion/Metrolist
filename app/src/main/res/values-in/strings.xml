@@ -46,6 +46,7 @@
     <string name="radio">Radio</string>
     <string name="shuffle">Acak</string>
     <string name="reset">Atur ulang</string>
+    <string name="blacklist">Daftar hitam</string>
     <string name="details">Rincian</string>
     <string name="edit">Ubah</string>
     <string name="start_radio">Mulai radio</string>

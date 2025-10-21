@@ -48,6 +48,7 @@
     <string name="radio">Radio</string>
     <string name="shuffle">Casuale</string>
     <string name="reset">Ricomincia</string>
+    <string name="blacklist">Lista nera</string>
     <string name="details">Dettagli</string>
     <string name="edit">Modifica</string>
     <string name="start_radio">Avvia radio</string>

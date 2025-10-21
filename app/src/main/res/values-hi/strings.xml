@@ -45,6 +45,7 @@
     <string name="delete_playlist_confirm">क्या आप वाकई “%s” चाल सूची को हटाना चाहते हैं ?</string>
     <string name="retry">पुनः करें</string>
     <string name="reset">रीसेट करें</string>
+    <string name="blacklist">Blacklist</string>
     <string name="details">विवरण</string>
     <string name="edit">बदलाव</string>
     <string name="play">चलाएं</string>

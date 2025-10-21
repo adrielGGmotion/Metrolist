@@ -85,6 +85,7 @@
     <string name="radio">Radio</string>
     <string name="shuffle">Shuffle</string>
     <string name="reset">Reset</string>
+    <string name="blacklist">Blacklist</string>
 
     <!-- Menu -->
     <string name="details">Details</string>

@@ -47,6 +47,7 @@
     <string name="radio">رادیو</string>
     <string name="shuffle">مخلوط</string>
     <string name="reset">بازنشانی</string>
+    <string name="blacklist">Blacklist</string>
     <string name="details">جزئیات</string>
     <string name="edit">ویرایش</string>
     <string name="start_radio">شروع رادیو</string>

@@ -57,6 +57,7 @@
     <string name="radio">ラジオ</string>
     <string name="shuffle">シャッフル</string>
     <string name="reset">リセット</string>
+    <string name="blacklist">ブラックリスト</string>
     <string name="details">詳細</string>
     <string name="edit">編集</string>
     <string name="start_radio">ラジオを再生</string>

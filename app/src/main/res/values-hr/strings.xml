@@ -73,6 +73,7 @@
     <string name="delete_playlist_confirm">Zaista želite izbrisati playlistu „%s“?</string>
     <string name="retry">Pokušaj ponovo</string>
     <string name="reset">Resetiraj</string>
+    <string name="blacklist">Crna lista</string>
     <string name="details">Detalji</string>
     <string name="edit">Uredi</string>
     <string name="add_to_queue">Dodaj u popis</string>

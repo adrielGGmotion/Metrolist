@@ -60,6 +60,7 @@
     <string name="radio">Радіо</string>
     <string name="shuffle">Перемішати</string>
     <string name="reset">Скинути</string>
+    <string name="blacklist">Чорний список</string>
     <string name="details">Детальніше</string>
     <string name="edit">Редагувати</string>
     <string name="start_radio">Увімкнути радіо</string>

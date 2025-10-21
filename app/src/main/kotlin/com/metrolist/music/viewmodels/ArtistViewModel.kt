@@ -33,11 +33,15 @@ import kotlinx.coroutines.flow.map
 @HiltViewModel
 class ArtistViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    database: MusicDatabase,
+    val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val artistId = savedStateHandle.get<String>("artistId")!!
     var artistPage by mutableStateOf<ArtistPage?>(null)
+
+    val isBlacklisted = database.isBlacklisted(artistId)
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
+
     val libraryArtist = database.artist(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
     val librarySongs = context.dataStore.data
@@ -46,12 +50,22 @@ class ArtistViewModel @Inject constructor(
         .flatMapLatest { hideExplicit ->
             database.artistSongsPreview(artistId).map { it.filterExplicit(hideExplicit) }
         }
+        .flatMapLatest { songs ->
+            isBlacklisted.map { isBlacklisted ->
+                if (isBlacklisted) emptyList() else songs
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     val libraryAlbums = context.dataStore.data
         .map { it[HideExplicitKey] ?: false }
         .distinctUntilChanged()
         .flatMapLatest { hideExplicit ->
             database.artistAlbumsPreview(artistId).map { it.filterExplicitAlbums(hideExplicit) }
+        }
+        .flatMapLatest { albums ->
+            isBlacklisted.map { isBlacklisted ->
+                if (isBlacklisted) emptyList() else albums
+            }
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 

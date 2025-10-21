@@ -47,6 +47,7 @@
     <string name="radio">Radyo</string>
     <string name="shuffle">Karıştır</string>
     <string name="reset">Sıfırla</string>
+    <string name="blacklist">Kara liste</string>
     <string name="details">Detaylar</string>
     <string name="edit">Düzenle</string>
     <string name="start_radio">Radyo başlat</string>

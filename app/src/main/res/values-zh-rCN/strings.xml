@@ -46,6 +46,7 @@
     <string name="radio">电台</string>
     <string name="shuffle">随机播放</string>
     <string name="reset">重置</string>
+    <string name="blacklist">黑名单</string>
     <string name="details">详情</string>
     <string name="edit">编辑</string>
     <string name="start_radio">收听电台</string>

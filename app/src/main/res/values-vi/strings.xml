@@ -46,6 +46,7 @@
     <string name="radio">Đài phát</string>
     <string name="shuffle">Trộn bài</string>
     <string name="reset">Cài lại</string>
+    <string name="blacklist">Blacklist</string>
     <string name="details">Chi tiết</string>
     <string name="edit">Chỉnh sửa</string>
     <string name="start_radio">Bắt đầu đài phát</string>

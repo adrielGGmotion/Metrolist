@@ -61,6 +61,7 @@
     <string name="add_to_library">Добави към библиотеката</string>
     <string name="shuffle">Разбъркай</string>
     <string name="reset">Нулиране</string>
+    <string name="blacklist">Черен списък</string>
     <string name="play_next">Изпълни следващ</string>
     <string name="details">Подробности</string>
     <string name="edit">Редактирай</string>
