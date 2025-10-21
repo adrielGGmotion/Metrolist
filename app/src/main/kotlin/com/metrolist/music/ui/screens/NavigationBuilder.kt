@@ -67,6 +67,7 @@ import com.metrolist.music.ui.screens.settings.integrations.IntegrationScreen
 import com.metrolist.music.ui.screens.settings.integrations.LastFMSettings
 import com.metrolist.music.ui.screens.settings.PlayerSettings
 import com.metrolist.music.ui.screens.settings.PrivacySettings
+import com.metrolist.music.ui.screens.settings.BlacklistSettings
 import com.metrolist.music.ui.screens.settings.RomanizationSettings
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.screens.settings.StorageSettings
@@ -306,6 +307,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/privacy") {
         PrivacySettings(navController, scrollBehavior)
+    }
+    composable("settings/privacy/blacklist") {
+        BlacklistSettings(navController)
     }
     composable("settings/backup_restore") {
         BackupAndRestore(navController, scrollBehavior)

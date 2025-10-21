@@ -77,6 +77,7 @@
     <string name="start_radio">Pane raadio tööle</string>
     <string name="view_album">Vaata albumit</string>
     <string name="reset">Lähtesta</string>
+    <string name="blacklist">Blacklist</string>
     <string name="details">Üksikasjad</string>
     <string name="play">Esita</string>
     <string name="play_next">Esita järgmisena</string>

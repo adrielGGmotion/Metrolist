@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerConnection(
@@ -98,13 +100,27 @@ class PlayerConnection(
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
     fun playNext(items: List<MediaItem>) {
-        service.playNext(items)
+        service.playNext(items.filter {
+            runBlocking {
+                val song = database.getSongById(it.mediaId)
+                song?.artists?.all { artist ->
+                    database.isBlacklisted(artist.id).first().not()
+                } ?: true
+            }
+        })
     }
 
     fun addToQueue(item: MediaItem) = addToQueue(listOf(item))
 
     fun addToQueue(items: List<MediaItem>) {
-        service.addToQueue(items)
+        service.addToQueue(items.filter {
+            runBlocking {
+                val song = database.getSongById(it.mediaId)
+                song?.artists?.all { artist ->
+                    database.isBlacklisted(artist.id).first().not()
+                } ?: true
+            }
+        })
     }
 
     fun toggleLike() {

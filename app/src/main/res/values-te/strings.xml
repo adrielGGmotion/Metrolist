@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="reset">తిరిగి మొదటికి</string>
+    <string name="blacklist">Blacklist</string>
     <string name="artists">కళాకారులు</string>
     <string name="edit">సవరించు</string>
     <string name="most_played_songs">ఎక్కువగా వినిన పాటలు</string>

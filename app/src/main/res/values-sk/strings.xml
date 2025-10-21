@@ -60,6 +60,7 @@
     <string name="radio">Rádio</string>
     <string name="shuffle">Prehrávať náhodne</string>
     <string name="reset">Resetovať</string>
+    <string name="blacklist">Čierna listina</string>
     <string name="details">Podrobnosti</string>
     <string name="edit">Upraviť</string>
     <string name="start_radio">Spustiť rádio</string>

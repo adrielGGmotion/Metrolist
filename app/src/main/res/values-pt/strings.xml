@@ -255,6 +255,7 @@
     <string name="sort_by_name">Nome</string>
     <string name="remove_from_queue">Remover da fila</string>
     <string name="reset">Repor</string>
+    <string name="blacklist">Lista negra</string>
     <string name="refetch">Obter</string>
     <string name="loudness">Sonoridade</string>
     <string name="library_album_empty">Os álbuns da biblioteca aparecerão aqui</string>

@@ -18,6 +18,7 @@
     <string name="delete_playlist_confirm">Da li zaista želite da izbrišete spisku \"%s\"?</string>
     <string name="shuffle">Izmješaj</string>
     <string name="reset">Ponovo pokreni</string>
+    <string name="blacklist">Blacklist</string>
     <string name="view_artist">Pokaži umjetnika</string>
     <string name="sort_by_create_date">Datum dodavanja</string>
     <string name="media_id">Id medija</string>

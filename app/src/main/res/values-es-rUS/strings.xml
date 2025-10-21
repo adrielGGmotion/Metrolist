@@ -60,6 +60,7 @@
     <string name="radio">Radio</string>
     <string name="shuffle">Aleatorio</string>
     <string name="reset">Reiniciar</string>
+    <string name="blacklist">Blacklist</string>
     <string name="details">Detalles</string>
     <string name="edit">Editar</string>
     <string name="sort_by_name">Nombre</string>

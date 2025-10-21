@@ -138,6 +138,7 @@
     <string name="radio">வானொலி</string>
     <string name="shuffle">கலக்கு</string>
     <string name="reset">மீட்டமை</string>
+    <string name="blacklist">Blacklist</string>
     <string name="details">விவரங்கள்</string>
     <string name="edit">தொகு</string>
     <string name="start_radio">வானொலியைத் தொடங்கவும்</string>

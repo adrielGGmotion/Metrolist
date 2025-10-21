@@ -43,6 +43,7 @@
     <string name="radio">Radio</string>
     <string name="shuffle">Omstokk</string>
     <string name="reset">Tilbakestill</string>
+    <string name="blacklist">Blacklist</string>
     <string name="details">Detaljer</string>
     <string name="edit">Rediger</string>
     <string name="play">Spill</string>

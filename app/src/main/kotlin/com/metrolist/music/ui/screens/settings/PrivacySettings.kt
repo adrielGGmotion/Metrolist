@@ -185,6 +185,11 @@ fun PrivacySettings(
             checked = disableScreenshot,
             onCheckedChange = onDisableScreenshotChange,
         )
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.blacklist)) },
+            icon = { Icon(painterResource(R.drawable.security), null) },
+            onClick = { navController.navigate("settings/privacy/blacklist") },
+        )
     }
 
     TopAppBar(

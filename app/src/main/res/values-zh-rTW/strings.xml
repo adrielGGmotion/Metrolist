@@ -57,6 +57,7 @@
     <string name="radio">電台</string>
     <string name="shuffle">隨機播放</string>
     <string name="reset">重設</string>
+    <string name="blacklist">黑名單</string>
     <string name="details">詳細資訊</string>
     <string name="edit">編輯</string>
     <string name="start_radio">開啟電台</string>

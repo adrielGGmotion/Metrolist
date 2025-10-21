@@ -48,6 +48,7 @@
     <string name="radio">Rádio</string>
     <string name="shuffle">Náhodně</string>
     <string name="reset">Resetovat</string>
+    <string name="blacklist">Černá listina</string>
     <string name="details">Podrobnosti</string>
     <string name="edit">Upravit</string>
     <string name="start_radio">Spustit rádio</string>
