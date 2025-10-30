@@ -13,6 +13,7 @@ import javax.inject.Inject
 
 data class DiscoveredDevice(
     val serviceName: String,
+    val deviceName: String,
     val hostAddress: String,
     val port: Int,
     val isSelf: Boolean = false
@@ -45,8 +46,10 @@ class SyncViewModel @Inject constructor(
         serviceDiscoverer.startDiscovery(
             onServiceResolved = { serviceInfo ->
                 viewModelScope.launch {
+                    val deviceName = serviceInfo.attributes["device"]?.toString(Charsets.UTF_8) ?: serviceInfo.serviceName
                     val discoveredDevice = DiscoveredDevice(
                         serviceName = serviceInfo.serviceName,
+                        deviceName = deviceName,
                         hostAddress = serviceInfo.host.hostAddress,
                         port = serviceInfo.port,
                         isSelf = isSelfDevice(serviceInfo)
