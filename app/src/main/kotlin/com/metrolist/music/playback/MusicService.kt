@@ -129,6 +129,7 @@ import com.metrolist.common.utils.dataStore
 import com.metrolist.common.utils.enumPreference
 import com.metrolist.common.utils.get
 import com.metrolist.music.utils.reportException
+import com.metrolist.music.playback.sync.PlaybackServer
 import com.metrolist.sync.LocalSyncManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -167,6 +168,9 @@ class MusicService :
     PlaybackStatsListener.Callback {
     @Inject
     lateinit var localSyncManager: LocalSyncManager
+
+    @Inject
+    lateinit var playbackServer: PlaybackServer
 
     @Inject
     lateinit var database: MusicDatabase
@@ -539,8 +543,10 @@ class MusicService :
             }.collect { (isSyncEnabled, userEmail) ->
                 if (isSyncEnabled && userEmail != null) {
                     localSyncManager.registerService(8080, userEmail)
+                    playbackServer.start()
                 } else {
                     localSyncManager.unregisterService()
+                    playbackServer.stop()
                 }
             }
         }

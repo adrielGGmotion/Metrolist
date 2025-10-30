@@ -33,6 +33,13 @@ sealed class Screens(
         route = "library"
     )
 
+    object Sync : Screens(
+        titleId = R.string.sync,
+        iconIdInactive = R.drawable.sync,
+        iconIdActive = R.drawable.sync,
+        route = "sync"
+    )
+
     companion object {
         val MainScreens = listOf(Home, Search, Library)
     }
