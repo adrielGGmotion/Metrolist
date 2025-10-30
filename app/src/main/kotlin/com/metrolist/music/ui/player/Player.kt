@@ -131,6 +131,7 @@ import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.common.constants.IS_SYNC_ENABLED
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.PlayerMenu
+import com.metrolist.music.ui.screens.Screens
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.makeTimeString
@@ -673,7 +674,7 @@ fun BottomSheetPlayer(
                                     .clip(RoundedCornerShape(24.dp))
                                     .background(textButtonColor)
                                     .clickable {
-                                        navController.navigate("sync")
+                                    navController.navigate(Screens.Sync.route)
                                     }
                             ) {
                                 Icon(
