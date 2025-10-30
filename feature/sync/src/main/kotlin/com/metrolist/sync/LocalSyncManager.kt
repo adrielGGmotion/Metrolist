@@ -3,6 +3,7 @@ package com.metrolist.sync
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -22,6 +23,7 @@ class LocalSyncManager @Inject constructor(
             serviceType = "_metrolist-sync._tcp"
             setPort(port)
             setAttribute("email", userEmail)
+            setAttribute("device", Build.MODEL)
         }
 
         registrationListener = object : NsdManager.RegistrationListener {

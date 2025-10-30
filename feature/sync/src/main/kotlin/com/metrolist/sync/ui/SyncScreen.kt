@@ -22,8 +22,9 @@ fun SyncScreen(
 
 @Composable
 fun DiscoveredDevicesList(devices: List<DiscoveredDevice>) {
+    val filteredDevices = devices.filter { !it.isSelf }
     LazyColumn {
-        items(devices) { device ->
+        items(filteredDevices) { device ->
             DeviceListItem(device = device)
         }
     }
@@ -32,11 +33,6 @@ fun DiscoveredDevicesList(devices: List<DiscoveredDevice>) {
 @Composable
 fun DeviceListItem(device: DiscoveredDevice) {
     Column {
-        val deviceName = if (device.isSelf) {
-            "${device.serviceName} (This device)"
-        } else {
-            device.serviceName
-        }
-        Text(text = deviceName)
+        Text(text = device.deviceName)
     }
 }
