@@ -224,9 +224,11 @@ dependencies {
     implementation(project(":kizzy"))
     implementation(project(":lastfm"))
     implementation(project(":feature:sync"))
+    implementation(project(":sync-api"))
     implementation(project(":common"))
 
     implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)

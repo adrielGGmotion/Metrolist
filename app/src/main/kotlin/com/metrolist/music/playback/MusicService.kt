@@ -542,7 +542,7 @@ class MusicService :
                 isSyncEnabled to userEmail
             }.collect { (isSyncEnabled, userEmail) ->
                 if (isSyncEnabled && userEmail != null) {
-                    localSyncManager.registerService(8080, userEmail)
+                    localSyncManager.registerService(8080)
                     playbackServer.start()
                 } else {
                     localSyncManager.unregisterService()

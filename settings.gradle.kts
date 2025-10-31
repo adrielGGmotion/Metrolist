@@ -23,6 +23,7 @@ include(":lrclib")
 include(":kizzy")
 include(":lastfm")
 include(":feature:sync")
+include(":sync-api")
 include(":common")
 
 // Use a local copy of NewPipe Extractor by uncommenting the lines below.

@@ -31,14 +31,24 @@ android {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":sync-api"))
     implementation(libs.hilt)
     ksp(libs.hilt.compiler)
     implementation(libs.compose.runtime)
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.material3)
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.hilt.navigation)
     implementation(libs.viewmodel)
     implementation(libs.timber)
     implementation(libs.datastore)
+
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.websockets)
+
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.websockets)
 }
