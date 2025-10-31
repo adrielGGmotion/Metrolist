@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.material3)
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.hilt.navigation)
     implementation(libs.viewmodel)
     implementation(libs.timber)

@@ -75,6 +75,14 @@ class SyncViewModel @Inject constructor(
         }
     }
 
+    fun refreshDiscovery() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _discoveredDevices.value = emptyList()
+            serviceDiscoverer.stopDiscovery()
+            startDiscovery()
+        }
+    }
+
     fun connectToDevice(device: DiscoveredDevice) {
         viewModelScope.launch {
             playbackClient.connect(device)
