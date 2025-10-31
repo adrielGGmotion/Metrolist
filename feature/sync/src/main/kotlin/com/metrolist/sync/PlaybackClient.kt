@@ -1,6 +1,5 @@
 package com.metrolist.sync
 
-import com.metrolist.sync.api.DiscoveredDevice
 import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
