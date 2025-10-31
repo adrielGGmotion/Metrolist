@@ -1,77 +1,41 @@
 package com.metrolist.sync
 
-import android.net.nsd.NsdServiceInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.metrolist.common.constants.IS_SYNC_ENABLED
-import com.metrolist.common.data.DataStoreUtil
-import com.metrolist.common.utils.get
+import com.metrolist.sync.api.DiscoveredDevice
+import com.metrolist.sync.api.SyncState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class DiscoveredDevice(
-    val serviceName: String,
-    val deviceName: String,
-    val hostAddress: String,
-    val port: Int,
-    val isSelf: Boolean = false
-)
-
 @HiltViewModel
 class SyncViewModel @Inject constructor(
-    private val dataStoreUtil: DataStoreUtil,
-    private val serviceDiscoverer: ServiceDiscoverer
+    private val playbackClient: PlaybackClient
 ) : ViewModel() {
-    private val userEmail: StateFlow<String?> = dataStoreUtil.getEmail()
-        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+    private lateinit var syncState: SyncState
 
-    private val _discoveredDevices = MutableStateFlow<List<DiscoveredDevice>>(emptyList())
-    val discoveredDevices: StateFlow<List<DiscoveredDevice>> = _discoveredDevices
+    val discoveredDevices: StateFlow<List<DiscoveredDevice>>
+        get() = syncState.discoveredDevices
 
-    init {
+    fun init(syncState: SyncState) {
+        this.syncState = syncState
+    }
+
+    fun refreshDiscovery() {
+        syncState.refreshDiscovery()
+    }
+
+    fun connectToDevice(device: DiscoveredDevice) {
         viewModelScope.launch {
-            dataStoreUtil.isSyncEnabled().collect { isSyncEnabled ->
-                if (isSyncEnabled) {
-                    startDiscovery()
-                } else {
-                    serviceDiscoverer.stopDiscovery()
-                }
-            }
+            playbackClient.connect(device)
         }
-    }
-
-    private fun startDiscovery() {
-        serviceDiscoverer.startDiscovery(
-            onServiceResolved = { serviceInfo ->
-                viewModelScope.launch {
-                    val deviceName = serviceInfo.attributes["device"]?.toString(Charsets.UTF_8) ?: serviceInfo.serviceName
-                    val discoveredDevice = DiscoveredDevice(
-                        serviceName = serviceInfo.serviceName,
-                        deviceName = deviceName,
-                        hostAddress = serviceInfo.host.hostAddress,
-                        port = serviceInfo.port,
-                        isSelf = isSelfDevice(serviceInfo)
-                    )
-                    _discoveredDevices.value = _discoveredDevices.value + discoveredDevice
-                }
-            },
-            onServiceLost = { serviceInfo ->
-                _discoveredDevices.value = _discoveredDevices.value.filter {
-                    it.serviceName != serviceInfo.serviceName
-                }
-            }
-        )
-    }
-
-    private suspend fun isSelfDevice(serviceInfo: NsdServiceInfo): Boolean {
-        val deviceEmail = serviceInfo.attributes["email"]?.toString(Charsets.UTF_8)
-        return userEmail.first() == deviceEmail
     }
 
     override fun onCleared() {
         super.onCleared()
-        serviceDiscoverer.stopDiscovery()
+        viewModelScope.launch {
+            playbackClient.disconnect()
+        }
     }
 }

@@ -76,6 +76,7 @@ import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.sync.ui.SyncScreen
+import com.metrolist.music.viewmodels.MainViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,6 +84,7 @@ fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
+    mainViewModel: MainViewModel
 ) {
     composable(Screens.Home.route) {
         HomeScreen(navController)
@@ -334,6 +336,6 @@ fun NavGraphBuilder.navigationBuilder(
         LoginScreen(navController)
     }
     composable("sync") {
-        SyncScreen(hiltViewModel())
+        SyncScreen(syncState = mainViewModel)
     }
 }
