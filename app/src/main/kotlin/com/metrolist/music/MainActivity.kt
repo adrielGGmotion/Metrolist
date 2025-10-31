@@ -1235,7 +1235,8 @@ class MainActivity : ComponentActivity() {
                                         navigationBuilder(
                                             navController,
                                             topAppBarScrollBehavior,
-                                            latestVersionName
+                                            latestVersionName,
+                                            mainViewModel
                                         )
                                     }
                                 }

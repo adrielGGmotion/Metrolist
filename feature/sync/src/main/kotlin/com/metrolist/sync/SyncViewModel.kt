@@ -1,6 +1,5 @@
 package com.metrolist.sync
 
-import android.net.nsd.NsdServiceInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.common.data.DataStoreUtil
@@ -10,25 +9,16 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class DiscoveredDevice(
-    val serviceName: String,
-    val deviceName: String,
-    val hostAddress: String,
-    val port: Int,
-    val isSelf: Boolean = false
-)
-
 @HiltViewModel
 class SyncViewModel @Inject constructor(
     private val dataStoreUtil: DataStoreUtil,
     private val serviceDiscoverer: ServiceDiscoverer,
     private val playbackClient: PlaybackClient
 ) : ViewModel() {
-    private val userEmail: StateFlow<String?> = dataStoreUtil.getEmail()
-        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+    private lateinit var syncState: SyncState
 
-    private val _discoveredDevices = MutableStateFlow<List<DiscoveredDevice>>(emptyList())
-    val discoveredDevices: StateFlow<List<DiscoveredDevice>> = _discoveredDevices
+    val discoveredDevices: StateFlow<List<DiscoveredDevice>>
+        get() = syncState.discoveredDevices
 
     init {
         viewModelScope.launch {
@@ -89,9 +79,10 @@ class SyncViewModel @Inject constructor(
         }
     }
 
-    private suspend fun isSelfDevice(serviceInfo: NsdServiceInfo): Boolean {
-        val deviceEmail = serviceInfo.attributes["email"]?.toString(Charsets.UTF_8)
-        return userEmail.first() == deviceEmail
+    fun connectToDevice(device: DiscoveredDevice) {
+        viewModelScope.launch {
+            playbackClient.connect(device)
+        }
     }
 
     override fun onCleared() {
