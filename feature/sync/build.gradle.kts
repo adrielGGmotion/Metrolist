@@ -41,4 +41,8 @@ dependencies {
     implementation(libs.viewmodel)
     implementation(libs.timber)
     implementation(libs.datastore)
+
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.websockets)
 }

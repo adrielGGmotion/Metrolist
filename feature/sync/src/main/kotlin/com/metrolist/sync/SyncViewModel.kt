@@ -3,9 +3,7 @@ package com.metrolist.sync
 import android.net.nsd.NsdServiceInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.metrolist.common.constants.IS_SYNC_ENABLED
 import com.metrolist.common.data.DataStoreUtil
-import com.metrolist.common.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -22,7 +20,8 @@ data class DiscoveredDevice(
 @HiltViewModel
 class SyncViewModel @Inject constructor(
     private val dataStoreUtil: DataStoreUtil,
-    private val serviceDiscoverer: ServiceDiscoverer
+    private val serviceDiscoverer: ServiceDiscoverer,
+    private val playbackClient: PlaybackClient
 ) : ViewModel() {
     private val userEmail: StateFlow<String?> = dataStoreUtil.getEmail()
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
@@ -54,7 +53,9 @@ class SyncViewModel @Inject constructor(
                         port = serviceInfo.port,
                         isSelf = isSelfDevice(serviceInfo)
                     )
-                    _discoveredDevices.value = _discoveredDevices.value + discoveredDevice
+                    if (_discoveredDevices.value.none { it.serviceName == discoveredDevice.serviceName }) {
+                        _discoveredDevices.value = _discoveredDevices.value + discoveredDevice
+                    }
                 }
             },
             onServiceLost = { serviceInfo ->
@@ -65,6 +66,12 @@ class SyncViewModel @Inject constructor(
         )
     }
 
+    fun connectToDevice(device: DiscoveredDevice) {
+        viewModelScope.launch {
+            playbackClient.connect(device)
+        }
+    }
+
     private suspend fun isSelfDevice(serviceInfo: NsdServiceInfo): Boolean {
         val deviceEmail = serviceInfo.attributes["email"]?.toString(Charsets.UTF_8)
         return userEmail.first() == deviceEmail
@@ -73,5 +80,8 @@ class SyncViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         serviceDiscoverer.stopDiscovery()
+        viewModelScope.launch {
+            playbackClient.disconnect()
+        }
     }
 }
