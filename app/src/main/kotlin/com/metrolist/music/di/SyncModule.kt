@@ -1,6 +1,5 @@
 package com.metrolist.music.di
 
-import android.app.Application
 import com.metrolist.music.playback.sync.PlaybackServer
 import dagger.Module
 import dagger.Provides
@@ -14,7 +13,7 @@ object SyncModule {
 
     @Provides
     @Singleton
-    fun providePlaybackServer(application: Application): PlaybackServer {
-        return PlaybackServer(application)
+    fun providePlaybackServer(): PlaybackServer {
+        return PlaybackServer()
     }
 }

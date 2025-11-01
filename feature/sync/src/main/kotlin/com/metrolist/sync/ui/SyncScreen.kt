@@ -15,26 +15,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.metrolist.sync.api.DiscoveredDevice
-import com.metrolist.sync.api.SyncState
-import com.metrolist.sync.SyncViewModel
+import com.metrolist.sync.ui.SyncViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(
-    syncState: SyncState,
     viewModel: SyncViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(viewModel, syncState) {
-        viewModel.init(syncState)
-    }
-
     val discoveredDevices by viewModel.discoveredDevices.collectAsState()
 
     Scaffold(
