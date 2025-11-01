@@ -335,7 +335,11 @@ fun NavGraphBuilder.navigationBuilder(
     composable("login") {
         LoginScreen(navController)
     }
-    composable("sync") {
+    composable(
+        "sync",
+        enterTransition = { fadeIn(animationSpec = tween(0)) },
+        exitTransition = { fadeOut(animationSpec = tween(0)) }
+    ) {
         SyncScreen()
     }
 }

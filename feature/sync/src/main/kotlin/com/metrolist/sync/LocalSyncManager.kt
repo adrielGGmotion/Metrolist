@@ -26,11 +26,12 @@ class LocalSyncManager @Inject constructor(
 
     fun registerService(port: Int) {
         coroutineScope.launch {
+            val userEmail = dataStoreUtil.getEmail().first()
             val serviceInfo = NsdServiceInfo().apply {
-                serviceName = "Metrolist Sync"
+                serviceName = "Metrolist Sync ($userEmail)"
                 serviceType = "_metrolist-sync._tcp"
                 this.port = port
-                setAttribute("email", dataStoreUtil.getEmail().first())
+                setAttribute("email", userEmail)
                 setAttribute("device", Build.MODEL)
             }
 
