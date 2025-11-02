@@ -313,7 +313,7 @@ fun NavGraphBuilder.navigationBuilder(
         PrivacySettings(navController, scrollBehavior)
     }
     composable("settings/blacklisted_artists") {
-        BlacklistedArtistsScreen(navController, scrollBehavior)
+        BlacklistedArtistsScreen(navController)
     }
     composable("settings/backup_restore") {
         BackupAndRestore(navController, scrollBehavior)

@@ -163,6 +163,14 @@ fun ArtistScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.artistBlockedEvent.collect {
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.artist_blocked)
+            )
+        }
+    }
+
     LaunchedEffect(libraryArtist) {
         // always show local page for local artists. Show local page remote artist when offline
         showLocal = libraryArtist?.artist?.isLocal == true
@@ -765,6 +773,14 @@ fun ArtistScreen(
             }
         },
         actions = {
+            IconButton(
+                onClick = { viewModel.blockArtist() },
+            ) {
+                Icon(
+                    painterResource(R.drawable.block),
+                    contentDescription = stringResource(R.string.block_artist),
+                )
+            }
             IconButton(
                 onClick = {
                     viewModel.artistPage?.artist?.shareLink?.let { link ->

@@ -92,6 +92,7 @@ import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.TextFieldDialog
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.viewmodels.CachePlaylistViewModel
+import com.metrolist.music.viewmodels.SongMenuViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -126,6 +127,8 @@ fun SongMenu(
         animationSpec = tween(durationMillis = 800),
         label = "",
     )
+
+    val viewModel = hiltViewModel<SongMenuViewModel>()
 
     val orderedArtists by produceState(initialValue = emptyList<ArtistEntity>(), song) {
         withContext(Dispatchers.IO) {
@@ -249,6 +252,10 @@ fun SongMenu(
         mutableStateOf(false)
     }
 
+    var showBlockArtistDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     if (showSelectArtistDialog) {
         ListDialog(
             onDismiss = { showSelectArtistDialog = false },
@@ -264,6 +271,52 @@ fun SongMenu(
                         .clickable {
                             navController.navigate("artist/${artist.id}")
                             showSelectArtistDialog = false
+                            onDismiss()
+                        }
+                        .padding(horizontal = 12.dp),
+                ) {
+                    Box(
+                        modifier = Modifier.padding(8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AsyncImage(
+                            model = artist.thumbnailUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(ListThumbnailSize)
+                                .clip(CircleShape),
+                        )
+                    }
+                    Text(
+                        text = artist.name,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    if (showBlockArtistDialog) {
+        ListDialog(
+            onDismiss = { showBlockArtistDialog = false },
+        ) {
+            items(
+                items = song.artists.distinctBy { it.id },
+                key = { it.id },
+            ) { artist ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .height(ListItemHeight)
+                        .clickable {
+                            viewModel.blockArtist(artist)
+                            showBlockArtistDialog = false
                             onDismiss()
                         }
                         .padding(horizontal = 12.dp),
@@ -661,6 +714,25 @@ fun SongMenu(
                                 }
                             }
                         }
+                    }
+                }
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.block_artist)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.block),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    if (song.artists.size == 1) {
+                        viewModel.blockArtist(song.artists[0])
+                        onDismiss()
+                    } else {
+                        showBlockArtistDialog = true
                     }
                 }
             )

@@ -43,25 +43,6 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    override fun isSelfDevice(serviceInfo: Any): Boolean {
-        // TODO: Implement
-        return false
-    }
-
-    override fun addDiscoveredDevice(device: DiscoveredDevice) {
-        if (_discoveredDevices.value.none { it.serviceName == device.serviceName }) {
-            _discoveredDevices.value = _discoveredDevices.value + device
-        }
-    }
-
-    override fun removeDiscoveredDevice(serviceInfo: Any) {
-        // TODO: Implement
-    }
-
-    override fun clearDiscoveredDevices() {
-        _discoveredDevices.value = emptyList()
-    }
-
     fun setShowPlayer(show: Boolean) {
         _showPlayer.value = show
     }

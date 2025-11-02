@@ -23,19 +23,27 @@ import com.metrolist.music.extensions.filterExplicit
 import com.metrolist.music.extensions.filterExplicitAlbums
 import com.metrolist.common.utils.dataStore
 import com.metrolist.common.utils.get
+import com.metrolist.music.db.dao.BlacklistedArtistDao
+import com.metrolist.music.db.entities.BlacklistedArtist
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ArtistViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     database: MusicDatabase,
+    private val blacklistedArtistDao: BlacklistedArtistDao,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+    private val _artistBlockedChannel = Channel<Unit>()
+    val artistBlockedEvent = _artistBlockedChannel.receiveAsFlow()
+
     val artistId = savedStateHandle.get<String>("artistId")!!
     var artistPage by mutableStateOf<ArtistPage?>(null)
     val libraryArtist = database.artist(artistId)
@@ -84,6 +92,21 @@ class ArtistViewModel @Inject constructor(
                 }.onFailure {
                     reportException(it)
                 }
+        }
+    }
+
+    fun blockArtist() {
+        viewModelScope.launch {
+            val artistName = artistPage?.artist?.title ?: libraryArtist?.value?.artist?.name
+            if (artistName != null) {
+                blacklistedArtistDao.insert(
+                    BlacklistedArtist(
+                        id = artistId,
+                        name = artistName
+                    )
+                )
+                _artistBlockedChannel.send(Unit)
+            }
         }
     }
 }

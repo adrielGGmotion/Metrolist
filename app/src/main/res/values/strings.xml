@@ -321,6 +321,8 @@
     <string name="hide_explicit">Hide explicit content</string>
     <string name="blacklisted_artists">Blacklisted Artists</string>
     <string name="unblock">Unblock</string>
+    <string name="block_artist">Block artist</string>
+    <string name="artist_blocked">Artist blocked</string>
 
     <string name="backup_restore">Backup and restore</string>
     <string name="action_backup">Backup</string>

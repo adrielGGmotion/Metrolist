@@ -31,6 +31,10 @@ fun SyncScreen(
     syncState: SyncState,
     viewModel: SyncViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(viewModel, syncState) {
+        viewModel.init(syncState)
+    }
+
     val discoveredDevices by viewModel.discoveredDevices.collectAsState()
 
     Scaffold(

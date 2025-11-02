@@ -4,5 +4,4 @@ plugins {
 
 dependencies {
     implementation(libs.coroutines.core)
-    implementation(libs.compose.runtime)
 }

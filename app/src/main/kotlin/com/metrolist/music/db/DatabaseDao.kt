@@ -53,6 +53,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import com.metrolist.music.db.dao.BlacklistedArtistDao
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
@@ -63,6 +64,9 @@ import java.util.Locale
 
 @Dao
 interface DatabaseDao {
+    @Transaction
+    abstract fun blacklistedArtistDao(): BlacklistedArtistDao
+
     @Transaction
     @Query("SELECT * FROM song WHERE inLibrary IS NOT NULL ORDER BY rowId")
     fun songsByRowIdAsc(): Flow<List<Song>>

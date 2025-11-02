@@ -6,5 +6,5 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "blacklisted_artists")
 data class BlacklistedArtist(
     @PrimaryKey val id: String,
-    val name: String
+    val name: String,
 )

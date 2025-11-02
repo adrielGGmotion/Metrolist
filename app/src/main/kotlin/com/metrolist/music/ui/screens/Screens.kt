@@ -40,13 +40,6 @@ sealed class Screens(
         route = "sync"
     )
 
-    object BlacklistedArtists : Screens(
-        titleId = R.string.blacklisted_artists,
-        iconIdInactive = R.drawable.block,
-        iconIdActive = R.drawable.block,
-        route = "settings/blacklisted_artists"
-    )
-
     companion object {
         val MainScreens = listOf(Home, Search, Library)
     }

@@ -29,6 +29,7 @@ import com.metrolist.music.db.entities.PlaylistSongMapPreview
 import com.metrolist.music.db.entities.RelatedSongMap
 import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.db.entities.SetVideoIdEntity
+import com.metrolist.music.db.entities.BlacklistedArtist
 import com.metrolist.music.db.entities.SongAlbumMap
 import com.metrolist.music.db.entities.SongArtistMap
 import com.metrolist.music.db.entities.SongEntity
@@ -81,7 +82,8 @@ class MusicDatabase(
         Event::class,
         RelatedSongMap::class,
         SetVideoIdEntity::class,
-        PlayCountEntity::class
+        PlayCountEntity::class,
+        BlacklistedArtist::class
     ],
     views = [
         SortedSongArtistMap::class,
