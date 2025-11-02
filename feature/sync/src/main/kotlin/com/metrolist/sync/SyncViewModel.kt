@@ -3,6 +3,8 @@ package com.metrolist.sync
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.common.data.DataStoreUtil
+import com.metrolist.sync.api.DiscoveredDevice
+import com.metrolist.sync.api.SyncState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -13,10 +15,9 @@ import javax.inject.Inject
 class SyncViewModel @Inject constructor(
     private val dataStoreUtil: DataStoreUtil,
     private val serviceDiscoverer: ServiceDiscoverer,
-    private val playbackClient: PlaybackClient
+    private val playbackClient: PlaybackClient,
+    private val syncState: SyncState
 ) : ViewModel() {
-    private lateinit var syncState: SyncState
-
     val discoveredDevices: StateFlow<List<DiscoveredDevice>>
         get() = syncState.discoveredDevices
 
@@ -43,17 +44,13 @@ class SyncViewModel @Inject constructor(
                             deviceName = deviceName,
                             hostAddress = serviceInfo.host.hostAddress,
                             port = serviceInfo.port,
-                            isSelf = isSelfDevice(serviceInfo)
+                            isSelf = syncState.isSelfDevice(serviceInfo)
                         )
-                        if (_discoveredDevices.value.none { it.serviceName == discoveredDevice.serviceName }) {
-                            _discoveredDevices.value = _discoveredDevices.value + discoveredDevice
-                        }
+                        syncState.addDiscoveredDevice(discoveredDevice)
                     }
                 },
                 onServiceLost = { serviceInfo ->
-                    _discoveredDevices.value = _discoveredDevices.value.filter {
-                        it.serviceName != serviceInfo.serviceName
-                    }
+                    syncState.removeDiscoveredDevice(serviceInfo)
                 }
             )
         }
@@ -67,15 +64,9 @@ class SyncViewModel @Inject constructor(
 
     fun refreshDiscovery() {
         viewModelScope.launch(Dispatchers.IO) {
-            _discoveredDevices.value = emptyList()
+            syncState.clearDiscoveredDevices()
             serviceDiscoverer.stopDiscovery()
             startDiscovery()
-        }
-    }
-
-    fun connectToDevice(device: DiscoveredDevice) {
-        viewModelScope.launch {
-            playbackClient.connect(device)
         }
     }
 

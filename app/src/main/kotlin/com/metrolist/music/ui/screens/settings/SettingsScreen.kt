@@ -101,6 +101,11 @@ fun SettingsScreen(
                     icon = painterResource(R.drawable.security),
                     title = { Text(stringResource(R.string.privacy)) },
                     onClick = { navController.navigate("settings/privacy") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.block),
+                    title = { Text(stringResource(R.string.blacklisted_artists)) },
+                    onClick = { navController.navigate("settings/blacklisted_artists") }
                 )
             )
         )

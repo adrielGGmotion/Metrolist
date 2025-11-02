@@ -319,6 +319,8 @@
     <string name="enable_lrclib">Enable LrcLib lyrics provider</string>
     <string name="enable_kugou">Enable KuGou lyrics provider</string>
     <string name="hide_explicit">Hide explicit content</string>
+    <string name="blacklisted_artists">Blacklisted Artists</string>
+    <string name="unblock">Unblock</string>
 
     <string name="backup_restore">Backup and restore</string>
     <string name="action_backup">Backup</string>

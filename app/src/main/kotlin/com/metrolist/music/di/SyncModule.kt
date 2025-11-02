@@ -1,20 +1,19 @@
 package com.metrolist.music.di
 
-import android.app.Application
-import com.metrolist.music.playback.sync.PlaybackServer
+import com.metrolist.music.viewmodels.MainViewModel
+import com.metrolist.sync.api.SyncState
+import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object SyncModule {
-
-    @Provides
+abstract class SyncModule {
+    @Binds
     @Singleton
-    fun providePlaybackServer(application: Application): PlaybackServer {
-        return PlaybackServer(application)
-    }
+    abstract fun bindSyncState(
+        syncStateImpl: com.metrolist.music.sync.SyncStateImpl
+    ): SyncState
 }
