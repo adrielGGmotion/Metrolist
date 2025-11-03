@@ -32,6 +32,7 @@ constructor(
 ) {
     private var lyricsProviders =
         listOf(
+            AppleMusicLyricsProvider,
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
             YouTubeSubtitleLyricsProvider,
@@ -45,17 +46,25 @@ constructor(
             }.distinctUntilChanged()
             .map {
                 lyricsProviders =
-                    if (it == PreferredLyricsProvider.LRCLIB) {
-                        listOf(
+                    when (it) {
+                        PreferredLyricsProvider.LRCLIB -> listOf(
                             LrcLibLyricsProvider,
+                            AppleMusicLyricsProvider,
                             KuGouLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
-                    } else {
-                        listOf(
+                        PreferredLyricsProvider.KUGOU -> listOf(
                             KuGouLyricsProvider,
+                            AppleMusicLyricsProvider,
                             LrcLibLyricsProvider,
+                            YouTubeSubtitleLyricsProvider,
+                            YouTubeLyricsProvider
+                        )
+                        PreferredLyricsProvider.APPLE_MUSIC -> listOf(
+                            AppleMusicLyricsProvider,
+                            LrcLibLyricsProvider,
+                            KuGouLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
@@ -174,6 +183,8 @@ constructor(
         currentLyricsJob?.cancel()
         currentLyricsJob = null
     }
+
+
 
     companion object {
         private const val MAX_CACHE_SIZE = 3

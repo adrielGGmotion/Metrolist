@@ -34,6 +34,7 @@ val ContentLanguageKey = stringPreferencesKey("contentLanguage")
 val ContentCountryKey = stringPreferencesKey("contentCountry")
 val EnableKugouKey = booleanPreferencesKey("enableKugou")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
+val EnableAppleMusicKey = booleanPreferencesKey("enableAppleMusic")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val ProxyEnabledKey = booleanPreferencesKey("proxyEnabled")
 val ProxyUrlKey = stringPreferencesKey("proxyUrl")
@@ -272,6 +273,7 @@ enum class QuickPicks {
 enum class PreferredLyricsProvider {
     LRCLIB,
     KUGOU,
+    APPLE_MUSIC,
 }
 
 enum class PlayerButtonsStyle {
@@ -405,7 +407,7 @@ val LanguageCodeToName =
         "lo" to "ລາວ",
         "my" to "ဗမာ",
         "ka" to "ქართული",
-        "am" to "አማርኛ",
+        "am" to "አማрኛ",
         "km" to "ខ្មែរ",
         "zh-CN" to "中文 (简体)",
         "zh-TW" to "中文 (繁體)",
