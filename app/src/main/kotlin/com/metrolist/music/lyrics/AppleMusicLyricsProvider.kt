@@ -16,5 +16,13 @@ object AppleMusicLyricsProvider : LyricsProvider {
         title: String,
         artist: String,
         duration: Int,
-    ): Result<String> = AppleMusic.getLyrics(title, artist)
+    ): Result<String> {
+        return try {
+            val lyrics = AppleMusic.getLyrics(title, artist)
+            val lrc = lyrics?.sync ?: lyrics?.plain
+            lrc?.let { Result.success(it) } ?: Result.failure(Exception("Lyrics not found"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

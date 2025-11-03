@@ -407,7 +407,7 @@ val LanguageCodeToName =
         "lo" to "ລາວ",
         "my" to "ဗမာ",
         "ka" to "ქართული",
-        "am" to "አማрኛ",
+        "am" to "አማርኛ",
         "km" to "ខ្មែរ",
         "zh-CN" to "中文 (简体)",
         "zh-TW" to "中文 (繁體)",
