@@ -120,6 +120,7 @@ import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.di.NetworkConnectivityObserver
+import com.metrolist.music.di.OfflineStateRepository
 import com.metrolist.music.utils.CoilBitmapLoader
 import com.metrolist.music.utils.DiscordRPC
 import com.metrolist.music.utils.ScrobbleManager
@@ -1554,7 +1555,7 @@ class MusicService :
             discordRpc?.closeRPC()
         }
         discordRpc = null
-        connectivityObserver.unregister()
+        networkConnectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
         mediaSession.release()
