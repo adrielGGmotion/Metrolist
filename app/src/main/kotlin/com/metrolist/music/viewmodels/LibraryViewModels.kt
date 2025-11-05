@@ -233,16 +233,19 @@ constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
     private val syncUtils: SyncUtils,
+    offlineStateRepository: OfflineStateRepository
 ) : ViewModel() {
     val allPlaylists =
-        context.dataStore.data
-            .map {
-                it[PlaylistSortTypeKey].toEnum(PlaylistSortType.CREATE_DATE) to (it[PlaylistSortDescendingKey]
-                    ?: true)
-            }.distinctUntilChanged()
-            .flatMapLatest { (sortType, descending) ->
-                database.playlists(sortType, descending)
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        combine(
+            context.dataStore.data
+                .map {
+                    it[PlaylistSortTypeKey].toEnum(PlaylistSortType.CREATE_DATE) to (it[PlaylistSortDescendingKey]
+                        ?: true)
+                }.distinctUntilChanged(),
+            offlineStateRepository.isOffline
+        ) { (sortType, descending), isOffline ->
+            database.playlists(sortType, descending, isOffline)
+        }.flatMapLatest { it }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncSavedPlaylists() }

@@ -969,20 +969,41 @@ interface DatabaseDao {
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE bookmarkedAt IS NOT NULL ORDER BY songCount")
     fun playlistsBySongCountAsc(): Flow<List<Playlist>>
 
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE EXISTS(SELECT * FROM playlist_song_map JOIN song ON playlist_song_map.songId = song.id WHERE playlist.id = playlist_song_map.playlistId AND song.isDownloaded = 1) ORDER BY rowId")
+    fun playlistsByCreateDateAscOffline(): Flow<List<Playlist>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE EXISTS(SELECT * FROM playlist_song_map JOIN song ON playlist_song_map.songId = song.id WHERE playlist.id = playlist_song_map.playlistId AND song.isDownloaded = 1) ORDER BY lastUpdateTime")
+    fun playlistsByUpdatedDateAscOffline(): Flow<List<Playlist>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE EXISTS(SELECT * FROM playlist_song_map JOIN song ON playlist_song_map.songId = song.id WHERE playlist.id = playlist_song_map.playlistId AND song.isDownloaded = 1) ORDER BY name")
+    fun playlistsByNameAscOffline(): Flow<List<Playlist>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE EXISTS(SELECT * FROM playlist_song_map JOIN song ON playlist_song_map.songId = song.id WHERE playlist.id = playlist_song_map.playlistId AND song.isDownloaded = 1) ORDER BY songCount")
+    fun playlistsBySongCountAscOffline(): Flow<List<Playlist>>
+
     fun playlists(
         sortType: PlaylistSortType,
         descending: Boolean,
+        offlineOnly: Boolean = false,
     ) = when (sortType) {
-        PlaylistSortType.CREATE_DATE -> playlistsByCreateDateAsc()
+        PlaylistSortType.CREATE_DATE -> if (offlineOnly) playlistsByCreateDateAscOffline() else playlistsByCreateDateAsc()
         PlaylistSortType.NAME ->
-            playlistsByNameAsc().map { playlists ->
+            (if (offlineOnly) playlistsByNameAscOffline() else playlistsByNameAsc()).map { playlists ->
                 val collator = Collator.getInstance(Locale.getDefault())
                 collator.strength = Collator.PRIMARY
                 playlists.sortedWith(compareBy(collator) { it.playlist.name })
             }
 
-        PlaylistSortType.SONG_COUNT -> playlistsBySongCountAsc()
-        PlaylistSortType.LAST_UPDATED -> playlistsByUpdatedDateAsc()
+        PlaylistSortType.SONG_COUNT -> if (offlineOnly) playlistsBySongCountAscOffline() else playlistsBySongCountAsc()
+        PlaylistSortType.LAST_UPDATED -> if (offlineOnly) playlistsByUpdatedDateAscOffline() else playlistsByUpdatedDateAsc()
     }.map { it.reversed(descending) }
 
     @Transaction
