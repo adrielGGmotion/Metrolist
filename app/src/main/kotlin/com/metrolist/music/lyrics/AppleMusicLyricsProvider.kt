@@ -5,6 +5,7 @@ import com.metrolist.apple.AppleMusic
 import com.metrolist.music.constants.EnableAppleMusicKey
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
+import timber.log.Timber
 
 object AppleMusicLyricsProvider : LyricsProvider {
     override val name = "Apple Music"
@@ -19,9 +20,9 @@ object AppleMusicLyricsProvider : LyricsProvider {
     ): Result<String> {
         return try {
             val lyrics = AppleMusic.getLyrics(title, artist)
-            val lrc = lyrics?.sync ?: lyrics?.plain
-            lrc?.let { Result.success(it) } ?: Result.failure(Exception("Lyrics not found"))
+            lyrics?.let { Result.success(it) } ?: Result.failure(Exception("Lyrics not found"))
         } catch (e: Exception) {
+            Timber.e(e, "AppleMusicLyricsProvider: Error getting lyrics")
             Result.failure(e)
         }
     }

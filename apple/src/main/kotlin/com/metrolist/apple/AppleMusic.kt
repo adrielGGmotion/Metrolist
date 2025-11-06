@@ -9,6 +9,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 
 object AppleMusic {
     private val client = HttpClient {
@@ -25,43 +26,91 @@ object AppleMusic {
         isLenient = true
     }
 
-    suspend fun getLyrics(title: String, artist: String): AppleMusicLyrics? {
+    suspend fun getLyrics(title: String, artist: String): String? {
         return try {
             val searchQuery = "$title $artist"
             Timber.d("AppleMusic: Searching for '$searchQuery'")
-            val searchUrl = URLBuilder("http://lyrics.paxsenix.dpdns.org/search").apply {
+            val searchUrl = URLBuilder("http://lyrics.paxsenix.dpdns.org/searchAppleMusic.php").apply {
                 parameters.append("q", searchQuery)
             }.build()
 
             val searchResponse = client.get(searchUrl).bodyAsText()
-            Timber.d("AppleMusic: Search response: $searchResponse")
-            val searchResults = json.decodeFromString<List<SearchResult>>(searchResponse)
-            Timber.d("AppleMusic: Search results: $searchResults")
+            val searchResults = json.decodeFromString<List<AppleSearchResponse>>(searchResponse)
             val bestMatchId = searchResults.firstOrNull()?.id ?: run {
                 Timber.d("AppleMusic: No search results found")
                 return null
             }
 
             Timber.d("AppleMusic: Fetching lyrics for id '$bestMatchId'")
-            val lyricsResponse = client.get("http://lyrics.paxsenix.dpdns.org/lyrics/$bestMatchId").bodyAsText()
-            Timber.d("AppleMusic: Raw lyrics response: $lyricsResponse")
-            val lyrics = json.decodeFromString<AppleMusicLyrics>(lyricsResponse)
-            Timber.d("AppleMusic: Parsed lyrics: $lyrics")
-            lyrics
+            val lyricsResponse = client.get("http://lyrics.paxsenix.dpdns.org/getAppleMusicLyrics.php?id=$bestMatchId").bodyAsText()
+            val paxResponse = json.decodeFromString<PaxResponse>(lyricsResponse)
+
+            paxResponse.content?.let { formatSyllableLyrics(it) }
         } catch (e: Exception) {
             Timber.e(e, "AppleMusic: Error getting lyrics")
             null
         }
     }
+
+    private fun formatSyllableLyrics(lyrics: List<PaxLyrics>): String {
+        val syncedLyrics = StringBuilder()
+        for (line in lyrics) {
+            syncedLyrics.append("[${line.timestamp.toLrcTimestamp()}]")
+            syncedLyrics.append("v1:")
+
+            for (syllable in line.text) {
+                val formattedBeginTimestamp = "<${syllable.timestamp.toLrcTimestamp()}>"
+                val formattedEndTimestamp = "<${syllable.endtime.toLrcTimestamp()}>"
+                if (!syncedLyrics.endsWith(formattedBeginTimestamp))
+                    syncedLyrics.append(formattedBeginTimestamp)
+                syncedLyrics.append(syllable.text)
+                if (!syllable.part)
+                    syncedLyrics.append(" ")
+                syncedLyrics.append(formattedEndTimestamp)
+            }
+            syncedLyrics.append("\n")
+        }
+        return syncedLyrics.toString()
+    }
+
+    private fun Int?.toLrcTimestamp(): String {
+        if (this == null) return ""
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(this.toLong())
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(this.toLong()) % 60
+        val milliseconds = this % 1000
+        return String.format("%02d:%02d.%03d", minutes, seconds, milliseconds)
+    }
 }
 
 @Serializable
-data class SearchResult(
-    val id: String
+data class AppleSearchResponse(
+    val id: String,
+    val songName: String,
+    val artistName: String,
+    val artwork: String,
+    val url: String
 )
 
 @Serializable
-data class AppleMusicLyrics(
-    val sync: String?,
-    val plain: String?
+data class PaxResponse(
+    val type: String,
+    val content: List<PaxLyrics>?
+)
+
+@Serializable
+data class PaxLyrics(
+    val text: List<PaxLyricsLineDetails>,
+    val timestamp: Int,
+    val oppositeTurn: Boolean,
+    val background: Boolean,
+    val backgroundText: List<PaxLyricsLineDetails>,
+    val endtime: Int
+)
+
+@Serializable
+data class PaxLyricsLineDetails(
+    val text: String,
+    val part: Boolean,
+    val timestamp: Int?,
+    val endtime: Int?
 )
