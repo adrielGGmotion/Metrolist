@@ -18,6 +18,9 @@ import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.QuickPicks
 import com.metrolist.music.constants.QuickPicksKey
 import com.metrolist.music.constants.YtmSyncKey
+import com.metrolist.music.constants.SongSortType
+import com.metrolist.music.constants.AlbumSortType
+import com.metrolist.music.constants.ArtistSortType
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Album
 import com.metrolist.music.db.entities.LocalItem
@@ -27,6 +30,7 @@ import com.metrolist.music.models.SimilarRecommendation
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.di.NetworkConnectivityObserver
+import com.metrolist.music.di.OfflineStateRepository
 import com.metrolist.music.utils.reportException
 import com.metrolist.music.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,6 +51,7 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     val syncUtils: SyncUtils,
+    val offlineStateRepository: OfflineStateRepository
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
@@ -217,27 +222,57 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private suspend fun loadOffline() {
+        isLoading.value = true
+
+        // Clear existing online content
+        quickPicks.value = null
+        forgottenFavorites.value = null
+        keepListening.value = null
+        similarRecommendations.value = null
+        accountPlaylists.value = null
+        homePage.value = null
+        explorePage.value = null
+        selectedChip.value = null
+        previousHomePage.value = null
+        allYtItems.value = emptyList()
+
+        // Populate with offline content
+        val downloadedSongs = database.downloadedSongs(SongSortType.CREATE_DATE, descending = true).first()
+        val downloadedAlbums = database.albums(AlbumSortType.CREATE_DATE, descending = true, offlineOnly = true).first()
+        val downloadedArtists = database.artists(ArtistSortType.CREATE_DATE, descending = true, offlineOnly = true).first()
+
+        quickPicks.value = downloadedSongs.shuffled().take(20)
+        forgottenFavorites.value = downloadedSongs.shuffled().take(20)
+        keepListening.value = (downloadedAlbums.shuffled().take(10) + downloadedArtists.shuffled().take(5)).shuffled()
+
+        allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
+            .filter { it is Song || it is Album }
+
+        isLoading.value = false
+    }
+
     fun refresh() {
         if (isRefreshing.value) return
         viewModelScope.launch(Dispatchers.IO) {
             isRefreshing.value = true
-            load()
+            if (offlineStateRepository.isOffline.value) {
+                loadOffline()
+            } else {
+                load()
+            }
             isRefreshing.value = false
         }
     }
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            context.dataStore.data
-                .map { it[InnerTubeCookieKey] }
-                .distinctUntilChanged()
-                .first()
-            
-            load()
-
-            val isSyncEnabled = context.dataStore.get(YtmSyncKey, true)
-            if (isSyncEnabled) {
-                syncUtils.runAllSyncs()
+            offlineStateRepository.isOffline.collect { isOffline ->
+                if (isOffline) {
+                    loadOffline()
+                } else {
+                    load()
+                }
             }
         }
 
