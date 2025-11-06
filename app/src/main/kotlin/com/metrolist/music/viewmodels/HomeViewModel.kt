@@ -23,6 +23,7 @@ import com.metrolist.music.constants.AlbumSortType
 import com.metrolist.music.constants.ArtistSortType
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Album
+import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.LocalItem
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.toEnum
@@ -94,6 +95,10 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun load() {
+        if (offlineStateRepository.isOffline.value) {
+            loadOffline()
+            return
+        }
         isLoading.value = true
         val hideExplicit = context.dataStore.get(HideExplicitKey, false)
 
@@ -242,12 +247,18 @@ class HomeViewModel @Inject constructor(
         val downloadedAlbums = database.albums(AlbumSortType.CREATE_DATE, descending = true, offlineOnly = true).first()
         val downloadedArtists = database.artists(ArtistSortType.CREATE_DATE, descending = true, offlineOnly = true).first()
 
-        quickPicks.value = downloadedSongs.shuffled().take(20)
-        forgottenFavorites.value = downloadedSongs.shuffled().take(20)
-        keepListening.value = (downloadedAlbums.shuffled().take(10) + downloadedArtists.shuffled().take(5)).shuffled()
+        // Create curated sections
+        val recentlyAdded = downloadedSongs.take(10)
+        val offlineAlbums = downloadedAlbums.shuffled().take(10)
+        val offlineArtists = downloadedArtists.shuffled().take(5)
 
-        allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
-            .filter { it is Song || it is Album }
+        quickPicks.value = recentlyAdded
+        keepListening.value = (offlineAlbums + offlineArtists).shuffled()
+        forgottenFavorites.value = downloadedSongs.shuffled().take(20)
+
+
+        allLocalItems.value = (quickPicks.value.orEmpty() + keepListening.value.orEmpty() + forgottenFavorites.value.orEmpty())
+            .filter { it is Song || it is Album || it is Artist }
 
         isLoading.value = false
     }
