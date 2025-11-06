@@ -1,7 +1,7 @@
 package com.metrolist.apple
 
 import io.ktor.client.HttpClient
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.http.URLBuilder
@@ -20,22 +20,15 @@ object AppleMusic {
         }
     }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
-
     suspend fun getLyrics(title: String, artist: String): AppleMusicLyrics? {
         return try {
             val searchQuery = "$title $artist"
             Timber.d("AppleMusic: Searching for '$searchQuery'")
-            val searchUrl = URLBuilder("http://lyrics.paxsenix.dpdns.org/search").apply {
+            val searchUrl = URLBuilder("https://lyrics.paxsenix.dpdns.org/search").apply {
                 parameters.append("q", searchQuery)
             }.build()
 
-            val searchResponse = client.get(searchUrl).bodyAsText()
-            Timber.d("AppleMusic: Search response: $searchResponse")
-            val searchResults = json.decodeFromString<List<SearchResult>>(searchResponse)
+            val searchResults = client.get(searchUrl).body<List<SearchResult>>()
             Timber.d("AppleMusic: Search results: $searchResults")
             val bestMatchId = searchResults.firstOrNull()?.id ?: run {
                 Timber.d("AppleMusic: No search results found")
@@ -43,10 +36,8 @@ object AppleMusic {
             }
 
             Timber.d("AppleMusic: Fetching lyrics for id '$bestMatchId'")
-            val lyricsResponse = client.get("http://lyrics.paxsenix.dpdns.org/lyrics/$bestMatchId").bodyAsText()
-            Timber.d("AppleMusic: Raw lyrics response: $lyricsResponse")
-            val lyrics = json.decodeFromString<AppleMusicLyrics>(lyricsResponse)
-            Timber.d("AppleMusic: Parsed lyrics: $lyrics")
+            val lyrics = client.get("https://lyrics.paxsenix.dpdns.org/lyrics/$bestMatchId").body<AppleMusicLyrics>()
+            Timber.d("AppleMusic: Lyrics received: $lyrics")
             lyrics
         } catch (e: Exception) {
             Timber.e(e, "AppleMusic: Error getting lyrics")
