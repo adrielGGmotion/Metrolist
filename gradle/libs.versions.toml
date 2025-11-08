@@ -107,7 +107,7 @@ timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 
 multidex = { module = "androidx.multidex:multidex", version.ref = "multidex" }
 
-extractor = { module = "com.github.ShareASmile:NewPipeExtractor", version = "653a00b" }
+extractor = { module = "com.github.libre-tube:NewPipeExtractor", version = "dev-SNAPSHOT" }
 
 kuromoji-ipadic = { module = "com.atilika.kuromoji:kuromoji-ipadic", version.ref = "kuromojiIpadic" }
 
