@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
  * @param title The title of the settings group
  * @param items List of settings items to display
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Material3SettingsGroup(
     title: String? = null,
@@ -35,23 +36,25 @@ fun Material3SettingsGroup(
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
             )
         }
-        
-        // Settings card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+
+        // Settings items
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column {
-                items.forEachIndexed { index, item ->
+            items.forEach { item ->
+                Card(
+                    onClick = { item.onClick?.invoke() },
+                    enabled = item.onClick != null,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                ) {
                     Material3SettingsItemRow(
                         item = item,
-                        showDivider = index < items.size - 1
+                        showDivider = false
                     )
                 }
             }
@@ -71,11 +74,6 @@ private fun Material3SettingsItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(
-                    enabled = item.onClick != null,
-                    onClick = { item.onClick?.invoke() }
-                )
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

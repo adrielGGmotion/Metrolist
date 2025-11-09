@@ -73,6 +73,8 @@ import com.metrolist.music.constants.SwipeThumbnailKey
 import com.metrolist.music.constants.SwipeSensitivityKey
 import com.metrolist.music.constants.SwipeToSongKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
+import com.metrolist.music.constants.MiniPlayerPillOutlineKey
+import com.metrolist.music.constants.MiniPlayerPureBlackKey
 import com.metrolist.music.constants.SwipeToRemoveSongKey
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumListPreference
@@ -109,6 +111,14 @@ fun AppearanceSettings(
     val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
         UseNewMiniPlayerDesignKey,
         defaultValue = true
+    )
+    val (miniPlayerPureBlack, onMiniPlayerPureBlackChange) = rememberPreference(
+        MiniPlayerPureBlackKey,
+        defaultValue = false
+    )
+    val (miniPlayerPillOutline, onMiniPlayerPillOutlineChange) = rememberPreference(
+        MiniPlayerPillOutlineKey,
+        defaultValue = false
     )
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(
         HidePlayerThumbnailKey,
@@ -399,6 +409,23 @@ fun AppearanceSettings(
             checked = useNewMiniPlayerDesign,
             onCheckedChange = onUseNewMiniPlayerDesignChange,
         )
+
+        AnimatedVisibility(useNewMiniPlayerDesign) {
+            Column {
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.mini_player_pure_black)) },
+                    icon = { Icon(painterResource(R.drawable.contrast), null) },
+                    checked = miniPlayerPureBlack,
+                    onCheckedChange = onMiniPlayerPureBlackChange,
+                )
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.mini_player_pill_outline)) },
+                    icon = { Icon(painterResource(R.drawable.gradient), null) },
+                    checked = miniPlayerPillOutline,
+                    onCheckedChange = onMiniPlayerPillOutlineChange,
+                )
+            }
+        }
 
         EnumListPreference(
             title = { Text(stringResource(R.string.player_background_style)) },
