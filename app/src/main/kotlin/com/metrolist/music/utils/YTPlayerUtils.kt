@@ -366,7 +366,7 @@ object YTPlayerUtils {
         videoId: String
     ): Int? {
         Timber.tag(logTag).d("Getting signature timestamp for videoId: $videoId")
-        return NewPipeUtils..getSignatureTimestamp(videoId)
+        return NewPipeUtils.getSignatureTimestamp(videoId)
             .onSuccess { Timber.tag(logTag).d("Signature timestamp obtained: $it") }
             .onFailure {
                 Timber.tag(logTag).e(it, "Failed to get signature timestamp")
