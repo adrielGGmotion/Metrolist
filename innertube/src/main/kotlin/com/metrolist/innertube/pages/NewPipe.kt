@@ -1,24 +1,19 @@
 package com.metrolist.innertube
 
-import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.response.PlayerResponse
 import io.ktor.http.URLBuilder
 import io.ktor.http.parseQueryString
-import okhttp3.OkHttpClient
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.exceptions.ParsingException
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager
-import java.io.IOException
-import java.net.Proxy
-
 
 object NewPipeUtils {
 
-    init {
-        NewPipe.init(NewPipe.getDownloader())
+    private var downloader: Downloader? = null
+    fun init(downloader: Downloader) {
+        this.downloader = downloader
+        NewPipe.init(downloader)
     }
 
     fun getSignatureTimestamp(videoId: String): Result<Int> = runCatching {

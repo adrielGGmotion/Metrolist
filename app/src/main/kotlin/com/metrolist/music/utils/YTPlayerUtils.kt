@@ -22,8 +22,82 @@ import com.metrolist.innertube.models.response.PlayerResponse
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
+import org.schabi.newpipe.extractor.downloader.Downloader
+import org.schabi.newpipe.extractor.downloader.Request
+import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import java.io.IOException
+import java.net.Proxy
+
+private class NewPipeDownloaderImpl(proxy: java.net.Proxy?, proxyAuth: String?) : org.schabi.newpipe.extractor.downloader.Downloader() {
+
+    private val client = okhttp3.OkHttpClient.Builder()
+        .proxy(proxy)
+        .proxyAuthenticator { _, response ->
+            proxyAuth?.let { auth ->
+                response.request.newBuilder()
+                    .header("Proxy-Authorization", auth)
+                    .build()
+            } ?: response.request
+        }
+        .build()
+
+    @Throws(java.io.IOException::class, org.schabi.newpipe.extractor.exceptions.ReCaptchaException::class)
+    override fun execute(request: org.schabi.newpipe.extractor.downloader.Request): org.schabi.newpipe.extractor.downloader.Response {
+        val httpMethod = request.httpMethod()
+        val url = request.url()
+        val headers = request.headers()
+        val dataToSend = request.dataToSend()
+
+        val requestBuilder = okhttp3.Request.Builder()
+            .method(httpMethod, okhttp3.RequestBody.create(null, dataToSend ?: byteArrayOf()))
+            .url(url)
+            .addHeader("User-Agent", com.metrolist.innertube.models.YouTubeClient.USER_AGENT_WEB)
+
+        headers.forEach { (headerName, headerValueList) ->
+            if (headerValueList.size > 1) {
+                requestBuilder.removeHeader(headerName)
+                headerValueList.forEach { headerValue ->
+                    requestBuilder.addHeader(headerName, headerValue)
+                }
+            } else if (headerValueList.size == 1) {
+                requestBuilder.header(headerName, headerValueList[0])
+            }
+        }
+
+        val response = client.newCall(requestBuilder.build()).execute()
+
+        if (response.code == 429) {
+            response.close()
+
+            throw org.schabi.newpipe.extractor.exceptions.ReCaptchaException("reCaptcha Challenge requested", url)
+        }
+
+        val responseBodyToReturn = response.body?.string()
+
+        val latestUrl = response.request.url.toString()
+        return org.schabi.newpipe.extractor.downloader.Response(response.code, response.message, response.headers.toMultimap(), responseBodyToReturn, latestUrl)
+    }
+
+}
+
 object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
+
+    private var cachedDownloader: NewPipeDownloaderImpl? = null
+    private var cachedProxy: Proxy? = null
+    private var cachedProxyAuth: String? = null
+
+    private fun initDownloaderIfNeeded() {
+        val currentProxy = YouTube.proxy
+        val currentProxyAuth = YouTube.proxyAuth
+        if (cachedDownloader == null || cachedProxy != currentProxy || cachedProxyAuth != currentProxyAuth) {
+            cachedDownloader = NewPipeDownloaderImpl(currentProxy, currentProxyAuth)
+            cachedProxy = currentProxy
+            cachedProxyAuth = currentProxyAuth
+            NewPipeUtils.init(cachedDownloader!!)
+        }
+    }
 
     private val httpClient = OkHttpClient.Builder()
         .proxy(YouTube.proxy)
@@ -73,6 +147,7 @@ object YTPlayerUtils {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
     ): Result<PlaybackData> = runCatching {
+        initDownloaderIfNeeded()
         Timber.tag(logTag).d("Fetching player response for videoId: $videoId, playlistId: $playlistId")
         /**
          * This is required for some clients to get working streams however
@@ -291,7 +366,7 @@ object YTPlayerUtils {
         videoId: String
     ): Int? {
         Timber.tag(logTag).d("Getting signature timestamp for videoId: $videoId")
-        return NewPipeUtils.getSignatureTimestamp(videoId)
+        return NewPipeUtils..getSignatureTimestamp(videoId)
             .onSuccess { Timber.tag(logTag).d("Signature timestamp obtained: $it") }
             .onFailure {
                 Timber.tag(logTag).e(it, "Failed to get signature timestamp")
