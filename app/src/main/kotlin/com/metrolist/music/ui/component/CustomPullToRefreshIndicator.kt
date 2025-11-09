@@ -37,7 +37,7 @@ fun CustomPullToRefreshIndicator(
                 CircularProgressIndicator(strokeWidth = 2.dp)
             } else {
                 CircularProgressIndicator(
-                    progress = { state.progress },
+                    progress = { state.distanceFraction.coerceAtMost(1f) },
                     strokeWidth = 2.dp
                 )
             }
