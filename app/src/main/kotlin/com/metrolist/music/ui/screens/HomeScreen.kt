@@ -38,7 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.pullToRefresh
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import com.metrolist.music.ui.component.CustomPullToRefreshIndicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -870,7 +870,7 @@ fun HomeScreen(
             }
         )
 
-        Indicator(
+        CustomPullToRefreshIndicator(
             isRefreshing = isRefreshing,
             state = pullRefreshState,
             modifier = Modifier
