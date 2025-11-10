@@ -281,7 +281,7 @@ private fun NewMiniPlayer(
                 .then(
                     if (miniPlayerPillOutline) {
                         Modifier.border(
-                            1.dp,
+                            0.5.dp,
                             MaterialTheme.colorScheme.primary,
                             RoundedCornerShape(32.dp)
                         )
