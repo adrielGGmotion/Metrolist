@@ -139,6 +139,8 @@ import kotlinx.coroutines.withContext
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
 
+import com.metrolist.sync.SyncViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheetPlayer(
@@ -146,6 +148,7 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    syncViewModel: SyncViewModel,
 ) {
     val context = LocalContext.current
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -709,6 +712,25 @@ fun BottomSheetPlayer(
                                     .size(24.dp)
                             )
                         }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(textButtonColor)
+                            .clickable {
+                                syncViewModel.showDeviceSelection()
+                            }
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.cast),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(iconButtonColor),
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(24.dp)
+                        )
                     }
                 } else {
                     Box(

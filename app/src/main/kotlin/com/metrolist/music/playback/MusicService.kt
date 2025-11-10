@@ -122,6 +122,8 @@ import com.metrolist.music.utils.CoilBitmapLoader
 import com.metrolist.music.utils.DiscordRPC
 import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.ScrobbleManager
+import com.metrolist.music.sync.PlaybackServer
+import com.metrolist.music.sync.SyncRepository
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.dataStore
@@ -174,6 +176,9 @@ class MusicService :
 
     @Inject
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
+
+    @Inject
+    lateinit var syncRepository: SyncRepository
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -522,6 +527,10 @@ class MusicService :
                 }
             }
         }
+
+        // Start sync services
+        PlaybackServer.start(binder, database)
+        syncRepository.startDiscovery()
     }
 
     private fun setupAudioFocusRequest() {
@@ -1551,6 +1560,11 @@ class MusicService :
         player.removeListener(sleepTimer)
         player.release()
         discordUpdateJob?.cancel()
+
+        // Stop sync services
+        PlaybackServer.stop()
+        syncRepository.stopDiscovery()
+
         super.onDestroy()
     }
 

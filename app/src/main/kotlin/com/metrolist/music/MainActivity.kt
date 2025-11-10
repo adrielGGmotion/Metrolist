@@ -195,6 +195,8 @@ import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.reportException
 import com.metrolist.music.utils.setAppLocale
 import com.metrolist.music.viewmodels.HomeViewModel
+import com.metrolist.sync.DeviceSelectionPopup
+import com.metrolist.sync.SyncViewModel
 import com.valentinilk.shimmer.LocalShimmerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -990,10 +992,19 @@ class MainActivity : ComponentActivity() {
                             bottomBar = {
                                 if (!showRail) {
                                     Box {
+                                        val syncViewModel: SyncViewModel = hiltViewModel()
+                                        DeviceSelectionPopup(
+                                            viewModel = syncViewModel,
+                                            onDismiss = { syncViewModel.hideDeviceSelection() },
+                                            onDeviceSelected = { device ->
+                                                syncViewModel.connectToDevice(device)
+                                            }
+                                        )
                                         BottomSheetPlayer(
                                             state = playerBottomSheetState,
                                             navController = navController,
-                                            pureBlack = pureBlack
+                                            pureBlack = pureBlack,
+                                            syncViewModel = syncViewModel
                                         )
                                         NavigationBar(
                                             modifier = Modifier
@@ -1077,10 +1088,19 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                 } else {
+                                    val syncViewModel: SyncViewModel = hiltViewModel()
+                                    DeviceSelectionPopup(
+                                        viewModel = syncViewModel,
+                                        onDismiss = { syncViewModel.hideDeviceSelection() },
+                                        onDeviceSelected = { device ->
+                                            syncViewModel.connectToDevice(device)
+                                        }
+                                    )
                                     BottomSheetPlayer(
                                         state = playerBottomSheetState,
                                         navController = navController,
-                                        pureBlack = pureBlack
+                                        pureBlack = pureBlack,
+                                        syncViewModel = syncViewModel
                                     )
 
                                     Box(

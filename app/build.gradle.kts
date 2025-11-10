@@ -149,6 +149,8 @@ android {
             excludes += "META-INF/NOTICE.md"
             excludes += "META-INF/CONTRIBUTORS.md"
             excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/io.netty.versions.properties"
         }
     }
 }
@@ -220,9 +222,15 @@ dependencies {
     implementation(project(":lrclib"))
     implementation(project(":kizzy"))
     implementation(project(":lastfm"))
+    implementation(project(":sync-api"))
+    implementation(project(":feature:sync"))
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.json)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.content.negotiation)
 
     coreLibraryDesugaring(libs.desugaring)
 
