@@ -35,7 +35,7 @@ fun Material3SettingsGroup(
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
             )
         }
-        
+
         // Settings card
         Card(
             modifier = Modifier
