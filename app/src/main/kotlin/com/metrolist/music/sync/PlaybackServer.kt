@@ -21,6 +21,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.util.Collections
@@ -63,12 +64,14 @@ object PlaybackServer {
         scope.launch {
             val player = musicServiceBinder.service.player
             while (true) {
-                val state = PlaybackState(
-                    isPlaying = player.isPlaying,
-                    songId = player.currentMediaItem?.mediaId,
-                    position = player.currentPosition,
-                    duration = player.duration
-                )
+                val state = withContext(Dispatchers.Main) {
+                    PlaybackState(
+                        isPlaying = player.isPlaying,
+                        songId = player.currentMediaItem?.mediaId,
+                        position = player.currentPosition,
+                        duration = player.duration
+                    )
+                }
                 sessions.forEach { session ->
                     session.send(Frame.Text(Json.encodeToString(PlaybackState.serializer(), state)))
                 }
@@ -85,14 +88,16 @@ object PlaybackServer {
         Timber.tag(TAG).d("Server stopped")
     }
 
-    private fun getPlaybackState(musicServiceBinder: MusicService.MusicBinder): PlaybackState {
+    private suspend fun getPlaybackState(musicServiceBinder: MusicService.MusicBinder): PlaybackState {
         val player = musicServiceBinder.service.player
-        return PlaybackState(
-            isPlaying = player.isPlaying,
-            songId = player.currentMediaItem?.mediaId,
-            position = player.currentPosition,
-            duration = player.duration
-        )
+        return withContext(Dispatchers.Main) {
+            PlaybackState(
+                isPlaying = player.isPlaying,
+                songId = player.currentMediaItem?.mediaId,
+                position = player.currentPosition,
+                duration = player.duration
+            )
+        }
     }
 
     private suspend fun handleCommand(
@@ -100,30 +105,32 @@ object PlaybackServer {
         musicServiceBinder: MusicService.MusicBinder,
         database: MusicDatabase
     ) {
-        val player = musicServiceBinder.service.player
-        when (command) {
-            is PlaybackCommand.Play -> player.play()
-            is PlaybackCommand.Pause -> player.pause()
-            is PlaybackCommand.Stop -> player.stop()
-            is PlaybackCommand.Next -> player.seekToNext()
-            is PlaybackCommand.Previous -> player.seekToPrevious()
-            is PlaybackCommand.Seek -> player.seekTo(command.position)
-            is PlaybackCommand.PlaySong -> {
-                val song = database.song(command.songId).first()
-                if (song != null) {
-                    val mediaMetadata = MediaMetadata(
-                        id = song.song.id,
-                        title = song.song.title,
-                        artists = song.artists.map { MediaMetadata.Artist(it.id, it.name) },
-                        duration = song.song.duration,
-                        thumbnailUrl = song.song.thumbnailUrl,
-                        album = song.album?.let { MediaMetadata.Album(it.id, it.title) }
-                    )
-                    val queue = YouTubeQueue(
-                        endpoint = com.metrolist.innertube.models.WatchEndpoint(videoId = song.song.id),
-                        preloadItem = mediaMetadata
-                    )
-                    musicServiceBinder.service.playQueue(queue)
+        withContext(Dispatchers.Main) {
+            val player = musicServiceBinder.service.player
+            when (command) {
+                is PlaybackCommand.Play -> player.play()
+                is PlaybackCommand.Pause -> player.pause()
+                is PlaybackCommand.Stop -> player.stop()
+                is PlaybackCommand.Next -> player.seekToNext()
+                is PlaybackCommand.Previous -> player.seekToPrevious()
+                is PlaybackCommand.Seek -> player.seekTo(command.position)
+                is PlaybackCommand.PlaySong -> {
+                    val song = database.song(command.songId).first()
+                    if (song != null) {
+                        val mediaMetadata = MediaMetadata(
+                            id = song.song.id,
+                            title = song.song.title,
+                            artists = song.artists.map { MediaMetadata.Artist(it.id, it.name) },
+                            duration = song.song.duration,
+                            thumbnailUrl = song.song.thumbnailUrl,
+                            album = song.album?.let { MediaMetadata.Album(it.id, it.title) }
+                        )
+                        val queue = YouTubeQueue(
+                            endpoint = com.metrolist.innertube.models.WatchEndpoint(videoId = song.song.id),
+                            preloadItem = mediaMetadata
+                        )
+                        musicServiceBinder.service.playQueue(queue)
+                    }
                 }
             }
         }
