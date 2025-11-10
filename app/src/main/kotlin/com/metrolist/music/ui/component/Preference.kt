@@ -12,10 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,7 +45,6 @@ import androidx.compose.ui.window.DialogProperties
 import com.metrolist.music.R
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreferenceEntry(
     modifier: Modifier = Modifier,
@@ -60,26 +56,17 @@ fun PreferenceEntry(
     onClick: (() -> Unit)? = null,
     isEnabled: Boolean = true,
 ) {
-    Card(
-        onClick = { onClick?.invoke() },
-        enabled = isEnabled,
-        modifier = Modifier
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+        modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            .clickable(
+                enabled = isEnabled && onClick != null,
+                onClick = onClick ?: {},
+            ).alpha(if (isEnabled) 1f else 0.5f)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier =
-            modifier
-                .fillMaxWidth()
-                .alpha(if (isEnabled) 1f else 0.5f)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-        ) {
         if (icon != null) {
             Box(
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -114,7 +101,6 @@ fun PreferenceEntry(
 
             trailingContent()
         }
-    }
     }
 }
 

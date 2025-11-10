@@ -65,6 +65,7 @@ import com.metrolist.music.constants.YtmSyncKey
 import com.metrolist.music.ui.component.InfoLabel
 import com.metrolist.music.ui.component.PreferenceEntry
 import com.metrolist.music.ui.component.ReleaseNotesCard
+import com.metrolist.music.ui.component.SettingsGroup
 import com.metrolist.music.ui.component.SwitchPreference
 import com.metrolist.music.ui.component.TextFieldDialog
 import com.metrolist.music.utils.Updater
@@ -223,67 +224,49 @@ fun AccountSettings(
             )
         }
 
-        PreferenceEntry(
-            title = {
-                Text(
-                    when {
-                        !isLoggedIn -> stringResource(R.string.advanced_login)
-                        showToken -> stringResource(R.string.token_shown)
-                        else -> stringResource(R.string.token_hidden)
-                    }
-                )
-            },
-            icon = { Icon(painterResource(R.drawable.token), null) },
-            onClick = {
-                if (!isLoggedIn) showTokenEditor = true
-                else if (!showToken) showToken = true
-                else showTokenEditor = true
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        if (isLoggedIn) {
-            SwitchPreference(
-                title = { Text(stringResource(R.string.more_content)) },
-                description = null,
-                icon = { Icon(painterResource(R.drawable.add_circle), null) },
-                checked = useLoginForBrowse,
-                onCheckedChange = {
-                    YouTube.useLoginForBrowse = it
-                    onUseLoginForBrowseChange(it)
+        SettingsGroup {
+            PreferenceEntry(
+                title = {
+                    Text(
+                        when {
+                            !isLoggedIn -> stringResource(R.string.advanced_login)
+                            showToken -> stringResource(R.string.token_shown)
+                            else -> stringResource(R.string.token_hidden)
+                        }
+                    )
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+                icon = { Icon(painterResource(R.drawable.token), null) },
+                onClick = {
+                    if (!isLoggedIn) showTokenEditor = true
+                    else if (!showToken) showToken = true
+                    else showTokenEditor = true
+                },
             )
-  
-            Spacer(Modifier.height(4.dp))
 
-            SwitchPreference(
-                title = { Text(stringResource(R.string.yt_sync)) },
-                icon = { Icon(painterResource(R.drawable.cached), null) },
-                checked = ytmSync,
-                onCheckedChange = onYtmSyncChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-            )
+            if (isLoggedIn) {
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.more_content)) },
+                    description = null,
+                    icon = { Icon(painterResource(R.drawable.add_circle), null) },
+                    checked = useLoginForBrowse,
+                    onCheckedChange = {
+                        YouTube.useLoginForBrowse = it
+                        onUseLoginForBrowseChange(it)
+                    },
+                )
+
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.yt_sync)) },
+                    icon = { Icon(painterResource(R.drawable.cached), null) },
+                    checked = ytmSync,
+                    onCheckedChange = onYtmSyncChange,
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-        ) {
+        SettingsGroup {
             PreferenceEntry(
                 title = { Text(stringResource(R.string.integrations)) },
                 icon = { Icon(painterResource(R.drawable.integration), null) },
@@ -291,13 +274,7 @@ fun AccountSettings(
                     onClose()
                     navController.navigate("settings/integrations")
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
             )
-
-            Spacer(Modifier.height(4.dp))
-
             PreferenceEntry(
                 title = { Text(stringResource(R.string.settings)) },
                 icon = {
@@ -315,12 +292,7 @@ fun AccountSettings(
                     onClose()
                     navController.navigate("settings")
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
             )
-
-            Spacer(Modifier.height(4.dp))
 
             if (latestVersionName != BuildConfig.VERSION_NAME) {
                 PreferenceEntry(
