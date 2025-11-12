@@ -98,3 +98,4 @@ core.*
 *.so
 *.bin
 app/persistent-debug.keystore
+worker.js
