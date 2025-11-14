@@ -16,7 +16,7 @@ class AppleMusicApi @Inject constructor(
         val query = "$title $artist"
 
         // 1. Build the search URL
-        val searchUrl = "https.www.google.com".toHttpUrl()
+        val searchUrl = "https://www.google.com".toHttpUrl()
             .newBuilder()
             .addPathSegment("search")
             .addQueryParameter("q", "site:music.apple.com $query lyrics")
