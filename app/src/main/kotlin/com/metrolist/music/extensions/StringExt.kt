@@ -21,3 +21,13 @@ fun String.toInetSocketAddress(): InetSocketAddress {
     val (host, port) = split(":")
     return createUnresolved(host, port.toInt())
 }
+
+fun String.substringBetween(delimiter1: String, delimiter2: String): String? {
+    val firstIndex = this.indexOf(delimiter1)
+    if (firstIndex == -1) return null
+
+    val secondIndex = this.indexOf(delimiter2, firstIndex + delimiter1.length)
+    if (secondIndex == -1) return null
+
+    return this.substring(firstIndex + delimiter1.length, secondIndex)
+}

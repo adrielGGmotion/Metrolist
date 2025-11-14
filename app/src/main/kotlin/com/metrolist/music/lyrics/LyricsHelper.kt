@@ -30,10 +30,14 @@ constructor(
     @ApplicationContext private val context: Context,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
+    init {
+        appContext = context // Initialize the static context
+    }
     private var lyricsProviders =
         listOf(
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
+            AppleMusicLyricsProvider, // <-- ADD IT HERE
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider
         )
@@ -49,6 +53,7 @@ constructor(
                         listOf(
                             LrcLibLyricsProvider,
                             KuGouLyricsProvider,
+                            AppleMusicLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
@@ -56,6 +61,7 @@ constructor(
                         listOf(
                             KuGouLyricsProvider,
                             LrcLibLyricsProvider,
+                            AppleMusicLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
@@ -176,6 +182,7 @@ constructor(
     }
 
     companion object {
+        lateinit var appContext: Context
         private const val MAX_CACHE_SIZE = 3
     }
 }
