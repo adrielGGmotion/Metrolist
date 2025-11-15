@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ApiResponse(
     @SerialName("id")
-    val id: String,
+    val id: List<String>,
 )
