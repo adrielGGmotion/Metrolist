@@ -17,9 +17,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -877,74 +880,102 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-if (useNewPlayerDesign) {
-Row(
-horizontalArrangement = Arrangement.SpaceEvenly,
-verticalAlignment = Alignment.CenterVertically,
-modifier = Modifier
-.fillMaxWidth()
-.padding(horizontal = PlayerHorizontalPadding)
-) {
-FilledTonalIconButton(
-onClick = playerConnection::seekToPrevious,
-enabled = canSkipPrevious,
-shape = RoundedCornerShape(50),
-modifier = Modifier.size(width = 56.dp, height = 64.dp)
-) {
-Icon(
-painter = painterResource(R.drawable.skip_previous),
-contentDescription = null,
-modifier = Modifier.size(32.dp)
-)
-}
+            if (useNewPlayerDesign) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PlayerHorizontalPadding)
+                ) {
+                    val backInteractionSource = remember { MutableInteractionSource() }
 
-FilledIconButton(
-onClick = {
-if (playbackState == STATE_ENDED) {
-playerConnection.player.seekTo(0, 0)
-playerConnection.player.playWhenReady = true
-} else {
-playerConnection.player.togglePlayPause()
-}
-},
-shape = RoundedCornerShape(50),
-modifier = Modifier
-.height(64.dp)
-.weight(1f)
-.padding(horizontal = 8.dp)
-) {
-Row(
-verticalAlignment = Alignment.CenterVertically,
-horizontalArrangement = Arrangement.Center
-) {
-Icon(
-painter = painterResource(
-if (isPlaying) R.drawable.pause else R.drawable.play
-),
-contentDescription = if (isPlaying) "Pause" else stringResource(R.string.play),
-modifier = Modifier.size(32.dp)
-)
-Spacer(modifier = Modifier.width(8.dp))
-Text(
-text = if (isPlaying) "Pause" else stringResource(R.string.play),
-style = MaterialTheme.typography.titleMedium
-)
-}
-}
+                    val nextInteractionSource = remember { MutableInteractionSource() }
 
-FilledTonalIconButton(
-onClick = playerConnection::seekToNext,
-enabled = canSkipNext,
-shape = RoundedCornerShape(50),
-modifier = Modifier.size(width = 56.dp, height = 64.dp)
-) {
-Icon(
-painter = painterResource(R.drawable.skip_next),
-contentDescription = null,
-modifier = Modifier.size(32.dp)
-)
-}
-}
+                    val playPauseInteractionSource = remember { MutableInteractionSource() }
+                    val isPlayPausePressed by playPauseInteractionSource.collectIsPressedAsState()
+
+                    val playPauseWeight by animateFloatAsState(
+                        targetValue = if (isPlayPausePressed) 2.55f else 1.7f,
+                        animationSpec = spring(),
+                        label = "playPauseWeight"
+                    )
+                    val sideButtonWeight by animateFloatAsState(
+                        targetValue = if (isPlayPausePressed) 0.3f else 0.4f,
+                        animationSpec = spring(),
+                        label = "sideButtonWeight"
+                    )
+
+                    FilledTonalIconButton(
+                        onClick = playerConnection::seekToPrevious,
+                        enabled = canSkipPrevious,
+                        shape = RoundedCornerShape(50),
+                        interactionSource = backInteractionSource,
+                        modifier = Modifier
+                            .height(64.dp)
+                            .weight(sideButtonWeight)
+                            .bouncy(backInteractionSource)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.skip_previous),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    FilledIconButton(
+                        onClick = {
+                            if (playbackState == STATE_ENDED) {
+                                playerConnection.player.seekTo(0, 0)
+                                playerConnection.player.playWhenReady = true
+                            } else {
+                                playerConnection.player.togglePlayPause()
+                            }
+                        },
+                        shape = RoundedCornerShape(50),
+                        interactionSource = playPauseInteractionSource,
+                        modifier = Modifier
+                            .height(64.dp)
+                            .weight(playPauseWeight)
+                            .padding(horizontal = 8.dp)
+                            .bouncy(playPauseInteractionSource)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    if (isPlaying) R.drawable.pause else R.drawable.play
+                                ),
+                                contentDescription = if (isPlaying) "Pause" else stringResource(R.string.play),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isPlaying) "Pause" else stringResource(R.string.play),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    FilledTonalIconButton(
+                        onClick = playerConnection::seekToNext,
+                        enabled = canSkipNext,
+                        shape = RoundedCornerShape(50),
+                        interactionSource = nextInteractionSource,
+                        modifier = Modifier
+                            .height(64.dp)
+                            .weight(sideButtonWeight)
+                            .bouncy(nextInteractionSource)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.skip_next),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
             } else {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
