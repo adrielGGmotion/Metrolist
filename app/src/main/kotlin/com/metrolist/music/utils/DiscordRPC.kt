@@ -1,6 +1,7 @@
 package com.metrolist.music.utils
 
 import android.content.Context
+import android.util.Log
 import com.metrolist.music.R
 import com.metrolist.music.db.entities.Song
 import com.my.kizzy.rpc.KizzyRPC
@@ -11,6 +12,8 @@ class DiscordRPC(
     token: String,
 ) : KizzyRPC(token) {
     suspend fun updateSong(song: Song, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
+        Log.d("DiscordRPC", "Updating song: $song")
+        Log.d("DiscordRPC", "Thumbnail URL: ${song.song.thumbnailUrl}")
         val currentTime = System.currentTimeMillis()
         
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
