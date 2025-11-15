@@ -698,7 +698,7 @@ fun BottomSheetPlayer(
                             shape = favShape,
                             modifier = Modifier.size(42.dp),
                         ) {
-                            Image(
+                            Icon(
                                 painter = painterResource(
                                     if (currentSong?.song?.liked == true)
                                         R.drawable.favorite
@@ -793,7 +793,7 @@ fun BottomSheetPlayer(
                             }
                             sliderPosition = null
                         },
-                        colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                        colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                     )
                 }
@@ -812,7 +812,7 @@ fun BottomSheetPlayer(
                             }
                             sliderPosition = null
                         },
-                        colors = PlayerSliderColors.squigglySliderColors(textButtonColor, playerBackground, useDarkTheme),
+                        colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                         squigglesSpec =
                         SquigglySlider.SquigglesSpec(
@@ -840,7 +840,7 @@ fun BottomSheetPlayer(
                         track = { sliderState ->
                             PlayerSliderTrack(
                                 sliderState = sliderState,
-                                colors = PlayerSliderColors.slimSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme)
                             )
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
@@ -879,28 +879,42 @@ fun BottomSheetPlayer(
 
             if (useNewPlayerDesign) {
                 Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = PlayerHorizontalPadding)
                 ) {
                     val backInteractionSource = remember { MutableInteractionSource() }
-
                     val nextInteractionSource = remember { MutableInteractionSource() }
-
                     val playPauseInteractionSource = remember { MutableInteractionSource() }
+
                     val isPlayPausePressed by playPauseInteractionSource.collectIsPressedAsState()
 
+                    val backButtonWeightTarget = if (isPlayPausePressed) 0.3f else 0.4f
+                    val playPauseWeightTarget = if (isPlayPausePressed) 2.55f else 1.7f
+                    val nextButtonWeightTarget = if (canSkipNext.not()) 0f else backButtonWeightTarget
+
+                    val backButtonWeight by animateFloatAsState(
+                        targetValue = backButtonWeightTarget,
+                        animationSpec = spring(),
+                        label = "backButtonWeight"
+                    )
+                    val nextButtonWeight by animateFloatAsState(
+                        targetValue = nextButtonWeightTarget,
+                        animationSpec = spring(),
+                        label = "nextButtonWeight"
+                    )
                     val playPauseWeight by animateFloatAsState(
-                        targetValue = if (isPlayPausePressed) 2.55f else 1.7f,
+                        targetValue = if (canSkipNext.not()) playPauseWeightTarget + backButtonWeightTarget else playPauseWeightTarget,
                         animationSpec = spring(),
                         label = "playPauseWeight"
                     )
-                    val sideButtonWeight by animateFloatAsState(
-                        targetValue = if (isPlayPausePressed) 0.3f else 0.4f,
+
+                    val spacerWidth by animateDpAsState(
+                        targetValue = if (canSkipNext.not()) 0.dp else 8.dp,
                         animationSpec = spring(),
-                        label = "sideButtonWeight"
+                        label = "spacerWidth"
                     )
 
                     FilledTonalIconButton(
@@ -910,7 +924,7 @@ fun BottomSheetPlayer(
                         interactionSource = backInteractionSource,
                         modifier = Modifier
                             .height(64.dp)
-                            .weight(sideButtonWeight)
+                            .weight(backButtonWeight)
                             .bouncy(backInteractionSource)
                     ) {
                         Icon(
@@ -919,6 +933,8 @@ fun BottomSheetPlayer(
                             modifier = Modifier.size(32.dp)
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     FilledIconButton(
                         onClick = {
@@ -934,8 +950,6 @@ fun BottomSheetPlayer(
                         modifier = Modifier
                             .height(64.dp)
                             .weight(playPauseWeight)
-                            .padding(horizontal = 8.dp)
-                            .bouncy(playPauseInteractionSource)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -956,6 +970,8 @@ fun BottomSheetPlayer(
                         }
                     }
 
+                    Spacer(modifier = Modifier.width(spacerWidth))
+
                     FilledTonalIconButton(
                         onClick = playerConnection::seekToNext,
                         enabled = canSkipNext,
@@ -963,7 +979,7 @@ fun BottomSheetPlayer(
                         interactionSource = nextInteractionSource,
                         modifier = Modifier
                             .height(64.dp)
-                            .weight(sideButtonWeight)
+                            .weight(nextButtonWeight)
                             .bouncy(nextInteractionSource)
                     ) {
                         Icon(
