@@ -17,6 +17,9 @@ class DiscordRPC(
         val currentTime = System.currentTimeMillis()
         
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
+    }.onFailure {
+        Log.e("DiscordRPC", "Error updating song", it)
+    }
         val calculatedStartTime = currentTime - adjustedPlaybackTime
         
         val songTitleWithRate = if (playbackSpeed != 1.0f) {
