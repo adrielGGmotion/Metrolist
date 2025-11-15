@@ -17,7 +17,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
-import io.ktor.client.statement.HttpResponse
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -35,24 +34,14 @@ class ApiService {
         install(HttpCache)
     }
 
-    suspend fun getImage(url: String): Result<HttpResponse> {
-        for (provider in PROVIDERS) {
-            val result = runCatching {
-                client.get {
-                    url("$provider/image")
-                    parameter("url", url)
-                }
-            }
-            if (result.isSuccess) {
-                return result
-            }
-        }
-        return Result.failure(Exception("All providers failed"))
+    suspend fun getImage(url: String) = runCatching {
+         client.get {
+             url("$BASE_URL/image")
+             parameter("url", url)
+         }
     }
 
     companion object {
-        private val PROVIDERS = listOf(
-            "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev"
-        )
+        const val BASE_URL = "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev"
     }
 }
