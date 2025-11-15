@@ -15,22 +15,19 @@ class DiscordRPC(
         Log.d("DiscordRPC", "Updating song: $song")
         Log.d("DiscordRPC", "Thumbnail URL: ${song.song.thumbnailUrl}")
         val currentTime = System.currentTimeMillis()
-        
+
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
-    }.onFailure {
-        Log.e("DiscordRPC", "Error updating song", it)
-    }
         val calculatedStartTime = currentTime - adjustedPlaybackTime
-        
+
         val songTitleWithRate = if (playbackSpeed != 1.0f) {
             "${song.song.title} [${String.format("%.2fx", playbackSpeed)}]"
         } else {
             song.song.title
         }
-        
+
         val remainingDuration = song.song.duration * 1000L - currentPlaybackTimeMillis
         val adjustedRemainingDuration = (remainingDuration / playbackSpeed).toLong()
-        
+
         setActivity(
             name = context.getString(R.string.app_name).removeSuffix(" Debug"),
             details = songTitleWithRate,
@@ -51,6 +48,8 @@ class DiscordRPC(
             endTime = currentTime + adjustedRemainingDuration,
             applicationId = APPLICATION_ID
         )
+    }.onFailure {
+        Log.e("DiscordRPC", "Error updating song", it)
     }
 
     companion object {
