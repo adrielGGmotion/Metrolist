@@ -313,8 +313,6 @@ class MusicService :
                         player.prepare()
                         player.play()
                     }
-                } else if (isConnected) {
-                    discordRpc?.refresh(player.currentPosition)
                 }
             }
         }

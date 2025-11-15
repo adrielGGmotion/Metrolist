@@ -10,55 +10,36 @@ class DiscordRPC(
     val context: Context,
     token: String,
 ) : KizzyRPC(token) {
-
-    private var lastSong: Song? = null
-    private var lastCurrentPlaybackTimeMillis: Long = 0
-    private var lastPlaybackSpeed: Float = 1.0f
-    private var lastUseDetails: Boolean = false
-    suspend fun updateSong(song: Song, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) {
-        lastSong = song
-        lastCurrentPlaybackTimeMillis = currentPlaybackTimeMillis
-        lastPlaybackSpeed = playbackSpeed
-        lastUseDetails = useDetails
-        updateSongInternal()
-    }
-
-    suspend fun refresh(currentPlaybackTimeMillis: Long) {
-        lastCurrentPlaybackTimeMillis = currentPlaybackTimeMillis
-        updateSongInternal()
-    }
-
-    private suspend fun updateSongInternal() = runCatching {
-        if (lastSong == null) return@runCatching
+    suspend fun updateSong(song: Song, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
         val currentTime = System.currentTimeMillis()
         
-        val adjustedPlaybackTime = (lastCurrentPlaybackTimeMillis / lastPlaybackSpeed).toLong()
+        val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
         val calculatedStartTime = currentTime - adjustedPlaybackTime
         
-        val songTitleWithRate = if (lastPlaybackSpeed != 1.0f) {
-            "${lastSong!!.song.title} [${String.format("%.2fx", lastPlaybackSpeed)}]"
+        val songTitleWithRate = if (playbackSpeed != 1.0f) {
+            "${song.song.title} [${String.format("%.2fx", playbackSpeed)}]"
         } else {
-            lastSong!!.song.title
+            song.song.title
         }
         
-        val remainingDuration = lastSong!!.song.duration * 1000L - lastCurrentPlaybackTimeMillis
-        val adjustedRemainingDuration = (remainingDuration / lastPlaybackSpeed).toLong()
+        val remainingDuration = song.song.duration * 1000L - currentPlaybackTimeMillis
+        val adjustedRemainingDuration = (remainingDuration / playbackSpeed).toLong()
         
         setActivity(
             name = context.getString(R.string.app_name).removeSuffix(" Debug"),
             details = songTitleWithRate,
-            state = lastSong!!.artists.joinToString { it.name },
-            detailsUrl = "https://music.youtube.com/watch?v=${lastSong!!.song.id}",
-            largeImage = lastSong!!.song.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
-            smallImage = lastSong!!.artists.firstOrNull()?.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
-            largeText = lastSong!!.album?.title,
-            smallText = lastSong!!.artists.firstOrNull()?.name,
+            state = song.artists.joinToString { it.name },
+            detailsUrl = "https://music.youtube.com/watch?v=${song.song.id}",
+            largeImage = song.song.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
+            smallImage = song.artists.firstOrNull()?.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
+            largeText = song.album?.title,
+            smallText = song.artists.firstOrNull()?.name,
             buttons = listOf(
-                "Listen on YouTube Music" to "https://music.youtube.com/watch?v=${lastSong!!.song.id}",
+                "Listen on YouTube Music" to "https://music.youtube.com/watch?v=${song.song.id}",
                 "Visit Metrolist" to "https://github.com/mostafaalagamy/Metrolist"
             ),
             type = Type.LISTENING,
-            statusDisplayType = if (lastUseDetails) StatusDisplayType.DETAILS else StatusDisplayType.STATE,
+            statusDisplayType = if (useDetails) StatusDisplayType.DETAILS else StatusDisplayType.STATE,
             since = currentTime,
             startTime = calculatedStartTime,
             endTime = currentTime + adjustedRemainingDuration,

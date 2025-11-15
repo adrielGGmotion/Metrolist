@@ -31,7 +31,6 @@ import org.json.JSONObject
 open class KizzyRPC(token: String) {
     private val kizzyRepository = KizzyRepository()
     private val discordWebSocket = DiscordWebSocket(token)
-    private var lastPresence: Presence? = null
 
     fun closeRPC() {
         discordWebSocket.close()
@@ -48,16 +47,7 @@ open class KizzyRPC(token: String) {
         val presence = Presence(
             activities = emptyList()
         )
-        lastPresence = presence
         discordWebSocket.sendActivity(presence)
-    }
-
-    suspend fun refreshActivity() {
-        if (lastPresence == null) return
-        if (!isRpcRunning()) {
-            discordWebSocket.connect()
-        }
-        discordWebSocket.sendActivity(lastPresence!!)
     }
 
     suspend fun setActivity(
@@ -110,7 +100,6 @@ open class KizzyRPC(token: String) {
             since = since,
             status = status ?: "online"
         )
-        lastPresence = presence
         discordWebSocket.sendActivity(presence)
     }
 

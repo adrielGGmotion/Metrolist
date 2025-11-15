@@ -52,7 +52,6 @@ class ApiService {
 
     companion object {
         private val PROVIDERS = listOf(
-            "https://metrolist-discord-rpc-api.fullerbread2032.workers.dev",
             "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev"
         )
     }
