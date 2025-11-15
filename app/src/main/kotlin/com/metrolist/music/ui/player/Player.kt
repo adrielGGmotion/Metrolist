@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -21,6 +22,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -51,6 +53,7 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -67,6 +70,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -74,6 +78,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -262,19 +267,23 @@ fun BottomSheetPlayer(
         }
     }
 
-    val TextBackgroundColor =
-        when (playerBackground) {
+    val TextBackgroundColor by animateColorAsState(
+        targetValue = when (playerBackground) {
             PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
             PlayerBackgroundStyle.BLUR -> Color.White
             PlayerBackgroundStyle.GRADIENT -> Color.White
-        }
+        },
+        label = "TextBackgroundColor"
+    )
 
-    val icBackgroundColor =
-        when (playerBackground) {
+    val icBackgroundColor by animateColorAsState(
+        targetValue = when (playerBackground) {
             PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.surface
             PlayerBackgroundStyle.BLUR -> Color.Black
             PlayerBackgroundStyle.GRADIENT -> Color.Black
-        }
+        },
+        label = "icBackgroundColor"
+    )
 
     val (textButtonColor, iconButtonColor) = when (playerButtonsStyle) {
         PlayerButtonsStyle.DEFAULT -> Pair(TextBackgroundColor, icBackgroundColor)
@@ -662,53 +671,41 @@ fun BottomSheetPlayer(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(shareShape)
-                                .background(textButtonColor)
-                                .clickable {
-                                    val intent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.youtube.com/watch?v=${mediaMetadata.id}"
-                                        )
-                                    }
-                                    context.startActivity(Intent.createChooser(intent, null))
+                        FilledIconButton(
+                            onClick = {
+                                val intent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    type = "text/plain"
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        "https://music.youtube.com/watch?v=${mediaMetadata.id}"
+                                    )
                                 }
+                                context.startActivity(Intent.createChooser(intent, null))
+                            },
+                            shape = shareShape,
+                            modifier = Modifier.size(42.dp),
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.share),
                                 contentDescription = null,
-                                tint = iconButtonColor,
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(24.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(favShape)
-                                .background(textButtonColor)
-                                .clickable {
-                                    playerConnection.toggleLike()
-                                }
+                        FilledIconButton(
+                            onClick = playerConnection::toggleLike,
+                            shape = favShape,
+                            modifier = Modifier.size(42.dp),
                         ) {
-                            Image(
+                            Icon(
                                 painter = painterResource(
                                     if (currentSong?.song?.liked == true)
                                         R.drawable.favorite
                                     else R.drawable.favorite_border
                                 ),
                                 contentDescription = null,
-                                colorFilter = ColorFilter.tint(iconButtonColor),
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(24.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -796,7 +793,7 @@ fun BottomSheetPlayer(
                             }
                             sliderPosition = null
                         },
-                        colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                        colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                     )
                 }
@@ -815,7 +812,7 @@ fun BottomSheetPlayer(
                             }
                             sliderPosition = null
                         },
-                        colors = PlayerSliderColors.squigglySliderColors(textButtonColor, playerBackground, useDarkTheme),
+                        colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                         squigglesSpec =
                         SquigglySlider.SquigglesSpec(
@@ -843,7 +840,7 @@ fun BottomSheetPlayer(
                         track = { sliderState ->
                             PlayerSliderTrack(
                                 sliderState = sliderState,
-                                colors = PlayerSliderColors.slimSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme)
                             )
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
@@ -882,7 +879,7 @@ fun BottomSheetPlayer(
 
             if (useNewPlayerDesign) {
                 Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -923,6 +920,8 @@ fun BottomSheetPlayer(
                         )
                     }
 
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     FilledIconButton(
                         onClick = {
                             if (playbackState == STATE_ENDED) {
@@ -937,8 +936,6 @@ fun BottomSheetPlayer(
                         modifier = Modifier
                             .height(64.dp)
                             .weight(playPauseWeight)
-                            .padding(horizontal = 8.dp)
-                            .bouncy(playPauseInteractionSource)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -958,6 +955,8 @@ fun BottomSheetPlayer(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     FilledTonalIconButton(
                         onClick = playerConnection::seekToNext,
@@ -1196,5 +1195,19 @@ fun BottomSheetPlayer(
                 }
             }
         }
+    }
+}
+
+private fun Modifier.bouncy(interactionSource: InteractionSource) = composed {
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.9f else 1f,
+        animationSpec = spring(),
+        label = "scale"
+    )
+
+    graphicsLayer {
+        scaleX = scale
+        scaleY = scale
     }
 }
