@@ -12,7 +12,7 @@
 
 package com.my.kizzy.utils
 
-import com.my.kizzy.remote.ApiResponse
+import com.my.kizzy.remote.ImagePayload
 import com.my.kizzy.rpc.RpcImage
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
@@ -21,7 +21,7 @@ import io.ktor.http.HttpStatusCode
 suspend fun HttpResponse.toImageAsset(): String? {
     return try {
         if (this.status == HttpStatusCode.OK)
-            this.body<ApiResponse>().id.firstOrNull()
+            this.body<ImagePayload>().id.firstOrNull()
         else
             null
     } catch (e: Exception) {

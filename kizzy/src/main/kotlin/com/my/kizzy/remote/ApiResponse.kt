@@ -6,5 +6,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ApiResponse(
     @SerialName("id")
+    val id: String,
+)
+
+@Serializable
+data class ImagePayload(
+    @SerialName("id")
     val id: List<String>,
 )
