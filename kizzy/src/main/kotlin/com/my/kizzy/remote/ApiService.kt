@@ -24,14 +24,16 @@ import kotlinx.serialization.json.Json
  * Modified by Zion Huang
  */
 class ApiService {
-    private val client = HttpClient {
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-            })
+    private val client: HttpClient by lazy {
+        HttpClient {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                })
+            }
+            install(HttpCache)
         }
-        install(HttpCache)
     }
 
     suspend fun getImage(url: String) = runCatching {

@@ -1125,6 +1125,17 @@ class MusicService :
         setupLoudnessEnhancer()
 
         discordUpdateJob?.cancel()
+        scope.launch {
+            delay(500)
+            currentSong.value?.let { song ->
+                discordRpc?.updateSong(
+                    song,
+                    player.currentPosition,
+                    player.playbackParameters.speed,
+                    dataStore.get(DiscordUseDetailsKey, false)
+                )
+            }
+        }
 
         scrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
