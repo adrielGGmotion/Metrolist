@@ -13,6 +13,9 @@
 package com.my.kizzy.rpc
 
 import com.my.kizzy.repository.KizzyRepository
+import mu.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Modified by Zion Huang
@@ -28,7 +31,12 @@ sealed class RpcImage {
 
     class ExternalImage(val image: String) : RpcImage() {
         override suspend fun resolveImage(repository: KizzyRepository): String? {
-            return repository.getImage(image)
+            return try {
+                repository.getImage(image)
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to resolve image" }
+                null
+            }
         }
     }
 }
