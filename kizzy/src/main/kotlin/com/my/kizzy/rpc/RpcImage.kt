@@ -31,12 +31,15 @@ sealed class RpcImage {
 
     class ExternalImage(val image: String) : RpcImage() {
         override suspend fun resolveImage(repository: KizzyRepository): String? {
-            return try {
+            logger.debug { "--- resolveImage ENTER ---" }
+            val result = try {
                 repository.getImage(image)
             } catch (e: Exception) {
                 logger.error(e) { "Failed to resolve image" }
                 null
             }
+            logger.debug { "--- resolveImage EXIT ---, result: $result" }
+            return result
         }
     }
 }

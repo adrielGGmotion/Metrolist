@@ -38,12 +38,14 @@ class ApiService {
     }
 
     suspend fun getImage(url: String) = runCatching {
+        logger.debug { "--- ApiService.getImage ENTER ---" }
         val response = client.get {
             url("$BASE_URL/image")
             parameter("url", url)
         }
         val responseBody = response.bodyAsText()
         logger.debug { "Raw response: $responseBody" }
+        logger.debug { "--- ApiService.getImage EXIT ---" }
         response
     }
 

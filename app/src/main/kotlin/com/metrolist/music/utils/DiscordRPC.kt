@@ -12,8 +12,11 @@ class DiscordRPC(
     token: String,
 ) : KizzyRPC(token) {
     suspend fun updateSong(song: Song, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
-        Log.d("DiscordRPC", "Updating song: $song")
-        Log.d("DiscordRPC", "Thumbnail URL: ${song.song.thumbnailUrl}")
+        Log.d("DiscordRPC", "--- updateSong ENTER ---")
+        Log.d("DiscordRPC", "Song data: $song")
+        Log.d("DiscordRPC", "Large image URL: ${song.song.thumbnailUrl}")
+        Log.d("DiscordRPC", "Small image URL: ${song.artists.firstOrNull()?.thumbnailUrl}")
+
         val currentTime = System.currentTimeMillis()
 
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
@@ -28,13 +31,17 @@ class DiscordRPC(
         val remainingDuration = song.song.duration * 1000L - currentPlaybackTimeMillis
         val adjustedRemainingDuration = (remainingDuration / playbackSpeed).toLong()
 
+        val largeImage = song.song.thumbnailUrl?.let { RpcImage.ExternalImage(it) }
+        val smallImage = song.artists.firstOrNull()?.thumbnailUrl?.let { RpcImage.ExternalImage(it) }
+        Log.d("DiscordRPC", "Created RpcImage objects: large=$largeImage, small=$smallImage")
+
         setActivity(
             name = context.getString(R.string.app_name).removeSuffix(" Debug"),
             details = songTitleWithRate,
             state = song.artists.joinToString { it.name },
             detailsUrl = "https://music.youtube.com/watch?v=${song.song.id}",
-            largeImage = song.song.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
-            smallImage = song.artists.firstOrNull()?.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
+            largeImage = largeImage,
+            smallImage = smallImage,
             largeText = song.album?.title,
             smallText = song.artists.firstOrNull()?.name,
             buttons = listOf(
