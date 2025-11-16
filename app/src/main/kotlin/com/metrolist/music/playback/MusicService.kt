@@ -1463,9 +1463,7 @@ class MusicService :
                     }
                 }
 
-                val playbackUrl = YTPlayerUtils.playerResponseForMetadata(mediaItem.mediaId, null)
-                    .getOrNull()?.playbackTracking?.videostatsPlaybackUrl?.baseUrl
-                playbackUrl?.let {
+                database.format(mediaItem.mediaId).first()?.playbackUrl?.let { playbackUrl ->
                     YouTube.registerPlayback(null, playbackUrl)
                         .onFailure {
                             reportException(it)
