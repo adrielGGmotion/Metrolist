@@ -234,6 +234,7 @@ class MusicService :
     private var discordRpc: DiscordRPC? = null
     private var lastPlaybackSpeed = 1.0f
     private var discordUpdateJob: kotlinx.coroutines.Job? = null
+    private var discordRefreshJob: kotlinx.coroutines.Job? = null
 
     private var scrobbleManager: ScrobbleManager? = null
 
@@ -1225,10 +1226,18 @@ class MusicService :
                         discordRpc?.updateSong(song, nextSong.value, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                     }
                 }
+                discordRefreshJob?.cancel()
+                discordRefreshJob = scope.launch {
+                    while (isActive) {
+                        delay(15.seconds)
+                        discordRpc?.forceUpdate()
+                    }
+                }
             } else {
                 scope.launch {
                     discordRpc?.stopActivity()
                 }
+                discordRefreshJob?.cancel()
             }
         }
 
