@@ -45,7 +45,7 @@ class ApiService {
                 }.body()
                 break
             } catch (e: Exception) {
-                // Try next worker
+                println("KizzyRPC: Worker failed: $baseUrl, $e")
             }
         }
         response ?: throw Exception("All workers failed")

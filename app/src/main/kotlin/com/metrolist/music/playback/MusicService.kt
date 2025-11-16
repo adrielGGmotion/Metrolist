@@ -1131,10 +1131,13 @@ class MusicService :
     private fun updateDiscordRPC(force: Boolean = false) {
         scope.launch {
             val song = currentSong.value ?: return@launch
-            val nextSong = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET }?.let {
+            val nextMediaItemId = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET }?.let {
                 player.getMediaItemAt(it).mediaId
-            }?.let {
-                database.song(it).first()
+            }
+            val nextSong = nextMediaItemId?.let {
+                withContext(Dispatchers.IO) {
+                    database.song(it).first()
+                }
             }
             discordRpc?.updateSong(
                 song = song,
@@ -1286,23 +1289,6 @@ class MusicService :
         }
     }
 
-    override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
-        super.onPlaybackParametersChanged(playbackParameters)
-        if (playbackParameters.speed != lastPlaybackSpeed) {
-            lastPlaybackSpeed = playbackParameters.speed
-            discordUpdateJob?.cancel()
-
-            // update scheduling thingy
-            discordUpdateJob = scope.launch {
-                delay(1000)
-                if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
-                    currentSong.value?.let { song ->
-                        updateDiscordRPC()
-                    }
-                }
-            }
-        }
-    }
 
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
