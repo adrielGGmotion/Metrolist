@@ -97,12 +97,14 @@ open class KizzyRPC(token: String) {
                 repository = kizzyRepository,
                 images = listOf(largeImage, smallImage, largeImage2, smallImage2)
             )
-            val newAssets = Assets(
-                largeImage = resolvedImages.getOrNull(0),
-                smallImage = resolvedImages.getOrNull(1),
-                largeText = largeText,
-                smallText = smallText
-            )
+            val newAssets = if (resolvedImages.any { it != null }) {
+                Assets(
+                    largeImage = resolvedImages.getOrNull(0),
+                    smallImage = resolvedImages.getOrNull(1),
+                    largeText = largeText,
+                    smallText = smallText
+                )
+            } else null
             lastSongId = songId
             cachedAssets = newAssets
             newAssets

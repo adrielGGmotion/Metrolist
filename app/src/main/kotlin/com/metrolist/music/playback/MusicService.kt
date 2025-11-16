@@ -203,8 +203,10 @@ class MusicService :
 
     private val nextSong =
         currentMediaMetadata
-            .flatMapLatest { mediaMetadata ->
-                database.song(player.getMediaItemAt(player.nextMediaItemIndex).mediaId)
+            .flatMapLatest {
+                val nextMediaItem = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET }
+                    ?.let { player.getMediaItemAt(it) }
+                database.song(nextMediaItem?.mediaId)
             }.stateIn(scope, SharingStarted.Lazily, null)
     private val currentFormat =
         currentMediaMetadata.flatMapLatest { mediaMetadata ->
@@ -1179,6 +1181,9 @@ class MusicService :
 
         if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
             scrobbleManager?.onSongStop()
+            scope.launch {
+                discordRpc?.stopActivity()
+            }
         }
     }
 
@@ -1213,8 +1218,6 @@ class MusicService :
         }
 
         // Discord RPC updates
-
-        // Update the Discord RPC activity if the player is playing
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
             if (player.isPlaying) {
                 currentSong.value?.let { song ->
@@ -1222,9 +1225,7 @@ class MusicService :
                         discordRpc?.updateSong(song, nextSong.value, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                     }
                 }
-            }
-            // Send empty activity to the Discord RPC if the player is not playing
-            else if (!events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)){
+            } else {
                 scope.launch {
                     discordRpc?.stopActivity()
                 }
