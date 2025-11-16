@@ -13,7 +13,6 @@
 package com.my.kizzy.repository
 
 import com.my.kizzy.remote.ApiService
-import com.my.kizzy.utils.toImageAsset
 
 /**
  * Modified by Zion Huang
@@ -21,7 +20,8 @@ import com.my.kizzy.utils.toImageAsset
 class KizzyRepository {
     private val api = ApiService()
 
-    suspend fun getImage(url: String): String? {
-        return api.getImage(url).getOrNull()?.toImageAsset()
+    suspend fun getImages(urls: List<String>): List<String>? {
+        if (urls.isEmpty()) return emptyList()
+        return api.getImages(urls).getOrNull()?.id
     }
 }

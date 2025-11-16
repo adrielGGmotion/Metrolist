@@ -1,34 +1,34 @@
-/*
- *
- *  ******************************************************************
- *  *  * Copyright (C) 2022
- *  *  * RpcImage.kt is part of Kizzy
- *  *  *  and can not be copied and/or distributed without the express
- *  *  * permission of yzziK(Vaibhav)
- *  *  *****************************************************************
- *
- *
- */
 
 package com.my.kizzy.rpc
 
 import com.my.kizzy.repository.KizzyRepository
 
-/**
- * Modified by Zion Huang
- */
 sealed class RpcImage {
-    abstract suspend fun resolveImage(repository: KizzyRepository): String?
-
-    class DiscordImage(val image: String) : RpcImage() {
-        override suspend fun resolveImage(repository: KizzyRepository): String {
-            return "mp:${image}"
+    fun toUrl(): String? {
+        return when (this) {
+            is DiscordImage -> null
+            is ExternalImage -> image
         }
     }
 
-    class ExternalImage(val image: String) : RpcImage() {
-        override suspend fun resolveImage(repository: KizzyRepository): String? {
-            return repository.getImage(image)
+    companion object {
+        suspend fun resolveImages(
+            repository: KizzyRepository,
+            images: List<RpcImage?>
+        ): List<String?> {
+            val externalImages = images.mapNotNull { it?.toUrl() }
+            val resolvedExternalImages = repository.getImages(externalImages)?.iterator()
+
+            return images.map {
+                when (it) {
+                    is DiscordImage -> "mp:${it.image}"
+                    is ExternalImage -> resolvedExternalImages?.next()
+                    null -> null
+                }
+            }
         }
     }
+
+    class DiscordImage(val image: String) : RpcImage()
+    class ExternalImage(val image: String) : RpcImage()
 }

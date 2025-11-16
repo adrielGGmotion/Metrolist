@@ -31,7 +31,9 @@ import org.json.JSONObject
 open class KizzyRPC(token: String) {
     private val kizzyRepository = KizzyRepository()
     private val discordWebSocket = DiscordWebSocket(token)
-
+    private var lastSongId: String? = null
+    private var cachedAssets: Assets? = null
+    private var lastPresence: Presence? = null
     fun closeRPC() {
         discordWebSocket.close()
     }
@@ -47,7 +49,17 @@ open class KizzyRPC(token: String) {
         val presence = Presence(
             activities = emptyList()
         )
+        lastPresence = presence
         discordWebSocket.sendActivity(presence)
+    }
+
+    suspend fun forceUpdate() {
+        lastPresence?.let {
+            if (!isRpcRunning()) {
+                discordWebSocket.connect()
+            }
+            discordWebSocket.sendActivity(it)
+        }
     }
 
     suspend fun setActivity(
@@ -58,6 +70,8 @@ open class KizzyRPC(token: String) {
         detailsUrl: String? = null,
         largeImage: RpcImage?,
         smallImage: RpcImage?,
+        largeImage2: RpcImage?,
+        smallImage2: RpcImage?,
         largeText: String? = null,
         smallText: String? = null,
         buttons: List<Pair<String, String>>? = null,
@@ -69,10 +83,31 @@ open class KizzyRPC(token: String) {
         applicationId: String? = null,
         status: String? = "online",
         since: Long? = null,
+        songId: String? = null,
+        force: Boolean = false
     ) {
         if (!isRpcRunning()) {
             discordWebSocket.connect()
         }
+
+        val assets = if (songId != null && songId == lastSongId && cachedAssets != null && !force) {
+            cachedAssets
+        } else {
+            val resolvedImages = RpcImage.resolveImages(
+                repository = kizzyRepository,
+                images = listOf(largeImage, smallImage, largeImage2, smallImage2)
+            )
+            val newAssets = Assets(
+                largeImage = resolvedImages.getOrNull(0),
+                smallImage = resolvedImages.getOrNull(1),
+                largeText = largeText,
+                smallText = smallText
+            )
+            lastSongId = songId
+            cachedAssets = newAssets
+            newAssets
+        }
+
         val presence = Presence(
             activities = listOf(
                 Activity(
@@ -84,12 +119,7 @@ open class KizzyRPC(token: String) {
                     type = type.value,
                     statusDisplayType = statusDisplayType.value,
                     timestamps = Timestamps(startTime, endTime),
-                    assets = Assets(
-                        largeImage = largeImage?.resolveImage(kizzyRepository),
-                        smallImage = smallImage?.resolveImage(kizzyRepository),
-                        largeText = largeText,
-                        smallText = smallText
-                    ),
+                    assets = assets,
                     buttons = buttons?.map { it.first },
                     metadata = Metadata(buttonUrls = buttons?.map { it.second }),
                     applicationId = applicationId.takeIf { !buttons.isNullOrEmpty() },
@@ -100,6 +130,7 @@ open class KizzyRPC(token: String) {
             since = since,
             status = status ?: "online"
         )
+        lastPresence = presence
         discordWebSocket.sendActivity(presence)
     }
 

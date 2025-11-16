@@ -200,6 +200,12 @@ class MusicService :
             .flatMapLatest { mediaMetadata ->
                 database.song(mediaMetadata?.id)
             }.stateIn(scope, SharingStarted.Lazily, null)
+
+    private val nextSong =
+        currentMediaMetadata
+            .flatMapLatest { mediaMetadata ->
+                database.song(player.getMediaItemAt(player.nextMediaItemIndex).mediaId)
+            }.stateIn(scope, SharingStarted.Lazily, null)
     private val currentFormat =
         currentMediaMetadata.flatMapLatest { mediaMetadata ->
             database.format(mediaMetadata?.id)
@@ -304,6 +310,7 @@ class MusicService :
         playerVolume = MutableStateFlow(dataStore.get(PlayerVolumeKey, 1f).coerceIn(0f, 1f))
 
         scope.launch {
+            var wasConnected = true
             connectivityObserver.networkStatus.collect { isConnected ->
                 isNetworkConnected.value = isConnected
                 if (isConnected && waitingForNetworkConnection.value) {
@@ -314,6 +321,11 @@ class MusicService :
                         player.play()
                     }
                 }
+
+                if (isConnected && !wasConnected) {
+                    discordRpc?.forceUpdate()
+                }
+                wasConnected = isConnected
             }
         }
 
@@ -330,7 +342,7 @@ class MusicService :
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
             if (song != null && player.playWhenReady && player.playbackState == Player.STATE_READY) {
-                discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                discordRpc?.updateSong(song, nextSong.value, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
             } else {
                 discordRpc?.closeRPC()
             }
@@ -386,7 +398,7 @@ class MusicService :
                     discordRpc = DiscordRPC(this, key)
                     if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
                         currentSong.value?.let {
-                            discordRpc?.updateSong(it, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                            discordRpc?.updateSong(it, nextSong.value, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                         }
                     }
                 }
@@ -403,7 +415,7 @@ class MusicService :
                         discordUpdateJob?.cancel()
                         discordUpdateJob = scope.launch {
                             delay(1000)
-                            discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, useDetails)
+                            discordRpc?.updateSong(song, nextSong.value, player.currentPosition, player.playbackParameters.speed, useDetails)
                         }
                     }
                 }
@@ -1125,7 +1137,11 @@ class MusicService :
         setupLoudnessEnhancer()
 
         discordUpdateJob?.cancel()
-
+        currentSong.value?.let {
+            scope.launch {
+                discordRpc?.updateSong(it, nextSong.value, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false), force = true)
+            }
+        }
         scrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
             scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
@@ -1203,7 +1219,7 @@ class MusicService :
             if (player.isPlaying) {
                 currentSong.value?.let { song ->
                     scope.launch {
-                        discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                        discordRpc?.updateSong(song, nextSong.value, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                     }
                 }
             }
@@ -1268,7 +1284,7 @@ class MusicService :
                 delay(1000)
                 if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
                     currentSong.value?.let { song ->
-                        discordRpc?.updateSong(song, player.currentPosition, playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                        discordRpc?.updateSong(song, nextSong.value, player.currentPosition, playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                     }
                 }
             }
