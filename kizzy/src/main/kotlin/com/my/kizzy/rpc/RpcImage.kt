@@ -26,18 +26,9 @@ sealed class RpcImage {
         }
     }
 
-    class ExternalImage(val image: String) : RpcImage() {
+    class ExternalImage(val images: List<String>) : RpcImage() {
         override suspend fun resolveImage(repository: KizzyRepository): String? {
-            println("--- RpcImage.resolveImage ENTER ---")
-            val result = try {
-                repository.getImage(image)
-            } catch (e: Exception) {
-                println("!!! RpcImage.resolveImage ERROR: ${e.message}")
-                e.printStackTrace()
-                null
-            }
-            println("--- RpcImage.resolveImage EXIT ---, result: $result")
-            return result
+            return repository.getImage(images)
         }
     }
 }

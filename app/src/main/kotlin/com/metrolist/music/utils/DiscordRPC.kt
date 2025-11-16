@@ -1,7 +1,6 @@
 package com.metrolist.music.utils
 
 import android.content.Context
-import android.util.Log
 import com.metrolist.music.R
 import com.metrolist.music.db.entities.Song
 import com.my.kizzy.rpc.KizzyRPC
@@ -11,12 +10,14 @@ class DiscordRPC(
     val context: Context,
     token: String,
 ) : KizzyRPC(token) {
-    suspend fun updateSong(song: Song, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
-        Log.d("DiscordRPC", "--- updateSong ENTER ---")
-        Log.d("DiscordRPC", "Song data: $song")
-        Log.d("DiscordRPC", "Large image URL: ${song.song.thumbnailUrl}")
-        Log.d("DiscordRPC", "Small image URL: ${song.artists.firstOrNull()?.thumbnailUrl}")
+    suspend fun refresh() {
+        lastActivity?.let {
+            sendActivity(it)
+        }
+    }
 
+    suspend fun updateSong(songs: List<Song>, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
+        val song = songs.first()
         val currentTime = System.currentTimeMillis()
 
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
@@ -31,17 +32,19 @@ class DiscordRPC(
         val remainingDuration = song.song.duration * 1000L - currentPlaybackTimeMillis
         val adjustedRemainingDuration = (remainingDuration / playbackSpeed).toLong()
 
-        val largeImage = song.song.thumbnailUrl?.let { RpcImage.ExternalImage(it) }
-        val smallImage = song.artists.firstOrNull()?.thumbnailUrl?.let { RpcImage.ExternalImage(it) }
-        Log.d("DiscordRPC", "Created RpcImage objects: large=$largeImage, small=$smallImage")
+        val images = mutableListOf<String>()
+        songs.forEach {
+            it.song.thumbnailUrl?.let { images.add(it) }
+            it.artists.firstOrNull()?.thumbnailUrl?.let { images.add(it) }
+        }
 
         setActivity(
             name = context.getString(R.string.app_name).removeSuffix(" Debug"),
             details = songTitleWithRate,
             state = song.artists.joinToString { it.name },
             detailsUrl = "https://music.youtube.com/watch?v=${song.song.id}",
-            largeImage = largeImage,
-            smallImage = smallImage,
+            largeImage = RpcImage.ExternalImage(images),
+            smallImage = null,
             largeText = song.album?.title,
             smallText = song.artists.firstOrNull()?.name,
             buttons = listOf(
@@ -55,8 +58,6 @@ class DiscordRPC(
             endTime = currentTime + adjustedRemainingDuration,
             applicationId = APPLICATION_ID
         )
-    }.onFailure {
-        Log.e("DiscordRPC", "Error updating song", it)
     }
 
     companion object {

@@ -38,17 +38,11 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import mu.KotlinLogging
+import java.util.logging.Level
+import java.util.logging.Level.INFO
+import java.util.logging.Logger
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.milliseconds
-
-private val logger = KotlinLogging.logger {}
-
-private enum class ConnectionState {
-    DISCONNECTED,
-    CONNECTING,
-    CONNECTED
-}
 
 /**
  * Modified by Zion Huang
@@ -63,7 +57,7 @@ open class DiscordWebSocket(
     private var heartbeatInterval = 0L
     private var resumeGatewayUrl: String? = null
     private var heartbeatJob: Job? = null
-    private var connectionState = ConnectionState.DISCONNECTED
+    private var connected = false
     private var client: HttpClient = HttpClient {
         install(WebSockets)
     }
@@ -77,12 +71,8 @@ open class DiscordWebSocket(
 
     fun connect() {
         launch {
-            if (connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.CONNECTED) {
-                return@launch
-            }
-            connectionState = ConnectionState.CONNECTING
             try {
-                logger.info { "Gateway: Connect called" }
+                Logger.getLogger("Kizzy").log(INFO, "Gateway: Connect called")
                 val url = resumeGatewayUrl ?: gatewayUrl
                 websocket = client.webSocketSession(url)
 
@@ -100,7 +90,7 @@ open class DiscordWebSocket(
                     }
                 handleClose()
             } catch (e: Exception) {
-                logger.info { "Gateway: ${e.message}" }
+                Logger.getLogger("Kizzy").log(INFO, "Gateway: ${e.message}")
                 close()
             }
         }
@@ -108,9 +98,9 @@ open class DiscordWebSocket(
 
     private suspend fun handleClose() {
         heartbeatJob?.cancel()
-        connectionState = ConnectionState.DISCONNECTED
+        connected = false
         val close = websocket?.closeReason?.await()
-        logger.info { "Gateway: Closed with code: ${close?.code}, reason: ${close?.message},  can_reconnect: ${close?.code?.toInt() == 4000}" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Closed with code: ${close?.code}, reason: ${close?.message},  can_reconnect: ${close?.code?.toInt() == 4000}")
         if (close?.code?.toInt() == 4000) {
             delay(200.milliseconds)
             connect()
@@ -119,7 +109,7 @@ open class DiscordWebSocket(
     }
 
     private suspend fun onMessage(payload: Payload) {
-        logger.info { "Gateway: Received op:${payload.op}, seq:${payload.s}, event :${payload.t}" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Received op:${payload.op}, seq:${payload.s}, event :${payload.t}")
 
         payload.s?.let {
             sequence = it
@@ -140,14 +130,14 @@ open class DiscordWebSocket(
                 val ready = json.decodeFromJsonElement<Ready>(this.d!!)
                 sessionId = ready.sessionId
                 resumeGatewayUrl = ready.resumeGatewayUrl + "/?v=10&encoding=json"
-                logger.info { "Gateway: resume_gateway_url updated to $resumeGatewayUrl" }
-                logger.info { "Gateway: session_id updated to $sessionId" }
-                connectionState = ConnectionState.CONNECTED
+                Logger.getLogger("Kizzy").log(INFO, "Gateway: resume_gateway_url updated to $resumeGatewayUrl")
+                Logger.getLogger("Kizzy").log(INFO, "Gateway: session_id updated to $sessionId")
+                connected = true
                 return
             }
 
             "RESUMED" -> {
-                logger.info { "Gateway: Session Resumed" }
+                Logger.getLogger("Kizzy").log(INFO, "Gateway: Session Resumed")
             }
 
             else -> {}
@@ -155,8 +145,8 @@ open class DiscordWebSocket(
     }
 
     private suspend inline fun handleInvalidSession() {
-        logger.info { "Gateway: Handling Invalid Session" }
-        logger.info { "Gateway: Sending Identify after 150ms" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Handling Invalid Session")
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Sending Identify after 150ms")
         delay(150)
         sendIdentify()
     }
@@ -168,12 +158,12 @@ open class DiscordWebSocket(
             sendIdentify()
         }
         heartbeatInterval = json.decodeFromJsonElement<Heartbeat>(this.d!!).heartbeatInterval
-        logger.info { "Gateway: Setting heartbeatInterval= $heartbeatInterval" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Setting heartbeatInterval= $heartbeatInterval")
         startHeartbeatJob(heartbeatInterval)
     }
 
     private suspend fun sendHeartBeat() {
-        logger.info { "Gateway: Sending $HEARTBEAT with seq: $sequence" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Sending $HEARTBEAT with seq: $sequence")
         send(
             op = HEARTBEAT,
             d = if (sequence == 0) "null" else sequence.toString(),
@@ -190,7 +180,7 @@ open class DiscordWebSocket(
     }
 
     private suspend fun sendIdentify() {
-        logger.info { "Gateway: Sending $IDENTIFY" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Sending $IDENTIFY")
         send(
             op = IDENTIFY,
             d = token.toIdentifyPayload()
@@ -198,7 +188,7 @@ open class DiscordWebSocket(
     }
 
     private suspend fun sendResume() {
-        logger.info { "Gateway: Sending $RESUME" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Sending $RESUME")
         send(
             op = RESUME,
             d = Resume(
@@ -220,7 +210,7 @@ open class DiscordWebSocket(
     }
 
     private fun isSocketConnectedToAccount(): Boolean {
-        return connectionState == ConnectionState.CONNECTED && websocket?.isActive == true
+        return connected && websocket?.isActive == true
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -246,11 +236,11 @@ open class DiscordWebSocket(
         this.cancel()
         resumeGatewayUrl = null
         sessionId = null
-        connectionState = ConnectionState.DISCONNECTED
-        launch {
+        connected = false
+        runBlocking {
             websocket?.close()
+            Logger.getLogger("Kizzy").log(Level.SEVERE, "Gateway: Connection to gateway closed")
         }
-        logger.error { "Gateway: Connection to gateway closed" }
     }
 
     suspend fun sendActivity(presence: Presence) {
@@ -258,7 +248,7 @@ open class DiscordWebSocket(
         while (!isSocketConnectedToAccount()) {
             delay(10.milliseconds)
         }
-        logger.info { "Gateway: Sending $PRESENCE_UPDATE" }
+        Logger.getLogger("Kizzy").log(INFO, "Gateway: Sending $PRESENCE_UPDATE")
         send(
             op = PRESENCE_UPDATE,
             d = presence

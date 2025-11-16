@@ -17,7 +17,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
-import io.ktor.client.statement.bodyAsText
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -25,37 +24,31 @@ import kotlinx.serialization.json.Json
  * Modified by Zion Huang
  */
 class ApiService {
-    private val client: HttpClient by lazy {
-        HttpClient {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    encodeDefaults = true
-                })
-            }
-            install(HttpCache)
+    private val client = HttpClient {
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+            })
         }
+        install(HttpCache)
     }
 
-    suspend fun getImage(url: String) = runCatching {
-        println("--- ApiService.getImage ENTER ---")
-        val response = try {
-            client.get {
-                url("$BASE_URL/image")
-                parameter("url", url)
-            }
-        } catch (e: Exception) {
-            println("!!! ApiService.getImage ERROR calling client.get: ${e.message}")
-            e.printStackTrace()
-            throw e
+    suspend fun getImage(urls: List<String>) = runCatching {
+        for (provider in providers) {
+            runCatching {
+                client.get {
+                    url("$provider/image")
+                    urls.forEach { parameter("url", it) }
+                }
+            }.onSuccess { return@runCatching it }
         }
-        val responseBody = response.bodyAsText()
-        println("Raw response from worker: $responseBody")
-        println("--- ApiService.getImage EXIT ---")
-        response
+        throw Exception("All providers failed")
     }
 
     companion object {
-        const val BASE_URL = "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev"
+        val providers = listOf(
+            "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev"
+        )
     }
 }

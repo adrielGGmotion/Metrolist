@@ -314,6 +314,11 @@ class MusicService :
                         player.play()
                     }
                 }
+                if (isConnected) {
+                    scope.launch {
+                        discordRpc?.refresh()
+                    }
+                }
             }
         }
 
@@ -330,7 +335,11 @@ class MusicService :
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
             if (song != null && player.playWhenReady && player.playbackState == Player.STATE_READY) {
-                discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                val songs = mutableListOf(song)
+                player.findNextMediaItemById(song.song.id)?.mediaId?.let {
+                    database.song(it).first()?.let { songs.add(it) }
+                }
+                discordRpc?.updateSong(songs, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
             } else {
                 discordRpc?.closeRPC()
             }
@@ -386,7 +395,11 @@ class MusicService :
                     discordRpc = DiscordRPC(this, key)
                     if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
                         currentSong.value?.let {
-                            discordRpc?.updateSong(it, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                            val songs = mutableListOf(it)
+                            player.findNextMediaItemById(it.song.id)?.mediaId?.let {
+                                database.song(it).first()?.let { songs.add(it) }
+                            }
+                            discordRpc?.updateSong(songs, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                         }
                     }
                 }
@@ -403,7 +416,11 @@ class MusicService :
                         discordUpdateJob?.cancel()
                         discordUpdateJob = scope.launch {
                             delay(1000)
-                            discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, useDetails)
+                            val songs = mutableListOf(song)
+                            player.findNextMediaItemById(song.song.id)?.mediaId?.let {
+                                database.song(it).first()?.let { songs.add(it) }
+                            }
+                            discordRpc?.updateSong(songs, player.currentPosition, player.playbackParameters.speed, useDetails)
                         }
                     }
                 }
@@ -519,6 +536,16 @@ class MusicService :
                 delay(10.seconds)
                 if (dataStore.get(PersistentQueueKey, true) && player.isPlaying) {
                     saveQueueToDisk()
+                }
+            }
+        }
+        scope.launch {
+            while (isActive) {
+                delay(5.seconds)
+                if (discordRpc != null && !discordRpc!!.isRpcRunning()) {
+                    scope.launch {
+                        discordRpc?.refresh()
+                    }
                 }
             }
         }
@@ -1125,17 +1152,6 @@ class MusicService :
         setupLoudnessEnhancer()
 
         discordUpdateJob?.cancel()
-        scope.launch {
-            delay(500)
-            currentSong.value?.let { song ->
-                discordRpc?.updateSong(
-                    song,
-                    player.currentPosition,
-                    player.playbackParameters.speed,
-                    dataStore.get(DiscordUseDetailsKey, false)
-                )
-            }
-        }
 
         scrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
@@ -1214,7 +1230,11 @@ class MusicService :
             if (player.isPlaying) {
                 currentSong.value?.let { song ->
                     scope.launch {
-                        discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                        val songs = mutableListOf(song)
+                        player.findNextMediaItemById(song.song.id)?.mediaId?.let {
+                            database.song(it).first()?.let { songs.add(it) }
+                        }
+                        discordRpc?.updateSong(songs, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                     }
                 }
             }
@@ -1279,7 +1299,11 @@ class MusicService :
                 delay(1000)
                 if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
                     currentSong.value?.let { song ->
-                        discordRpc?.updateSong(song, player.currentPosition, playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                        val songs = mutableListOf(song)
+                        player.findNextMediaItemById(song.song.id)?.mediaId?.let {
+                            database.song(it).first()?.let { songs.add(it) }
+                        }
+                        discordRpc?.updateSong(songs, player.currentPosition, playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
                     }
                 }
             }
