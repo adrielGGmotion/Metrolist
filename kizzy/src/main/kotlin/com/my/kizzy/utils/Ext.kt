@@ -12,7 +12,12 @@
 
 package com.my.kizzy.utils
 
+import com.my.kizzy.remote.ApiResponse
 import com.my.kizzy.rpc.RpcImage
+import io.ktor.client.call.body
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpStatusCode
+
 
 fun String.toRpcImage(): RpcImage? {
     return if (this.isBlank())

@@ -16,7 +16,7 @@ class DiscordRPC(
         currentPlaybackTimeMillis: Long,
         playbackSpeed: Float = 1.0f,
         useDetails: Boolean = false,
-        force: Boolean = false
+        force: Boolean = false,
     ) = runCatching {
         val currentTime = System.currentTimeMillis()
 

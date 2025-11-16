@@ -1224,7 +1224,6 @@ interface DatabaseDao {
                     id = artistId,
                     name = artist.name,
                     channelId = artist.id,
-                    thumbnailUrl = artist.thumbnailUrl
                 )
             )
 
@@ -1312,7 +1311,6 @@ interface DatabaseDao {
                     id = artistId,
                     name = artist.name,
                     channelId = artist.id,
-                    thumbnailUrl = artist.thumbnailUrl
                 ),
             )
             insert(

@@ -12,9 +12,9 @@
 package com.my.kizzy.remote
 
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
@@ -35,28 +35,26 @@ class ApiService {
         install(HttpCache)
     }
 
-    suspend fun getImages(urls: List<String>): Result<ApiResponse> {
-        var result: Result<ApiResponse>? = null
+    suspend fun getImage(urls: List<String>) = runCatching {
+        var response: ApiResponse? = null
         for (baseUrl in WORKERS) {
-            result = runCatching {
-                client.get {
+            try {
+                response = client.get {
                     url("$baseUrl/image")
-                    urls.forEach {
-                        parameter("url", it)
-                    }
+                    parameter("url", urls)
                 }.body()
-            }
-            if (result.isSuccess) {
-                return result
+                break
+            } catch (e: Exception) {
+                // Try next worker
             }
         }
-        return result ?: Result.failure(Exception("All workers failed"))
+        response ?: throw Exception("All workers failed")
     }
 
     companion object {
-        private val WORKERS = listOf(
+        val WORKERS = listOf(
             "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev",
-            "https://kizzy-workers.astolfo.in"
+            "https://kizzy-rpc.herokuapp.com/api/rpc"
         )
     }
 }
