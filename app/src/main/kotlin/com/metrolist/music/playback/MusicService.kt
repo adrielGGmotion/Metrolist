@@ -1439,29 +1439,30 @@ class MusicService :
         eventTime: AnalyticsListener.EventTime,
         playbackStats: PlaybackStats,
     ) {
-        val mediaItem = eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
+        scope.launch(Dispatchers.IO) {
+            val historyDuration = dataStore.data.map { it[HistoryDuration] ?: 30f }.first()
+            val pauseHistory = dataStore.data.map { it[PauseListenHistoryKey] ?: false }.first()
 
-        if (playbackStats.totalPlayTimeMs >= (
-                    dataStore[HistoryDuration]?.times(1000f)
-                        ?: 30000f
-                    ) &&
-            !dataStore.get(PauseListenHistoryKey, false)
-        ) {
-            database.query {
-                incrementTotalPlayTime(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
-                try {
-                    insert(
-                        Event(
-                            songId = mediaItem.mediaId,
-                            timestamp = LocalDateTime.now(),
-                            playTime = playbackStats.totalPlayTimeMs,
-                        ),
-                    )
-                } catch (_: SQLException) {
+            if (playbackStats.totalPlayTimeMs >= historyDuration * 1000f && !pauseHistory) {
+                val mediaItem =
+                    withContext(Dispatchers.Main) {
+                        eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
+                    }
+
+                database.query {
+                    incrementTotalPlayTime(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
+                    try {
+                        insert(
+                            Event(
+                                songId = mediaItem.mediaId,
+                                timestamp = LocalDateTime.now(),
+                                playTime = playbackStats.totalPlayTimeMs,
+                            ),
+                        )
+                    } catch (_: SQLException) {
+                    }
                 }
-            }
 
-            CoroutineScope(Dispatchers.IO).launch {
                 val playbackUrl = YTPlayerUtils.playerResponseForMetadata(mediaItem.mediaId, null)
                     .getOrNull()?.playbackTracking?.videostatsPlaybackUrl?.baseUrl
                 playbackUrl?.let {
