@@ -21,7 +21,7 @@ import com.my.kizzy.utils.toImageAsset
 class KizzyRepository {
     private val api = ApiService()
 
-    suspend fun getImage(url: String): String? {
-        return api.getImage(url).getOrNull()?.toImageAsset()
+    suspend fun getImage(urls: List<String>): String? {
+        return api.getImage(urls).getOrNull()?.toImageAsset()
     }
 }

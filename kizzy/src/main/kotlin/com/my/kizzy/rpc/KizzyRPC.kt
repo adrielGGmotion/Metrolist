@@ -23,12 +23,18 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.plus
 import org.json.JSONObject
 
 /**
  * Modified by Zion Huang
  */
 open class KizzyRPC(token: String) {
+    val scope = CoroutineScope(Dispatchers.IO) + Job()
+    var lastActivity: Presence? = null
     private val kizzyRepository = KizzyRepository()
     private val discordWebSocket = DiscordWebSocket(token)
 
@@ -47,7 +53,12 @@ open class KizzyRPC(token: String) {
         val presence = Presence(
             activities = emptyList()
         )
+        sendActivity(presence)
+    }
+
+    suspend fun sendActivity(presence: Presence) {
         discordWebSocket.sendActivity(presence)
+        lastActivity = presence
     }
 
     suspend fun setActivity(
@@ -100,7 +111,7 @@ open class KizzyRPC(token: String) {
             since = since,
             status = status ?: "online"
         )
-        discordWebSocket.sendActivity(presence)
+        sendActivity(presence)
     }
 
     enum class Type(val value: Int) {

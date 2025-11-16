@@ -21,7 +21,7 @@ import io.ktor.http.HttpStatusCode
 suspend fun HttpResponse.toImageAsset(): String? {
     return try {
         if (this.status == HttpStatusCode.OK)
-            this.body<ApiResponse>().id
+            this.body<ApiResponse>().id.firstOrNull()
         else
             null
     } catch (e: Exception) {
@@ -35,6 +35,6 @@ fun String.toRpcImage(): RpcImage? {
     else if (this.startsWith("attachments"))
         RpcImage.DiscordImage(this)
     else
-        RpcImage.ExternalImage(this)
+        RpcImage.ExternalImage(listOf(this))
 }
 

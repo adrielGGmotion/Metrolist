@@ -34,14 +34,21 @@ class ApiService {
         install(HttpCache)
     }
 
-    suspend fun getImage(url: String) = runCatching {
-         client.get {
-             url("$BASE_URL/image")
-             parameter("url", url)
-         }
+    suspend fun getImage(urls: List<String>) = runCatching {
+        for (provider in providers) {
+            runCatching {
+                client.get {
+                    url("$provider/image")
+                    urls.forEach { parameter("url", it) }
+                }
+            }.onSuccess { return@runCatching it }
+        }
+        throw Exception("All providers failed")
     }
 
     companion object {
-        const val BASE_URL = "https://metrolist-discord-rpc-api.fullerbread2032.workers.dev"
+        val providers = listOf(
+            "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev"
+        )
     }
 }

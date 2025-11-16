@@ -10,28 +10,41 @@ class DiscordRPC(
     val context: Context,
     token: String,
 ) : KizzyRPC(token) {
-    suspend fun updateSong(song: Song, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
+    suspend fun refresh() {
+        lastActivity?.let {
+            sendActivity(it)
+        }
+    }
+
+    suspend fun updateSong(songs: List<Song>, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
+        val song = songs.first()
         val currentTime = System.currentTimeMillis()
-        
+
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
         val calculatedStartTime = currentTime - adjustedPlaybackTime
-        
+
         val songTitleWithRate = if (playbackSpeed != 1.0f) {
             "${song.song.title} [${String.format("%.2fx", playbackSpeed)}]"
         } else {
             song.song.title
         }
-        
+
         val remainingDuration = song.song.duration * 1000L - currentPlaybackTimeMillis
         val adjustedRemainingDuration = (remainingDuration / playbackSpeed).toLong()
-        
+
+        val images = mutableListOf<String>()
+        songs.forEach {
+            it.song.thumbnailUrl?.let { images.add(it) }
+            it.artists.firstOrNull()?.thumbnailUrl?.let { images.add(it) }
+        }
+
         setActivity(
             name = context.getString(R.string.app_name).removeSuffix(" Debug"),
             details = songTitleWithRate,
             state = song.artists.joinToString { it.name },
             detailsUrl = "https://music.youtube.com/watch?v=${song.song.id}",
-            largeImage = song.song.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
-            smallImage = song.artists.firstOrNull()?.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
+            largeImage = RpcImage.ExternalImage(images),
+            smallImage = null,
             largeText = song.album?.title,
             smallText = song.artists.firstOrNull()?.name,
             buttons = listOf(
