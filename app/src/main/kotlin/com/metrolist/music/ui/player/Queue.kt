@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -147,6 +149,7 @@ fun Queue(
     iconButtonColor: Color,
     onShowLyrics: () -> Unit = {},
     pureBlack: Boolean,
+    lyricsVisible: Boolean,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -229,12 +232,23 @@ fun Queue(
                 ) {
                     val buttonSize = 42.dp
                     val iconSize = 24.dp
-                    val borderColor = TextBackgroundColor.copy(alpha = 0.35f)
+                    val borderColor by animateColorAsState(
+                        targetValue = if (lyricsVisible) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            TextBackgroundColor.copy(alpha = 0.35f)
+                        },
+                        label = "borderColor"
+                    )
                     val queueShape = RoundedCornerShape(
                         topStart = 50.dp, bottomStart = 50.dp,
                         topEnd = 5.dp, bottomEnd = 5.dp
                     )
                     val middleShape = RoundedCornerShape(5.dp)
+                    val lyricsShape by animateDpAsState(
+                        targetValue = if (lyricsVisible) 50.dp else 5.dp,
+                        label = "lyricsShape"
+                    )
                     val repeatShape = RoundedCornerShape(
                         topStart = 5.dp, bottomStart = 5.dp,
                         topEnd = 50.dp, bottomEnd = 50.dp
@@ -321,8 +335,8 @@ fun Queue(
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
-                            .border(1.5.dp, borderColor, middleShape)
-                            .clip(middleShape)
+                            .border(1.5.dp, borderColor, RoundedCornerShape(lyricsShape))
+                            .clip(RoundedCornerShape(lyricsShape))
                             .clickable {
                                 onShowLyrics()
                             },
