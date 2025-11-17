@@ -309,6 +309,8 @@ val LyricsRomanizeCyrillicByLineKey = booleanPreferencesKey("lyricsRomanizeCyril
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
+val HapticsKey = booleanPreferencesKey("hapticsEnabled")
+val HapticsIntensityKey = floatPreferencesKey("hapticsIntensity")
 val RepeatModeKey = intPreferencesKey("repeatMode")
 
 val SearchSourceKey = stringPreferencesKey("searchSource")

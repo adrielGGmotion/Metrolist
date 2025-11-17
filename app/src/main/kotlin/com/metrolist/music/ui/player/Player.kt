@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -118,6 +120,8 @@ import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerButtonsStyle
 import com.metrolist.music.constants.PlayerButtonsStyleKey
+import com.metrolist.music.constants.HapticsKey
+import com.metrolist.music.constants.HapticsIntensityKey
 import com.metrolist.music.ui.theme.PlayerColorExtractor
 import com.metrolist.music.ui.theme.PlayerSliderColors
 import com.metrolist.music.constants.PlayerHorizontalPadding
@@ -173,6 +177,17 @@ fun BottomSheetPlayer(
         key = PlayerButtonsStyleKey,
         defaultValue = PlayerButtonsStyle.DEFAULT
     )
+    val (hapticsEnabled, _) = rememberPreference(HapticsKey, defaultValue = true)
+    val (hapticsIntensity, _) = rememberPreference(HapticsIntensityKey, defaultValue = 0.5f)
+    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+
+    fun vibrate() {
+        if (hapticsEnabled) {
+            val amplitude = (hapticsIntensity * 255).toInt().coerceIn(1, 255)
+            val effect = VibrationEffect.createOneShot(50, amplitude)
+            vibrator.vibrate(effect)
+        }
+    }
 
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
@@ -904,7 +919,10 @@ fun BottomSheetPlayer(
                     )
 
                     FilledTonalIconButton(
-                        onClick = playerConnection::seekToPrevious,
+                        onClick = {
+                            vibrate()
+                            playerConnection.seekToPrevious()
+                        },
                         enabled = canSkipPrevious,
                         shape = RoundedCornerShape(50),
                         interactionSource = backInteractionSource,
@@ -924,6 +942,7 @@ fun BottomSheetPlayer(
 
                     FilledIconButton(
                         onClick = {
+                            vibrate()
                             if (playbackState == STATE_ENDED) {
                                 playerConnection.player.seekTo(0, 0)
                                 playerConnection.player.playWhenReady = true
@@ -959,7 +978,10 @@ fun BottomSheetPlayer(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     FilledTonalIconButton(
-                        onClick = playerConnection::seekToNext,
+                        onClick = {
+                            vibrate()
+                            playerConnection.seekToNext()
+                        },
                         enabled = canSkipNext,
                         shape = RoundedCornerShape(50),
                         interactionSource = nextInteractionSource,
@@ -1011,7 +1033,10 @@ fun BottomSheetPlayer(
                             Modifier
                                 .size(32.dp)
                                 .align(Alignment.Center),
-                            onClick = playerConnection::seekToPrevious,
+                            onClick = {
+                                vibrate()
+                                playerConnection.seekToPrevious()
+                            },
                         )
                     }
 
@@ -1024,6 +1049,7 @@ fun BottomSheetPlayer(
                             .clip(RoundedCornerShape(playPauseRoundness))
                             .background(textButtonColor)
                             .clickable {
+                                vibrate()
                                 if (playbackState == STATE_ENDED) {
                                     playerConnection.player.seekTo(0, 0)
                                     playerConnection.player.playWhenReady = true
@@ -1065,7 +1091,10 @@ fun BottomSheetPlayer(
                             Modifier
                                 .size(32.dp)
                                 .align(Alignment.Center),
-                            onClick = playerConnection::seekToNext,
+                            onClick = {
+                                vibrate()
+                                playerConnection.seekToNext()
+                            },
                         )
                     }
 

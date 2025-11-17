@@ -53,6 +53,8 @@ import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.SeekExtraSeconds
+import com.metrolist.music.constants.HapticsKey
+import com.metrolist.music.constants.HapticsIntensityKey
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
@@ -122,6 +124,14 @@ fun PlayerSettings(
     val (historyDuration, onHistoryDurationChange) = rememberPreference(
         HistoryDuration,
         defaultValue = 30f
+    )
+    val (hapticsEnabled, onHapticsEnabledChange) = rememberPreference(
+        HapticsKey,
+        defaultValue = true
+    )
+    val (hapticsIntensity, onHapticsIntensityChange) = rememberPreference(
+        HapticsIntensityKey,
+        defaultValue = 0.5f
     )
 
     var showAudioQualityDialog by remember {
@@ -341,6 +351,40 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onStopMusicOnTaskClearChange(!stopMusicOnTaskClear) }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
+            title = "Haptics",
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.waves),
+                    title = { Text("Haptic feedback") },
+                    description = { Text("Enable vibration for player controls") },
+                    trailingContent = {
+                        Switch(
+                            checked = hapticsEnabled,
+                            onCheckedChange = onHapticsEnabledChange
+                        )
+                    },
+                    onClick = { onHapticsEnabledChange(!hapticsEnabled) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.sliders),
+                    title = { Text("Haptics intensity") },
+                    description = {
+                        Column {
+                            Text(hapticsIntensity.toString())
+                            Slider(
+                                value = hapticsIntensity,
+                                onValueChange = onHapticsIntensityChange,
+                                valueRange = 0f..1f
+                            )
+                        }
+                    }
                 )
             )
         )
