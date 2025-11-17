@@ -1159,7 +1159,7 @@ class MusicService :
         setupLoudnessEnhancer()
 
         discordUpdateJob?.cancel()
-        updateDiscordRPC(force = true)
+
         scrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
             scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
@@ -1289,6 +1289,23 @@ class MusicService :
         }
     }
 
+    override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+        super.onPlaybackParametersChanged(playbackParameters)
+        if (playbackParameters.speed != lastPlaybackSpeed) {
+            lastPlaybackSpeed = playbackParameters.speed
+            discordUpdateJob?.cancel()
+
+            // update scheduling thingy
+            discordUpdateJob = scope.launch {
+                delay(1000)
+                if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
+                    currentSong.value?.let { song ->
+                        updateDiscordRPC()
+                    }
+                }
+            }
+        }
+    }
 
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)

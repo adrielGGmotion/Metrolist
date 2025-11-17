@@ -20,7 +20,6 @@ import com.my.kizzy.remote.ApiService
 class KizzyRepository {
     private val api = ApiService()
 
-    suspend fun getImages(urls: List<String>): List<String?>? {
-        return api.getImage(urls).getOrNull()?.id
-    }
+    suspend fun getImages(urls: List<String>) =
+        api.getImage(urls)
 }

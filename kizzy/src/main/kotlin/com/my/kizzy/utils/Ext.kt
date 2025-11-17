@@ -18,7 +18,6 @@ import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpStatusCode
 
-
 fun String.toRpcImage(): RpcImage? {
     return if (this.isBlank())
         null

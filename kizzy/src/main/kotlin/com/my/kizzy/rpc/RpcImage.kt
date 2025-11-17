@@ -18,45 +18,44 @@ import com.my.kizzy.repository.KizzyRepository
  * Modified by Zion Huang
  */
 sealed class RpcImage {
-    abstract suspend fun resolveImage(repository: KizzyRepository): String?
+    abstract fun getUrl(): String
 
     class DiscordImage(val image: String) : RpcImage() {
-        override suspend fun resolveImage(repository: KizzyRepository): String {
+        override fun getUrl(): String {
             return "mp:${image}"
         }
     }
 
     class ExternalImage(val image: String) : RpcImage() {
-        override suspend fun resolveImage(repository: KizzyRepository): String? {
-            return repository.getImages(listOf(image))?.firstOrNull()
+        override fun getUrl(): String {
+            return image
         }
     }
 
     companion object {
         suspend fun resolveImages(
             repository: KizzyRepository,
-            images: List<RpcImage?>
+            images: List<RpcImage?>,
         ): List<String?> {
-            val externalImages = images.filterIsInstance<ExternalImage>()
-            val resolvedExternalImages = if (externalImages.isNotEmpty()) {
-                repository.getImages(externalImages.map { it.image })
-            } else {
-                emptyList()
+            val externalImages = images.map {
+                if (it is ExternalImage) it.getUrl() else null
             }
-
-            val resolvedImages = mutableListOf<String?>()
-            var externalImageIndex = 0
-            for (image in images) {
-                when (image) {
-                    is DiscordImage -> resolvedImages.add(image.resolveImage(repository))
-                    is ExternalImage -> {
-                        resolvedImages.add(resolvedExternalImages?.getOrNull(externalImageIndex))
-                        externalImageIndex++
+            if (externalImages.any { it != null }) {
+                val resolvedImages = repository.getImages(
+                    externalImages.filterNotNull()
+                ).getOrNull()?.id
+                var resolvedImageIndex = 0
+                return images.map {
+                    when (it) {
+                        is DiscordImage -> it.getUrl()
+                        is ExternalImage -> resolvedImages?.getOrNull(resolvedImageIndex++)
+                        null -> null
                     }
-                    null -> resolvedImages.add(null)
                 }
             }
-            return resolvedImages
+            return images.map {
+                if (it is DiscordImage) it.getUrl() else null
+            }
         }
     }
 }
