@@ -726,7 +726,7 @@ class MusicService :
 
     private suspend fun recoverSong(
         mediaId: String,
-        playbackData: YTPlayerUtils.PlaybackData? = null
+        playbackData: PlayerResponse? = null
     ) {
         val song = database.song(mediaId).first()
         val mediaMetadata = withContext(Dispatchers.Main) {
@@ -734,7 +734,7 @@ class MusicService :
         } ?: return
         val duration = song?.song?.duration?.takeIf { it != -1 }
             ?: mediaMetadata.duration.takeIf { it != -1 }
-            ?: (playbackData?.videoDetails ?: YTPlayerUtils.playerResponseForMetadata(mediaId)
+            ?: (playbackData?.videoDetails ?: YTPlayerUtils.playerResponseForMetadata(mediaId, null)
                 .getOrNull()?.videoDetails)?.lengthSeconds?.toInt()
             ?: -1
         database.query {
@@ -1342,11 +1342,10 @@ class MusicService :
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
+            val isMetered = connectivityManager.isActiveNetworkMetered
             val playbackData = runBlocking(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(
-                    mediaId,
-                    audioQuality = audioQuality,
-                    connectivityManager = connectivityManager,
+                    mediaId
                 )
             }.getOrElse { throwable ->
                 when (throwable) {
@@ -1380,29 +1379,29 @@ class MusicService :
                 getString(R.string.error_unknown)
             }
             run {
-                val format = nonNullPlayback.format
+                val format = YTPlayerUtils.selectFormat(nonNullPlayback, audioQuality, isMetered)
 
                 database.query {
                     upsert(
                         FormatEntity(
                             id = mediaId,
-                            itag = format.itag,
+                            itag = format!!.itag,
                             mimeType = format.mimeType.split(";")[0],
                             codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
                             bitrate = format.bitrate,
                             sampleRate = format.audioSampleRate,
                             contentLength = format.contentLength!!,
-                            loudnessDb = nonNullPlayback.audioConfig?.loudnessDb,
+                            loudnessDb = nonNullPlayback.playerConfig?.audioConfig?.loudnessDb,
                             playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl
                         )
                     )
                 }
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId, nonNullPlayback) }
 
-                val streamUrl = nonNullPlayback.streamUrl
+                val streamUrl = format!!.url!!
 
                 songUrlCache[mediaId] =
-                    streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
+                    streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamingData!!.expiresInSeconds * 1000L)
                 return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }
