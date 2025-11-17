@@ -52,6 +52,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedIconButton
@@ -134,6 +135,7 @@ import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.PlayerSliderTrack
 import com.metrolist.music.ui.component.ResizableIconButton
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.LyricsMenu
 import com.metrolist.music.ui.menu.PlayerMenu
@@ -162,6 +164,7 @@ fun BottomSheetPlayer(
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
+    val lyricsMenuViewModel: com.metrolist.music.viewmodels.LyricsMenuViewModel = hiltViewModel()
 
     val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
         UseNewPlayerDesignKey,
@@ -1115,27 +1118,30 @@ fun BottomSheetPlayer(
                                     val currentLyrics by playerConnection.currentLyrics.collectAsState(
                                         initial = null
                                     )
-                                    IconButton(
-                                        onClick = {
-                                            menuState.show {
-                                                LyricsMenu(
-                                                    lyricsProvider = { currentLyrics },
-                                                    songProvider = { currentSong?.song },
-                                                    mediaMetadataProvider = { mediaMetadata },
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .align(Alignment.BottomEnd)
-                                            .padding(12.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_horiz),
-                                            contentDescription = null,
-                                            tint = TextBackgroundColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                    mediaMetadata?.let { metadata ->
+                                        IconButton(
+                                            onClick = {
+                                                menuState.show {
+                                                    LyricsMenu(
+                                                        lyricsProvider = { currentLyrics },
+                                                        songProvider = { currentSong?.song },
+                                                        mediaMetadataProvider = { metadata },
+                                                        onDismiss = menuState::dismiss,
+                                                        viewModel = lyricsMenuViewModel
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(12.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.more_horiz),
+                                                contentDescription = null,
+                                                tint = TextBackgroundColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                             } else {
@@ -1197,27 +1203,30 @@ fun BottomSheetPlayer(
                                     val currentLyrics by playerConnection.currentLyrics.collectAsState(
                                         initial = null
                                     )
-                                    IconButton(
-                                        onClick = {
-                                            menuState.show {
-                                                LyricsMenu(
-                                                    lyricsProvider = { currentLyrics },
-                                                    songProvider = { currentSong?.song },
-                                                    mediaMetadataProvider = { mediaMetadata },
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .align(Alignment.BottomEnd)
-                                            .padding(12.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_horiz),
-                                            contentDescription = null,
-                                            tint = TextBackgroundColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                    mediaMetadata?.let { metadata ->
+                                        IconButton(
+                                            onClick = {
+                                                menuState.show {
+                                                    LyricsMenu(
+                                                        lyricsProvider = { currentLyrics },
+                                                        songProvider = { currentSong?.song },
+                                                        mediaMetadataProvider = { metadata },
+                                                        onDismiss = menuState::dismiss,
+                                                        viewModel = lyricsMenuViewModel
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(12.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.more_horiz),
+                                                contentDescription = null,
+                                                tint = TextBackgroundColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                             } else {
@@ -1255,6 +1264,7 @@ fun BottomSheetPlayer(
             iconButtonColor = iconButtonColor,
             onShowLyrics = { showLyrics = !showLyrics },
             pureBlack = pureBlack,
+            lyricsVisible = showLyrics
         )
 
         mediaMetadata?.let { metadata -> }
