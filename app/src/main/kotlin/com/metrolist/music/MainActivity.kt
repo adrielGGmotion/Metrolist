@@ -153,6 +153,8 @@ import com.metrolist.music.constants.SearchSourceKey
 import com.metrolist.music.constants.SlimNavBarHeight
 import com.metrolist.music.constants.SlimNavBarKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
+import com.metrolist.music.constants.HapticsKey
+import com.metrolist.music.constants.HapticsIntensityKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.extensions.toEnum
@@ -373,8 +375,16 @@ class MainActivity : ComponentActivity() {
 
             val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
             val pureBlack = remember(pureBlackEnabled, useDarkTheme) {
-                pureBlackEnabled && useDarkTheme 
+                pureBlackEnabled && useDarkTheme
             }
+            val (hapticsEnabled, onHapticsEnabledChange) = rememberPreference(
+                HapticsKey,
+                defaultValue = true
+            )
+            val (hapticsIntensity, onHapticsIntensityChange) = rememberPreference(
+                HapticsIntensityKey,
+                defaultValue = 0.5f
+            )
 
             var themeColor by rememberSaveable(stateSaver = ColorSaver) {
                 mutableStateOf(DefaultThemeColor)
@@ -993,7 +1003,9 @@ class MainActivity : ComponentActivity() {
                                         BottomSheetPlayer(
                                             state = playerBottomSheetState,
                                             navController = navController,
-                                            pureBlack = pureBlack
+                                            pureBlack = pureBlack,
+                                            hapticsIntensity = hapticsIntensity,
+                                            hapticsEnabled = hapticsEnabled,
                                         )
                                         NavigationBar(
                                             modifier = Modifier
@@ -1080,7 +1092,9 @@ class MainActivity : ComponentActivity() {
                                     BottomSheetPlayer(
                                         state = playerBottomSheetState,
                                         navController = navController,
-                                        pureBlack = pureBlack
+                                        pureBlack = pureBlack,
+                                        hapticsIntensity = hapticsIntensity,
+                                        hapticsEnabled = hapticsEnabled
                                     )
 
                                     Box(
@@ -1216,9 +1230,13 @@ class MainActivity : ComponentActivity() {
                                         )
                                     ) {
                                         navigationBuilder(
-                                            navController,
-                                            topAppBarScrollBehavior,
-                                            latestVersionName
+                                            navController = navController,
+                                            scrollBehavior = topAppBarScrollBehavior,
+                                            latestVersionName = latestVersionName,
+                                            hapticsEnabled = hapticsEnabled,
+                                            onHapticsEnabledChange = onHapticsEnabledChange,
+                                            hapticsIntensity = hapticsIntensity,
+                                            onHapticsIntensityChange = onHapticsIntensityChange
                                         )
                                     }
                                 }

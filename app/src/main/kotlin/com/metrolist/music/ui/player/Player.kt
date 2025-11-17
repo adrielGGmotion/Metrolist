@@ -120,8 +120,6 @@ import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerButtonsStyle
 import com.metrolist.music.constants.PlayerButtonsStyleKey
-import com.metrolist.music.constants.HapticsKey
-import com.metrolist.music.constants.HapticsIntensityKey
 import com.metrolist.music.ui.theme.PlayerColorExtractor
 import com.metrolist.music.ui.theme.PlayerSliderColors
 import com.metrolist.music.constants.PlayerHorizontalPadding
@@ -158,6 +156,8 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    hapticsIntensity: Float,
+    hapticsEnabled: Boolean,
 ) {
     val context = LocalContext.current
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -177,13 +177,11 @@ fun BottomSheetPlayer(
         key = PlayerButtonsStyleKey,
         defaultValue = PlayerButtonsStyle.DEFAULT
     )
-    val (hapticsEnabled, _) = rememberPreference(HapticsKey, defaultValue = true)
-    val (hapticsIntensity, _) = rememberPreference(HapticsIntensityKey, defaultValue = 0.5f)
     val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
-    fun vibrate() {
-        if (hapticsEnabled && hapticsIntensity > 0) {
-            val amplitude = (hapticsIntensity * 255).toInt().coerceIn(1, 255)
+    fun vibrate(intensity: Float) {
+        if (hapticsEnabled && intensity > 0) {
+            val amplitude = (intensity * 255).toInt().coerceIn(1, 255)
             if (vibrator.hasAmplitudeControl()) {
                 val effect = VibrationEffect.createOneShot(50, amplitude)
                 vibrator.vibrate(effect)
@@ -926,7 +924,7 @@ fun BottomSheetPlayer(
 
                     FilledTonalIconButton(
                         onClick = {
-                            vibrate()
+                            vibrate(hapticsIntensity)
                             playerConnection.seekToPrevious()
                         },
                         enabled = canSkipPrevious,
@@ -948,7 +946,7 @@ fun BottomSheetPlayer(
 
                     FilledIconButton(
                         onClick = {
-                            vibrate()
+                            vibrate(hapticsIntensity)
                             if (playbackState == STATE_ENDED) {
                                 playerConnection.player.seekTo(0, 0)
                                 playerConnection.player.playWhenReady = true
@@ -985,7 +983,7 @@ fun BottomSheetPlayer(
 
                     FilledTonalIconButton(
                         onClick = {
-                            vibrate()
+                            vibrate(hapticsIntensity)
                             playerConnection.seekToNext()
                         },
                         enabled = canSkipNext,
@@ -1040,7 +1038,7 @@ fun BottomSheetPlayer(
                                 .size(32.dp)
                                 .align(Alignment.Center),
                             onClick = {
-                                vibrate()
+                                vibrate(hapticsIntensity)
                                 playerConnection.seekToPrevious()
                             },
                         )
@@ -1055,7 +1053,7 @@ fun BottomSheetPlayer(
                             .clip(RoundedCornerShape(playPauseRoundness))
                             .background(textButtonColor)
                             .clickable {
-                                vibrate()
+                                vibrate(hapticsIntensity)
                                 if (playbackState == STATE_ENDED) {
                                     playerConnection.player.seekTo(0, 0)
                                     playerConnection.player.playWhenReady = true
@@ -1098,7 +1096,7 @@ fun BottomSheetPlayer(
                                 .size(32.dp)
                                 .align(Alignment.Center),
                             onClick = {
-                                vibrate()
+                                vibrate(hapticsIntensity)
                                 playerConnection.seekToNext()
                             },
                         )

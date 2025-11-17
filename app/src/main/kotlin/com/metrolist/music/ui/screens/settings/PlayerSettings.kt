@@ -69,6 +69,10 @@ import kotlin.math.roundToInt
 fun PlayerSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
+    hapticsEnabled: Boolean,
+    onHapticsEnabledChange: (Boolean) -> Unit,
+    hapticsIntensity: Float,
+    onHapticsIntensityChange: (Float) -> Unit,
 ) {
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
@@ -124,14 +128,6 @@ fun PlayerSettings(
     val (historyDuration, onHistoryDurationChange) = rememberPreference(
         HistoryDuration,
         defaultValue = 30f
-    )
-    val (hapticsEnabled, onHapticsEnabledChange) = rememberPreference(
-        HapticsKey,
-        defaultValue = true
-    )
-    val (hapticsIntensity, onHapticsIntensityChange) = rememberPreference(
-        HapticsIntensityKey,
-        defaultValue = 0.5f
     )
 
     var showAudioQualityDialog by remember {

@@ -81,6 +81,10 @@ fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
+    hapticsEnabled: Boolean,
+    onHapticsEnabledChange: (Boolean) -> Unit,
+    hapticsIntensity: Float,
+    onHapticsIntensityChange: (Float) -> Unit,
 ) {
     composable(Screens.Home.route) {
         HomeScreen(navController)
@@ -299,7 +303,14 @@ fun NavGraphBuilder.navigationBuilder(
         RomanizationSettings(navController, scrollBehavior)
     }
     composable("settings/player") {
-        PlayerSettings(navController, scrollBehavior)
+        PlayerSettings(
+            navController = navController,
+            scrollBehavior = scrollBehavior,
+            hapticsEnabled = hapticsEnabled,
+            onHapticsEnabledChange = onHapticsEnabledChange,
+            hapticsIntensity = hapticsIntensity,
+            onHapticsIntensityChange = onHapticsIntensityChange
+        )
     }
     composable("settings/storage") {
         StorageSettings(navController, scrollBehavior)
