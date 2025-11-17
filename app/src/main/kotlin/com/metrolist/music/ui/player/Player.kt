@@ -182,10 +182,16 @@ fun BottomSheetPlayer(
     val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
     fun vibrate() {
-        if (hapticsEnabled) {
+        if (hapticsEnabled && hapticsIntensity > 0) {
             val amplitude = (hapticsIntensity * 255).toInt().coerceIn(1, 255)
-            val effect = VibrationEffect.createOneShot(50, amplitude)
-            vibrator.vibrate(effect)
+            if (vibrator.hasAmplitudeControl()) {
+                val effect = VibrationEffect.createOneShot(50, amplitude)
+                vibrator.vibrate(effect)
+            } else {
+                // Fallback for devices that don't support amplitude control
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(50)
+            }
         }
     }
 
