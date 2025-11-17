@@ -217,7 +217,7 @@ class MusicService :
     @DownloadCache
     lateinit var downloadCache: SimpleCache
 
-    lateinit var player: ExoPlayer
+    lateinit var player: CrossfadePlayer
     private lateinit var mediaSession: MediaLibrarySession
 
     private var isAudioEffectSessionOpened = false
@@ -246,30 +246,18 @@ class MusicService :
                     setSmallIcon(R.drawable.small_icon)
                 },
         )
-        player =
-            ExoPlayer
-                .Builder(this)
-                .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory())
-                .setHandleAudioBecomingNoisy(true)
-                .setWakeMode(C.WAKE_MODE_NETWORK)
-                .setAudioAttributes(
-                    AudioAttributes
-                        .Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build(),
-                    false,
-                ).setSeekBackIncrementMs(5000)
-                .setSeekForwardIncrementMs(5000)
-                .build()
-                .apply {
-                    addListener(this@MusicService)
-                    sleepTimer = SleepTimer(scope, this)
-                    addListener(sleepTimer)
-                    addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
-                    setOffloadEnabled(dataStore.get(AudioOffload, false))
-                }
+        player = CrossfadePlayer(
+            context = this,
+            mediaSourceFactory = createMediaSourceFactory(),
+            renderersFactory = createRenderersFactory()
+        ).apply {
+            addListener(this@MusicService)
+            sleepTimer = SleepTimer(scope, this)
+            addListener(sleepTimer)
+            addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
+            setOffloadEnabled(dataStore.get(AudioOffload, false))
+            setCrossfadeConfig(CrossfadeConfig(duration = 5000, isEnabled = true)) // Example config
+        }
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         setupAudioFocusRequest()
@@ -361,7 +349,7 @@ class MusicService :
             .map { it[SkipSilenceKey] ?: false }
             .distinctUntilChanged()
             .collectLatest(scope) {
-                player.skipSilenceEnabled = it
+                player.skipSilenceEnabled = it && !player.crossfadeConfig.isEnabled
             }
 
         combine(
@@ -787,17 +775,17 @@ class MusicService :
             if (queue.preloadItem != null) {
                 player.addMediaItems(
                     0,
-                    initialStatus.items.subList(0, initialStatus.mediaItemIndex)
+                    initialStatus.items.subList(0, initialStatus.mediaItemIndex).toMutableList()
                 )
                 player.addMediaItems(
                     initialStatus.items.subList(
                         initialStatus.mediaItemIndex + 1,
                         initialStatus.items.size
-                    )
+                    ).toMutableList()
                 )
             } else {
                 player.setMediaItems(
-                    initialStatus.items,
+                    initialStatus.items.toMutableList(),
                     if (initialStatus.mediaItemIndex >
                         0
                     ) {
@@ -838,7 +826,7 @@ class MusicService :
             }
 
             // Add radio songs after current song
-            player.addMediaItems(initialStatus.items.drop(1))
+            player.addMediaItems(initialStatus.items.drop(1).toMutableList())
             currentQueue = radioQueue
         }
     }
@@ -902,7 +890,7 @@ class MusicService :
     fun playNext(items: List<MediaItem>) {
         // If queue is empty or player is idle, play immediately instead
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
-            player.setMediaItems(items)
+            player.setMediaItems(items.toMutableList())
             player.prepare()
             player.play()
             return
@@ -912,7 +900,7 @@ class MusicService :
         val shuffleEnabled = player.shuffleModeEnabled
 
         // Insert items immediately after the current item in the window/index space
-        player.addMediaItems(insertIndex, items)
+        player.addMediaItems(insertIndex, items.toMutableList())
         player.prepare()
 
         if (shuffleEnabled) {
@@ -969,7 +957,7 @@ class MusicService :
     }
 
     fun addToQueue(items: List<MediaItem>) {
-        player.addMediaItems(items)
+        player.addMediaItems(items.toMutableList())
         player.prepare()
     }
 
@@ -1142,7 +1130,7 @@ class MusicService :
                 val mediaItems =
                     currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false))
                 if (player.playbackState != STATE_IDLE) {
-                    player.addMediaItems(mediaItems.drop(1))
+                    player.addMediaItems(mediaItems.drop(1).toMutableList())
                 }
             }
         }

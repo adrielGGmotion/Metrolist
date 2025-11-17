@@ -124,6 +124,7 @@ import com.metrolist.music.ui.menu.SelectionMediaMetadataMenu
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberPreference
+import com.metrolist.music.playback.CrossfadePlayer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -623,7 +624,7 @@ fun Queue(
                     if (!playerConnection.player.shuffleModeEnabled) {
                         playerConnection.player.moveMediaItem(safeFrom, safeTo)
                     } else {
-                        playerConnection.player.setShuffleOrder(
+                        (playerConnection.player as? CrossfadePlayer)?.setShuffleOrder(
                             DefaultShuffleOrder(
                                 queueWindows.map { it.firstPeriodIndex }
                                     .toMutableList()
