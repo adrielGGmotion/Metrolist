@@ -52,6 +52,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedIconButton
@@ -667,6 +668,15 @@ fun BottomSheetPlayer(
                         topEnd = 50.dp, bottomEnd = 50.dp
                     )
 
+                    val defaultButtonColors = if (playerButtonsStyle == PlayerButtonsStyle.DEFAULT) {
+                        IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        )
+                    } else {
+                        IconButtonDefaults.filledIconButtonColors()
+                    }
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -685,6 +695,7 @@ fun BottomSheetPlayer(
                             },
                             shape = shareShape,
                             modifier = Modifier.size(42.dp),
+                            colors = defaultButtonColors
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.share),
@@ -697,6 +708,7 @@ fun BottomSheetPlayer(
                             onClick = playerConnection::toggleLike,
                             shape = favShape,
                             modifier = Modifier.size(42.dp),
+                            colors = defaultButtonColors
                         ) {
                             Icon(
                                 painter = painterResource(
@@ -903,11 +915,36 @@ fun BottomSheetPlayer(
                         label = "sideButtonWeight"
                     )
 
+                    val backButtonColors = when (playerButtonsStyle) {
+                        PlayerButtonsStyle.DEFAULT -> IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = Color.Black,
+                            contentColor = Color.Gray
+                        )
+                        else -> IconButtonDefaults.filledTonalIconButtonColors()
+                    }
+
+                    val playPauseButtonColors = when (playerButtonsStyle) {
+                        PlayerButtonsStyle.DEFAULT -> IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        )
+                        else -> IconButtonDefaults.filledIconButtonColors()
+                    }
+
+                    val nextButtonColors = when (playerButtonsStyle) {
+                        PlayerButtonsStyle.DEFAULT -> IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = Color.Black,
+                            contentColor = Color.Gray
+                        )
+                        else -> IconButtonDefaults.filledTonalIconButtonColors()
+                    }
+
                     FilledTonalIconButton(
                         onClick = playerConnection::seekToPrevious,
                         enabled = canSkipPrevious,
                         shape = RoundedCornerShape(50),
                         interactionSource = backInteractionSource,
+                        colors = backButtonColors,
                         modifier = Modifier
                             .height(64.dp)
                             .weight(sideButtonWeight)
@@ -933,6 +970,7 @@ fun BottomSheetPlayer(
                         },
                         shape = RoundedCornerShape(50),
                         interactionSource = playPauseInteractionSource,
+                        colors = playPauseButtonColors,
                         modifier = Modifier
                             .height(64.dp)
                             .weight(playPauseWeight)
@@ -963,6 +1001,7 @@ fun BottomSheetPlayer(
                         enabled = canSkipNext,
                         shape = RoundedCornerShape(50),
                         interactionSource = nextInteractionSource,
+                        colors = nextButtonColors,
                         modifier = Modifier
                             .height(64.dp)
                             .weight(sideButtonWeight)

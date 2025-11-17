@@ -13,6 +13,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,12 +74,14 @@ import coil3.compose.AsyncImage
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.MiniPlayerHeight
 import com.metrolist.music.constants.MiniPlayerOutlineKey
 import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.SwipeSensitivityKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
+import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.db.entities.ArtistEntity
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.models.MediaMetadata
@@ -131,6 +134,13 @@ private fun NewMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val (pureBlack, onPureBlackChange) = rememberPreference(PureBlackMiniPlayerKey, defaultValue = false)
+
+    val isSystemInDarkTheme = isSystemInDarkTheme()
+    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
+        if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
+    }
+
     val playerConnection = LocalPlayerConnection.current ?: return
     val database = LocalDatabase.current
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -272,7 +282,7 @@ private fun NewMiniPlayer(
                 .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                 .clip(RoundedCornerShape(32.dp)) // Clip first for perfect rounded corners
                 .background(
-                    color = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+                    color = if (pureBlack && useDarkTheme) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 )
                 .border(
                     width = if (miniPlayerOutline) 1.dp else 0.dp,
@@ -542,6 +552,13 @@ private fun LegacyMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val (pureBlack, onPureBlackChange) = rememberPreference(PureBlackMiniPlayerKey, defaultValue = false)
+
+    val isSystemInDarkTheme = isSystemInDankTheme()
+    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
+        if (darkTheme == DarkMode.AUTO) isSystemInDankTheme else darkTheme == DarkMode.ON
+    }
+
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val playbackState by playerConnection.playbackState.collectAsState()
@@ -592,7 +609,7 @@ private fun LegacyMiniPlayer(
             // preventing sharp edges when the width is reduced.
             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             .background(
-                if (pureBlack)
+                if (pureBlack && useDarkTheme)
                     Color.Black
                 else
                     MaterialTheme.colorScheme.surfaceContainer // Fixed background independent of player background
