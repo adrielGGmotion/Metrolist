@@ -662,10 +662,23 @@ fun BottomSheetPlayer(
                         topEnd = 5.dp, bottomEnd = 5.dp
                     )
 
-                    val favShape = RoundedCornerShape(
+                    val middleShape = RoundedCornerShape(5.dp)
+
+                    val endShape = RoundedCornerShape(
                         topStart = 5.dp, bottomStart = 5.dp,
                         topEnd = 50.dp, bottomEnd = 50.dp
                     )
+
+                    val newButtonColors = when (playerButtonsStyle) {
+                        PlayerButtonsStyle.DEFAULT -> IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        )
+                        PlayerButtonsStyle.SECONDARY -> IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary,
+                        )
+                    }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -684,6 +697,7 @@ fun BottomSheetPlayer(
                                 context.startActivity(Intent.createChooser(intent, null))
                             },
                             shape = shareShape,
+                            colors = newButtonColors,
                             modifier = Modifier.size(42.dp),
                         ) {
                             Icon(
@@ -695,7 +709,8 @@ fun BottomSheetPlayer(
 
                         FilledIconButton(
                             onClick = playerConnection::toggleLike,
-                            shape = favShape,
+                            shape = middleShape,
+                            colors = newButtonColors,
                             modifier = Modifier.size(42.dp),
                         ) {
                             Icon(
@@ -704,6 +719,34 @@ fun BottomSheetPlayer(
                                         R.drawable.favorite
                                     else R.drawable.favorite_border
                                 ),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        FilledIconButton(
+                            onClick = {
+                                menuState.show {
+                                    PlayerMenu(
+                                        mediaMetadata = mediaMetadata,
+                                        navController = navController,
+                                        playerBottomSheetState = state,
+                                        onShowDetailsDialog = {
+                                            mediaMetadata.id.let {
+                                                bottomSheetPageState.show {
+                                                    ShowMediaInfo(it)
+                                                }
+                                            }
+                                        },
+                                        onDismiss = menuState::dismiss,
+                                    )
+                                }
+                            },
+                            shape = endShape,
+                            colors = newButtonColors,
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.more_horiz),
                                 contentDescription = null,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -778,6 +821,11 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
+            val newSliderColor = when (playerButtonsStyle) {
+                PlayerButtonsStyle.DEFAULT -> MaterialTheme.colorScheme.primary
+                PlayerButtonsStyle.SECONDARY -> MaterialTheme.colorScheme.secondary
+            }
+
             when (sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
@@ -793,7 +841,11 @@ fun BottomSheetPlayer(
                             }
                             sliderPosition = null
                         },
-                        colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                        colors = PlayerSliderColors.getSliderColors(
+                            if (useNewPlayerDesign) newSliderColor else textButtonColor,
+                            playerBackground,
+                            useDarkTheme
+                        ),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                     )
                 }
@@ -812,7 +864,11 @@ fun BottomSheetPlayer(
                             }
                             sliderPosition = null
                         },
-                        colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                        colors = PlayerSliderColors.getSliderColors(
+                            if (useNewPlayerDesign) newSliderColor else textButtonColor,
+                            playerBackground,
+                            useDarkTheme
+                        ),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                         squigglesSpec =
                         SquigglySlider.SquigglesSpec(
@@ -840,7 +896,11 @@ fun BottomSheetPlayer(
                         track = { sliderState ->
                             PlayerSliderTrack(
                                 sliderState = sliderState,
-                                colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                colors = PlayerSliderColors.getSliderColors(
+                                    if (useNewPlayerDesign) newSliderColor else textButtonColor,
+                                    playerBackground,
+                                    useDarkTheme
+                                )
                             )
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
@@ -903,10 +963,27 @@ fun BottomSheetPlayer(
                         label = "sideButtonWeight"
                     )
 
+                    val playPauseButtonColors = when (playerButtonsStyle) {
+                        PlayerButtonsStyle.DEFAULT -> IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        )
+                        else -> IconButtonDefaults.filledIconButtonColors()
+                    }
+
+                    val sideButtonColors = when (playerButtonsStyle) {
+                        PlayerButtonsStyle.DEFAULT -> IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = Color.Black,
+                            contentColor = Color.LightGray
+                        )
+                        else -> IconButtonDefaults.filledTonalIconButtonColors()
+                    }
+
                     FilledTonalIconButton(
                         onClick = playerConnection::seekToPrevious,
                         enabled = canSkipPrevious,
                         shape = RoundedCornerShape(50),
+                        colors = sideButtonColors,
                         interactionSource = backInteractionSource,
                         modifier = Modifier
                             .height(64.dp)
@@ -932,6 +1009,7 @@ fun BottomSheetPlayer(
                             }
                         },
                         shape = RoundedCornerShape(50),
+                        colors = playPauseButtonColors,
                         interactionSource = playPauseInteractionSource,
                         modifier = Modifier
                             .height(64.dp)
