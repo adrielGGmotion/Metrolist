@@ -30,20 +30,11 @@ constructor(
     @ApplicationContext private val context: Context,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
-    companion object {
-        lateinit var appContext: Context
-            private set
-        private const val MAX_CACHE_SIZE = 3
-    }
-
-    init {
-        appContext = context // Initialize the static context
-    }
     private var lyricsProviders =
         listOf(
+            AppleMusicLyricsProvider,
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
-            AppleMusicLyricsProvider,
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider
         )
@@ -59,7 +50,6 @@ constructor(
                         listOf(
                             LrcLibLyricsProvider,
                             KuGouLyricsProvider,
-                            AppleMusicLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
@@ -67,7 +57,6 @@ constructor(
                         listOf(
                             KuGouLyricsProvider,
                             LrcLibLyricsProvider,
-                            AppleMusicLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
@@ -185,6 +174,10 @@ constructor(
     fun cancelCurrentLyricsJob() {
         currentLyricsJob?.cancel()
         currentLyricsJob = null
+    }
+
+    companion object {
+        private const val MAX_CACHE_SIZE = 3
     }
 }
 

@@ -111,6 +111,3 @@
 -dontwarn com.yalantis.ucrop**
 -keep class com.yalantis.ucrop** { *; }
 -keep interface com.yalantis.ucrop** { *; }
-
-# Keep Apple Music data models
--keep class com.metrolist.music.apple.** { *; }
