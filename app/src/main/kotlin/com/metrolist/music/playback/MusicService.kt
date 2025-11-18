@@ -254,7 +254,7 @@ class MusicService :
             addListener(this@MusicService)
             sleepTimer = SleepTimer(scope, this)
             addListener(sleepTimer)
-            addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
+            setAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
             setOffloadEnabled(dataStore.get(AudioOffload, false))
             setCrossfadeConfig(CrossfadeConfig(duration = 5000, isEnabled = true)) // Example config
         }

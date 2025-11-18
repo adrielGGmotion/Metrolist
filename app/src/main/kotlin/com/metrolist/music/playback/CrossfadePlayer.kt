@@ -26,12 +26,18 @@ class CrossfadePlayer(
     private val playerB: ExoPlayer = buildExoPlayer()
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
+    private var analyticsListener: AnalyticsListener? = null
 
     private fun swapPlayers() {
-        val temp = currentPlayer
-        currentPlayer = nextPlayer
+        val oldPlayer = currentPlayer
+        val newPlayer = nextPlayer
+        analyticsListener?.let {
+            oldPlayer.removeAnalyticsListener(it)
+            newPlayer.addAnalyticsListener(it)
+        }
+        currentPlayer = newPlayer
+        nextPlayer = oldPlayer
         Timber.d("Swapped players. Current is now ${if (currentPlayer === playerA) "A" else "B"}")
-        nextPlayer = temp
     }
 
     // --- State Management ---
@@ -414,9 +420,9 @@ class CrossfadePlayer(
     override fun setDeviceMuted(muted: Boolean) = setDeviceMuted(muted, 0)
 
     // --- Analytics & Other Proxies ---
-    fun addAnalyticsListener(listener: AnalyticsListener) {
-        playerA.addAnalyticsListener(listener)
-        playerB.addAnalyticsListener(listener)
+    fun setAnalyticsListener(listener: AnalyticsListener) {
+        this.analyticsListener = listener
+        currentPlayer.addAnalyticsListener(listener)
     }
 
     fun setOffloadEnabled(offloadEnabled: Boolean) {
