@@ -56,6 +56,11 @@ class CrossfadePlayer(
             listeners.forEach { it.onEvents(this@CrossfadePlayer, events) }
         }
 
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+            // Always forward timeline changes from either player.
+            listeners.forEach { it.onTimelineChanged(timeline, reason) }
+        }
+
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             if (crossfadeConfig.isEnabled && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                 if (!isCrossfading) {
@@ -178,11 +183,47 @@ class CrossfadePlayer(
         nextPlayer.prepare()
 
         val fadingOutPlayer = currentPlayer
+        val oldTimeline = fadingOutPlayer.currentTimeline
+        val oldWindow = Timeline.Window()
+        val oldPeriod = Timeline.Period()
+        if (!oldTimeline.isEmpty) {
+            oldTimeline.getWindow(fadingOutPlayer.currentMediaItemIndex, oldWindow)
+            oldTimeline.getPeriod(fadingOutPlayer.currentPeriodIndex, oldPeriod)
+        }
+        val oldPosition = Player.PositionInfo(
+            oldWindow.uid,
+            fadingOutPlayer.currentMediaItemIndex,
+            fadingOutPlayer.currentMediaItem,
+            oldPeriod.uid,
+            fadingOutPlayer.currentPeriodIndex,
+            fadingOutPlayer.currentPosition,
+            fadingOutPlayer.contentPosition,
+            fadingOutPlayer.currentAdGroupIndex,
+            fadingOutPlayer.currentAdIndexInAdGroup
+        )
         swapPlayers()
+        val newTimeline = currentPlayer.currentTimeline
+        val newWindow = Timeline.Window()
+        val newPeriod = Timeline.Period()
+        if (!newTimeline.isEmpty) {
+            newTimeline.getWindow(currentPlayer.currentMediaItemIndex, newWindow)
+            newTimeline.getPeriod(currentPlayer.currentPeriodIndex, newPeriod)
+        }
+        val newPosition = Player.PositionInfo(
+            newWindow.uid,
+            currentPlayer.currentMediaItemIndex,
+            currentPlayer.currentMediaItem,
+            newPeriod.uid,
+            currentPlayer.currentPeriodIndex,
+            currentPlayer.currentPosition,
+            currentPlayer.contentPosition,
+            currentPlayer.currentAdGroupIndex,
+            currentPlayer.currentAdIndexInAdGroup
+        )
 
         listeners.forEach {
             it.onMediaItemTransition(currentPlayer.currentMediaItem, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
-            it.onTimelineChanged(currentPlayer.currentTimeline, Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
+            it.onPositionDiscontinuity(oldPosition, newPosition, Player.DISCONTINUITY_REASON_AUTO_TRANSITION)
         }
 
         crossfadeJob = coroutineScope.launch {
