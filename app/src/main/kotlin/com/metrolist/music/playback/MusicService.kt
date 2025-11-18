@@ -890,9 +890,21 @@ class MusicService :
     fun playNext(items: List<MediaItem>) {
         // If queue is empty or player is idle, play immediately instead
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
-            player.setMediaItems(items.toMutableList())
-            player.prepare()
-            player.play()
+            val item = items.firstOrNull() ?: return
+            playQueue(
+                YouTubeQueue(
+                    endpoint = WatchEndpoint(videoId = item.mediaId)
+                ).apply {
+                    preloadItem = com.metrolist.music.models.MediaMetadata(
+                        id = item.mediaId,
+                        title = item.mediaMetadata.title.toString(),
+                        artists = listOf(com.metrolist.music.models.MediaMetadata.Artist(null, item.mediaMetadata.artist.toString())),
+                        album = com.metrolist.music.models.MediaMetadata.Album(item.mediaId, item.mediaMetadata.albumTitle.toString()),
+                        duration = player.duration.toInt(),
+                        thumbnailUrl = item.mediaMetadata.artworkUri.toString()
+                    )
+                }
+            )
             return
         }
 

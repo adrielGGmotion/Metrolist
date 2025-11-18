@@ -167,15 +167,23 @@ class CrossfadePlayer(
         }
         Timber.i("Starting crossfade. Manual transition: $isManualTransition")
 
-        crossfadeJob = coroutineScope.launch {
-            // 1. Prepare the next player
-            Timber.d("Preparing nextPlayer for crossfade.")
-            nextPlayer.seekTo(currentPlayer.nextMediaItemIndex, 0)
-            nextPlayer.volume = 0f
-            nextPlayer.playWhenReady = true
-            nextPlayer.prepare()
+        // 1. Prepare the next player
+        Timber.d("Preparing nextPlayer for crossfade.")
+        nextPlayer.seekTo(currentPlayer.nextMediaItemIndex, 0)
+        nextPlayer.volume = 0f
+        nextPlayer.playWhenReady = true
+        nextPlayer.prepare()
 
-            // 2. Start fading
+        // 2. Swap players and notify listeners immediately
+        val fadingOutPlayer = currentPlayer
+        swapPlayers() // `nextPlayer` is now the `currentPlayer`
+        Timber.i("Manually dispatching onMediaItemTransition to listeners at fade start.")
+        listeners.forEach {
+            it.onMediaItemTransition(currentPlayer.currentMediaItem, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
+        }
+
+        // 3. Start the fade animation in a new coroutine
+        crossfadeJob = coroutineScope.launch {
             Timber.d("Fading volume over ${crossfadeConfig.duration}ms.")
             val duration = crossfadeConfig.duration.toLong()
             val startTime = System.currentTimeMillis()
@@ -183,10 +191,10 @@ class CrossfadePlayer(
             while (isActive) {
                 val elapsedTime = System.currentTimeMillis() - startTime
                 val progress = (elapsedTime.toFloat() / duration).coerceIn(0f, 1f)
-                val newVolume = crossfadeConfig.curve.transform(progress)
+                val fadeInVolume = crossfadeConfig.curve.transform(progress)
 
-                nextPlayer.volume = newVolume
-                currentPlayer.volume = 1f - newVolume
+                currentPlayer.volume = fadeInVolume
+                fadingOutPlayer.volume = 1f - fadeInVolume
 
                 if (progress >= 1f) {
                     break
@@ -194,20 +202,10 @@ class CrossfadePlayer(
                 delay(16) // ~60fps
             }
 
-            // 3. Finalize the switch
+            // 4. Finalize the switch
             Timber.d("Crossfade fade complete. Stopping old player.")
-            val oldPlayer = currentPlayer
-            oldPlayer.stop()
-            oldPlayer.volume = 1f // Reset volume for next use
-
-            swapPlayers()
-
-            // 4. Manually dispatch the transition event
-            Timber.i("Manually dispatching onMediaItemTransition to listeners.")
-            val currentMediaItem = currentPlayer.currentMediaItem
-            listeners.forEach {
-                it.onMediaItemTransition(currentMediaItem, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
-            }
+            fadingOutPlayer.stop()
+            fadingOutPlayer.volume = 1f // Reset volume for next use
 
             // 5. Restart the monitor for the new player
             if (playWhenReady) {
@@ -255,10 +253,32 @@ class CrossfadePlayer(
     }
 
     // Playback Control
-    override fun prepare() { currentPlayer.prepare() }
-    override fun play() { playWhenReady = true }
-    override fun pause() { playWhenReady = false }
+    override fun prepare() {
+        if (crossfadeJob?.isActive == true) {
+            Timber.w("prepare() called during crossfade. Ignoring.")
+            return
+        }
+        currentPlayer.prepare()
+    }
+    override fun play() {
+        if (crossfadeJob?.isActive == true) {
+            Timber.w("play() called during crossfade. Ignoring.")
+            return
+        }
+        playWhenReady = true
+    }
+    override fun pause() {
+        if (crossfadeJob?.isActive == true) {
+            Timber.w("pause() called during crossfade. Ignoring.")
+            return
+        }
+        playWhenReady = false
+    }
     override fun stop() {
+        if (crossfadeJob?.isActive == true) {
+            Timber.w("stop() called during crossfade. Ignoring.")
+            return
+        }
         currentPlayer.stop()
         nextPlayer.stop()
         crossfadeJob?.cancel()
@@ -271,6 +291,10 @@ class CrossfadePlayer(
     }
 
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+        if (crossfadeJob?.isActive == true) {
+            Timber.w("seekTo() called during crossfade. Ignoring.")
+            return
+        }
         crossfadeJob?.cancel()
         currentPlayer.seekTo(mediaItemIndex, positionMs)
         // Also move the next player to the same position to keep it in sync
