@@ -46,20 +46,31 @@ constructor(
             }.distinctUntilChanged()
             .map {
                 lyricsProviders =
-                    if (it == PreferredLyricsProvider.LRCLIB) {
-                        listOf(
-                            LrcLibLyricsProvider,
-                            KuGouLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-                    } else {
-                        listOf(
-                            KuGouLyricsProvider,
-                            LrcLibLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
+                    when (it) {
+                        PreferredLyricsProvider.LRCLIB ->
+                            listOf(
+                                LrcLibLyricsProvider,
+                                KuGouLyricsProvider,
+                                AppleMusicLyricsProvider,
+                                YouTubeSubtitleLyricsProvider,
+                                YouTubeLyricsProvider
+                            )
+                        PreferredLyricsProvider.KUGOU ->
+                            listOf(
+                                KuGouLyricsProvider,
+                                LrcLibLyricsProvider,
+                                AppleMusicLyricsProvider,
+                                YouTubeSubtitleLyricsProvider,
+                                YouTubeLyricsProvider
+                            )
+                        PreferredLyricsProvider.APPLE_MUSIC ->
+                            listOf(
+                                AppleMusicLyricsProvider,
+                                LrcLibLyricsProvider,
+                                KuGouLyricsProvider,
+                                YouTubeSubtitleLyricsProvider,
+                                YouTubeLyricsProvider
+                            )
                     }
             }
 

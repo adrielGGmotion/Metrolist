@@ -91,6 +91,7 @@ fun ContentSettings(
     val (proxyPassword, onProxyPasswordChange) = rememberPreference(key = ProxyPasswordKey, defaultValue = "password")
     val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
+    val (enableAppleMusic, onEnableAppleMusicChange) = rememberPreference(key = EnableAppleMusicKey, defaultValue = true)
     val (preferredProvider, onPreferredProviderChange) =
         rememberEnumPreference(
             key = PreferredLyricsProviderKey,
@@ -300,6 +301,7 @@ fun ContentSettings(
                 when (it) {
                     PreferredLyricsProvider.LRCLIB -> "LrcLib"
                     PreferredLyricsProvider.KUGOU -> "KuGou"
+                    PreferredLyricsProvider.APPLE_MUSIC -> "Apple Music"
                 }
             }
         )
@@ -501,12 +503,24 @@ fun ContentSettings(
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),
+                    title = { Text("Enable Apple Music") },
+                    trailingContent = {
+                        Switch(
+                            checked = enableAppleMusic,
+                            onCheckedChange = onEnableAppleMusicChange
+                        )
+                    },
+                    onClick = { onEnableAppleMusicChange(!enableAppleMusic) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
                     title = { Text(stringResource(R.string.set_first_lyrics_provider)) },
                     description = {
                         Text(
                             when (preferredProvider) {
                                 PreferredLyricsProvider.LRCLIB -> "LrcLib"
                                 PreferredLyricsProvider.KUGOU -> "KuGou"
+                                PreferredLyricsProvider.APPLE_MUSIC -> "Apple Music"
                             }
                         )
                     },
