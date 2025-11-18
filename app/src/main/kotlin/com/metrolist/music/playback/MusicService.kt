@@ -249,7 +249,7 @@ class MusicService :
         player = CrossfadePlayer(
             context = this,
             mediaSourceFactory = createMediaSourceFactory(),
-            renderersFactory = createRenderersFactory()
+            renderersFactory = DefaultRenderersFactory(this)
         ).apply {
             addListener(this@MusicService)
             sleepTimer = SleepTimer(scope, this)
@@ -349,7 +349,7 @@ class MusicService :
             .map { it[SkipSilenceKey] ?: false }
             .distinctUntilChanged()
             .collectLatest(scope) {
-                player.skipSilenceEnabled = it && !player.crossfadeConfig.isEnabled
+                player.skipSilenceEnabled = it
             }
 
         combine(
@@ -890,21 +890,9 @@ class MusicService :
     fun playNext(items: List<MediaItem>) {
         // If queue is empty or player is idle, play immediately instead
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
-            val item = items.firstOrNull() ?: return
-            playQueue(
-                YouTubeQueue(
-                    endpoint = WatchEndpoint(videoId = item.mediaId)
-                ).apply {
-                    preloadItem = com.metrolist.music.models.MediaMetadata(
-                        id = item.mediaId,
-                        title = item.mediaMetadata.title.toString(),
-                        artists = listOf(com.metrolist.music.models.MediaMetadata.Artist(null, item.mediaMetadata.artist.toString())),
-                        album = com.metrolist.music.models.MediaMetadata.Album(item.mediaId, item.mediaMetadata.albumTitle.toString()),
-                        duration = player.duration.toInt(),
-                        thumbnailUrl = item.mediaMetadata.artworkUri.toString()
-                    )
-                }
-            )
+            player.setMediaItems(items)
+            player.prepare()
+            player.play()
             return
         }
 
@@ -912,7 +900,7 @@ class MusicService :
         val shuffleEnabled = player.shuffleModeEnabled
 
         // Insert items immediately after the current item in the window/index space
-        player.addMediaItems(insertIndex, items.toMutableList())
+        player.addMediaItems(insertIndex, items)
         player.prepare()
 
         if (shuffleEnabled) {
@@ -969,7 +957,7 @@ class MusicService :
     }
 
     fun addToQueue(items: List<MediaItem>) {
-        player.addMediaItems(items.toMutableList())
+        player.addMediaItems(items)
         player.prepare()
     }
 
@@ -1416,24 +1404,6 @@ class MusicService :
             },
         )
 
-    private fun createRenderersFactory() =
-        object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(
-                context: Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean,
-            ) = DefaultAudioSink
-                .Builder(this@MusicService)
-                .setEnableFloatOutput(enableFloatOutput)
-                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                .setAudioProcessorChain(
-                    DefaultAudioSink.DefaultAudioProcessorChain(
-                        emptyArray(),
-                        SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
-                        SonicAudioProcessor(),
-                    ),
-                ).build()
-        }
 
     override fun onPlaybackStatsReady(
         eventTime: AnalyticsListener.EventTime,

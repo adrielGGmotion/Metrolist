@@ -44,41 +44,33 @@ class CrossfadePlayer(
     private val listeners = mutableSetOf<Player.Listener>()
     private val coroutineScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private var crossfadeJob: Job? = null
+    private var isCrossfading = false
     var crossfadeConfig: CrossfadeConfig = CrossfadeConfig()
         private set
-
-    // --- Player State Cache ---
-    // This is the source of truth for external listeners.
 
     private val internalListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             if (player !== currentPlayer) {
-                Timber.v("Ignoring events from nextPlayer.")
                 return
             }
-            Timber.v("Forwarding events from currentPlayer: $events")
             listeners.forEach { it.onEvents(this@CrossfadePlayer, events) }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            val playerLabel = if (currentPlayer === playerA) "A" else "B"
-            Timber.d("onMediaItemTransition on player $playerLabel. Reason: $reason. Crossfade enabled: ${crossfadeConfig.isEnabled}")
             if (crossfadeConfig.isEnabled && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                if (crossfadeJob?.isActive != true) {
-                    Timber.d("Internal player transitioned, starting crossfade.")
+                if (!isCrossfading) {
                     startCrossfade(true)
-                } else {
-                    Timber.d("Internal player transitioned, but crossfade is already active. Ignoring.")
                 }
             } else {
-                Timber.d("Forwarding onMediaItemTransition to listeners.")
                 listeners.forEach { it.onMediaItemTransition(mediaItem, reason) }
             }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            if (currentPlayer.playbackState == Player.STATE_ENDED && crossfadeConfig.isEnabled) {
-                // Don't propagate the STATE_ENDED if we are about to crossfade
+            if (currentPlayer.playbackState == Player.STATE_ENDED &&
+                crossfadeConfig.isEnabled &&
+                currentPlayer.nextMediaItemIndex != C.INDEX_UNSET
+            ) {
                 return
             }
             listeners.forEach { it.onPlaybackStateChanged(playbackState) }
@@ -89,7 +81,11 @@ class CrossfadePlayer(
                 startPositionMonitor()
             } else {
                 stopPositionMonitor()
-                crossfadeJob?.cancel()
+                if (isCrossfading) {
+                    crossfadeJob?.cancel()
+                    playerA.pause()
+                    playerB.pause()
+                }
             }
             listeners.forEach { it.onPlayWhenReadyChanged(playWhenReady, reason) }
         }
@@ -121,6 +117,20 @@ class CrossfadePlayer(
     }
 
     // --- Custom Methods & Logic ---
+    fun onSilenceProcessed(isSilent: Boolean) {
+        if (!isSilent || !crossfadeConfig.isAutomatic || isCrossfading) return
+
+        val duration = currentPlayer.duration
+        if (duration == C.TIME_UNSET) return
+
+        val position = currentPlayer.currentPosition
+        val remaining = duration - position
+
+        if (remaining < 10000) { // Only trigger if near the end
+            startCrossfade(false)
+        }
+    }
+
     fun setCrossfadeConfig(config: CrossfadeConfig) {
         this.crossfadeConfig = config
         if (config.isEnabled && playWhenReady) {
@@ -143,7 +153,7 @@ class CrossfadePlayer(
 
                     if (remaining <= crossfadeConfig.duration) {
                         startCrossfade(false)
-                        break // Monitor will be restarted after successful transition
+                        break
                     }
                 }
                 delay(250)
@@ -157,84 +167,76 @@ class CrossfadePlayer(
     }
 
     private fun startCrossfade(isManualTransition: Boolean) {
-        if (crossfadeJob?.isActive == true) {
-            Timber.w("startCrossfade called but crossfadeJob is already active.")
-            return
-        }
-        if (currentPlayer.nextMediaItemIndex == C.INDEX_UNSET) {
-            Timber.w("startCrossfade called but there is no next media item.")
-            return
-        }
-        Timber.i("Starting crossfade. Manual transition: $isManualTransition")
+        if (isCrossfading) return
+        if (currentPlayer.nextMediaItemIndex == C.INDEX_UNSET) return
 
-        // 1. Prepare the next player
-        Timber.d("Preparing nextPlayer for crossfade.")
+        isCrossfading = true
+
         nextPlayer.seekTo(currentPlayer.nextMediaItemIndex, 0)
         nextPlayer.volume = 0f
         nextPlayer.playWhenReady = true
         nextPlayer.prepare()
 
-        // 2. Swap players and notify listeners immediately
         val fadingOutPlayer = currentPlayer
-        swapPlayers() // `nextPlayer` is now the `currentPlayer`
-        Timber.i("Manually dispatching onMediaItemTransition to listeners at fade start.")
+        swapPlayers()
+
         listeners.forEach {
             it.onMediaItemTransition(currentPlayer.currentMediaItem, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
+            it.onTimelineChanged(currentPlayer.currentTimeline, Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
         }
 
-        // 3. Start the fade animation in a new coroutine
         crossfadeJob = coroutineScope.launch {
-            Timber.d("Fading volume over ${crossfadeConfig.duration}ms.")
-            val duration = crossfadeConfig.duration.toLong()
-            val startTime = System.currentTimeMillis()
+            try {
+                withContext(NonCancellable) {
+                    val duration = crossfadeConfig.duration.toLong()
+                    val startTime = System.currentTimeMillis()
 
-            while (isActive) {
-                val elapsedTime = System.currentTimeMillis() - startTime
-                val progress = (elapsedTime.toFloat() / duration).coerceIn(0f, 1f)
-                val fadeInVolume = crossfadeConfig.curve.transform(progress)
+                    while (isActive) {
+                        val elapsedTime = System.currentTimeMillis() - startTime
+                        val progress = (elapsedTime.toFloat() / duration).coerceIn(0f, 1f)
+                        val fadeInVolume = crossfadeConfig.curve.transform(progress)
 
-                currentPlayer.volume = fadeInVolume
-                fadingOutPlayer.volume = 1f - fadeInVolume
+                        currentPlayer.volume = fadeInVolume
+                        fadingOutPlayer.volume = 1f - fadeInVolume
 
-                if (progress >= 1f) {
-                    break
+                        if (progress >= 1f) {
+                            break
+                        }
+                        delay(16)
+                    }
+                    fadingOutPlayer.stop()
+                    fadingOutPlayer.volume = 1f
                 }
-                delay(16) // ~60fps
-            }
-
-            // 4. Finalize the switch
-            Timber.d("Crossfade fade complete. Stopping old player.")
-            fadingOutPlayer.stop()
-            fadingOutPlayer.volume = 1f // Reset volume for next use
-
-            // 5. Restart the monitor for the new player
-            if (playWhenReady) {
-                Timber.d("Restarting position monitor for new player.")
-                startPositionMonitor()
+            } finally {
+                isCrossfading = false
+                if (playWhenReady) {
+                    startPositionMonitor()
+                }
             }
         }
     }
 
     // --- Player Interface Implementation ---
 
-    // Listener Management
     override fun addListener(listener: Player.Listener) { listeners.add(listener) }
     override fun removeListener(listener: Player.Listener) { listeners.remove(listener) }
 
-    // Playlist Management (centralized)
-    override fun setMediaItems(mediaItems: MutableList<MediaItem>, startIndex: Int, startPositionMs: Long) {
-        playerA.setMediaItems(mediaItems, startIndex, startPositionMs)
-        playerB.setMediaItems(mediaItems, startIndex, startPositionMs)
+    override fun setMediaItems(mediaItems: List<MediaItem>, startIndex: Int, startPositionMs: Long) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        playerA.setMediaItems(mutableMediaItems, startIndex, startPositionMs)
+        playerB.setMediaItems(mutableMediaItems, startIndex, startPositionMs)
     }
 
-    override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
-        playerA.setMediaItems(mediaItems, resetPosition)
-        playerB.setMediaItems(mediaItems, resetPosition)
+    override fun setMediaItems(mediaItems: List<MediaItem>, resetPosition: Boolean) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        playerA.setMediaItems(mutableMediaItems, resetPosition)
+        playerB.setMediaItems(mutableMediaItems, resetPosition)
     }
 
-    override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
-        playerA.addMediaItems(index, mediaItems)
-        playerB.addMediaItems(index, mediaItems)
+    override fun addMediaItems(index: Int, mediaItems: List<MediaItem>) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        playerA.addMediaItems(index, mutableMediaItems)
+        playerB.addMediaItems(index, mutableMediaItems)
     }
 
     override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
@@ -252,33 +254,25 @@ class CrossfadePlayer(
         playerB.clearMediaItems()
     }
 
-    // Playback Control
     override fun prepare() {
-        if (crossfadeJob?.isActive == true) {
-            Timber.w("prepare() called during crossfade. Ignoring.")
-            return
-        }
+        if (isCrossfading) return
         currentPlayer.prepare()
     }
     override fun play() {
-        if (crossfadeJob?.isActive == true) {
-            Timber.w("play() called during crossfade. Ignoring.")
-            return
-        }
+        if (isCrossfading) return
         playWhenReady = true
     }
     override fun pause() {
-        if (crossfadeJob?.isActive == true) {
-            Timber.w("pause() called during crossfade. Ignoring.")
-            return
+        if (isCrossfading) {
+            crossfadeJob?.cancel()
+            playerA.pause()
+            playerB.pause()
+        } else {
+            playWhenReady = false
         }
-        playWhenReady = false
     }
     override fun stop() {
-        if (crossfadeJob?.isActive == true) {
-            Timber.w("stop() called during crossfade. Ignoring.")
-            return
-        }
+        if (isCrossfading) return
         currentPlayer.stop()
         nextPlayer.stop()
         crossfadeJob?.cancel()
@@ -291,31 +285,24 @@ class CrossfadePlayer(
     }
 
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
-        if (crossfadeJob?.isActive == true) {
-            Timber.w("seekTo() called during crossfade. Ignoring.")
-            return
-        }
+        if (isCrossfading) return
         crossfadeJob?.cancel()
         currentPlayer.seekTo(mediaItemIndex, positionMs)
-        // Also move the next player to the same position to keep it in sync
         nextPlayer.seekTo(mediaItemIndex, positionMs)
-        nextPlayer.stop() // Stop it from playing immediately
+        nextPlayer.stop()
         if (playWhenReady) startPositionMonitor()
     }
 
-    // State Getters
     override fun getPlaybackState(): Int = currentPlayer.playbackState
     override fun getPlayWhenReady(): Boolean = currentPlayer.playWhenReady
     override fun setPlayWhenReady(playWhenReady: Boolean) {
         currentPlayer.playWhenReady = playWhenReady
-        // This will trigger the onPlayWhenReadyChanged listener, which handles the monitor.
     }
 
     override fun getCurrentTimeline(): Timeline = currentPlayer.currentTimeline
     override fun getCurrentMediaItemIndex(): Int = currentPlayer.currentMediaItemIndex
     override fun getDuration(): Long = currentPlayer.duration
 
-    // Simple Delegations (to current player)
     override fun getApplicationLooper(): Looper = currentPlayer.applicationLooper
     override fun isCommandAvailable(command: Int): Boolean = currentPlayer.isCommandAvailable(command)
     override fun canAdvertiseSession(): Boolean = currentPlayer.canAdvertiseSession()
@@ -393,7 +380,6 @@ class CrossfadePlayer(
     override fun decreaseDeviceVolume(flags: Int) = currentPlayer.decreaseDeviceVolume(flags)
     override fun setDeviceMuted(muted: Boolean, flags: Int) = currentPlayer.setDeviceMuted(muted, flags)
 
-    // Delegations that apply to BOTH players
     override fun getRepeatMode(): Int = currentPlayer.repeatMode
     override fun setRepeatMode(repeatMode: Int) {
         playerA.repeatMode = repeatMode
@@ -405,32 +391,43 @@ class CrossfadePlayer(
         playerB.shuffleModeEnabled = shuffleModeEnabled
     }
 
-    // --- Not implemented properly / TODOs ---
     override fun setMediaItem(mediaItem: MediaItem) = setMediaItems(mutableListOf(mediaItem), true)
     override fun setMediaItem(mediaItem: MediaItem, startPositionMs: Long) = setMediaItems(mutableListOf(mediaItem), 0, startPositionMs)
-    override fun setMediaItem(mediaItem: MediaItem, resetPosition: Boolean) = setMediaItems(mutableListOf(mediaItem), resetPosition)
-    override fun addMediaItem(mediaItem: MediaItem) = addMediaItems(mediaItemCount, mutableListOf(mediaItem))
-    override fun addMediaItem(index: Int, mediaItem: MediaItem) = addMediaItems(index, mutableListOf(mediaItem))
-    override fun addMediaItems(mediaItems: MutableList<MediaItem>) = addMediaItems(mediaItemCount, mediaItems)
+    override fun setMediaItem(mediaItem: MediaItem, resetPosition: Boolean) = setMediaItems(listOf(mediaItem), resetPosition)
+    override fun addMediaItem(mediaItem: MediaItem) = addMediaItems(mediaItemCount, listOf(mediaItem))
+    override fun addMediaItem(index: Int, mediaItem: MediaItem) = addMediaItems(index, listOf(mediaItem))
+    override fun addMediaItems(mediaItems: List<MediaItem>) = addMediaItems(mediaItemCount, mediaItems)
     override fun moveMediaItem(currentIndex: Int, newIndex: Int) = moveMediaItems(currentIndex, currentIndex + 1, newIndex)
     override fun removeMediaItem(index: Int) = removeMediaItems(index, index + 1)
     override fun replaceMediaItem(index: Int, mediaItem: MediaItem) {
         playerA.replaceMediaItem(index, mediaItem)
         playerB.replaceMediaItem(index, mediaItem)
     }
-    override fun replaceMediaItems(fromIndex: Int, toIndex: Int, mediaItems: MutableList<MediaItem>) {
-        playerA.replaceMediaItems(fromIndex, toIndex, mediaItems)
-        playerB.replaceMediaItems(fromIndex, toIndex, mediaItems)
+    override fun replaceMediaItems(fromIndex: Int, toIndex: Int, mediaItems: List<MediaItem>) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        playerA.replaceMediaItems(fromIndex, toIndex, mutableMediaItems)
+        playerB.replaceMediaItems(fromIndex, toIndex, mutableMediaItems)
     }
     override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) { playerA.setAudioAttributes(audioAttributes, handleAudioFocus); playerB.setAudioAttributes(audioAttributes, handleAudioFocus) }
 
-    // Deprecated methods
-    override fun setMediaItems(mediaItems: MutableList<MediaItem>) = setMediaItems(mediaItems, true)
-    override fun seekToPreviousWindow() = seekToPreviousMediaItem()
-    override fun hasNext(): Boolean = hasNextMediaItem()
-    override fun hasNextWindow(): Boolean = hasNextMediaItem()
-    override fun next() = seekToNextMediaItem()
+    @Deprecated("Use setMediaItems with a list of media items and a starting index instead.")
+    override fun setMediaItems(mediaItems: List<MediaItem>) = setMediaItems(mediaItems, true)
+
+    @Deprecated("Use seekToNextMediaItem instead.")
     override fun seekToNextWindow() = seekToNextMediaItem()
+
+    @Deprecated("Use seekToPreviousMediaItem instead.")
+    override fun seekToPreviousWindow() = seekToPreviousMediaItem()
+
+    @Deprecated("Use hasNextMediaItem instead.")
+    override fun hasNext(): Boolean = hasNextMediaItem()
+
+    @Deprecated("Use hasNextMediaItem instead.")
+    override fun hasNextWindow(): Boolean = hasNextMediaItem()
+
+    @Deprecated("Use seekToNextMediaItem instead.")
+    override fun next() = seekToNextMediaItem()
+
     override fun getCurrentManifest(): Any? = currentPlayer.currentManifest
     override fun getCurrentWindowIndex(): Int = currentMediaItemIndex
     override fun getNextWindowIndex(): Int = nextMediaItemIndex
@@ -438,12 +435,19 @@ class CrossfadePlayer(
     override fun isCurrentWindowDynamic(): Boolean = isCurrentMediaItemDynamic
     override fun isCurrentWindowLive(): Boolean = isCurrentMediaItemLive
     override fun isCurrentWindowSeekable(): Boolean = isCurrentMediaItemSeekable
+
+    @Deprecated("Use setDeviceVolume with a volume level and C.DEVICE_VOLUME_FLAGS_DEFAULT instead.")
     override fun setDeviceVolume(volume: Int) = setDeviceVolume(volume, 0)
+
+    @Deprecated("Use increaseDeviceVolume with C.DEVICE_VOLUME_FLAGS_DEFAULT instead.")
     override fun increaseDeviceVolume() = increaseDeviceVolume(0)
+
+    @Deprecated("Use decreaseDeviceVolume with C.DEVICE_VOLUME_FLAGS_DEFAULT instead.")
     override fun decreaseDeviceVolume() = decreaseDeviceVolume(0)
+
+    @Deprecated("Use setDeviceMuted with a muted state and C.DEVICE_VOLUME_FLAGS_DEFAULT instead.")
     override fun setDeviceMuted(muted: Boolean) = setDeviceMuted(muted, 0)
 
-    // --- Analytics & Other Proxies ---
     fun setAnalyticsListener(listener: AnalyticsListener) {
         this.analyticsListener = listener
         currentPlayer.addAnalyticsListener(listener)
