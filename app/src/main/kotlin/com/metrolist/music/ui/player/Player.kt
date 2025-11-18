@@ -61,6 +61,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -111,6 +113,7 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
@@ -140,13 +143,17 @@ import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.LyricsMenu
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
+import com.metrolist.music.db.entities.LyricsEntity
+import com.metrolist.music.di.LyricsHelperEntryPoint
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
@@ -165,6 +172,8 @@ fun BottomSheetPlayer(
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val lyricsMenuViewModel: com.metrolist.music.viewmodels.LyricsMenuViewModel = hiltViewModel()
+    val database = LocalDatabase.current
+    val coroutineScope = rememberCoroutineScope()
 
     val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
         UseNewPlayerDesignKey,
@@ -396,6 +405,31 @@ fun BottomSheetPlayer(
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
+    }
+
+    val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+    val triggerLyricsFetch: () -> Unit = {
+        val currentMetadata = mediaMetadata
+        if (currentMetadata != null && currentLyrics?.id != currentMetadata.id) {
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val entryPoint = EntryPointAccessors.fromApplication(
+                        context.applicationContext,
+                        LyricsHelperEntryPoint::class.java
+                    )
+                    val lyricsHelper = entryPoint.lyricsHelper()
+                    val lyrics = lyricsHelper.getLyrics(currentMetadata)
+                    database.query {
+                        upsert(LyricsEntity(currentMetadata.id, lyrics))
+                    }
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(mediaMetadata?.id) {
+        triggerLyricsFetch()
     }
 
     LaunchedEffect(playbackState) {
@@ -1262,7 +1296,12 @@ fun BottomSheetPlayer(
             TextBackgroundColor = TextBackgroundColor,
             textButtonColor = textButtonColor,
             iconButtonColor = iconButtonColor,
-            onShowLyrics = { showLyrics = !showLyrics },
+            onShowLyrics = {
+                showLyrics = !showLyrics
+                if (showLyrics) {
+                    triggerLyricsFetch()
+                }
+            },
             pureBlack = pureBlack,
             lyricsVisible = showLyrics
         )

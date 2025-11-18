@@ -232,14 +232,6 @@ fun Queue(
                 ) {
                     val buttonSize = 42.dp
                     val iconSize = 24.dp
-                    val borderColor by animateColorAsState(
-                        targetValue = if (lyricsVisible) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            TextBackgroundColor.copy(alpha = 0.35f)
-                        },
-                        label = "borderColor"
-                    )
                     val queueShape = RoundedCornerShape(
                         topStart = 50.dp, bottomStart = 50.dp,
                         topEnd = 5.dp, bottomEnd = 5.dp
@@ -257,7 +249,6 @@ fun Queue(
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
-                            .border(1.5.dp, borderColor, queueShape)
                             .clip(queueShape)
                             .clickable { state.expandSoft() },
                         contentAlignment = Alignment.Center
@@ -273,7 +264,6 @@ fun Queue(
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
-                            .border(1.5.dp, borderColor, middleShape)
                             .clip(middleShape)
                             .clickable {
                                 if (sleepTimerEnabled) {
@@ -311,31 +301,62 @@ fun Queue(
                         }
                     }
 
+                    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
+                    val shuffleBackgroundColor by animateColorAsState(
+                        targetValue = if (shuffleModeEnabled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color.Transparent
+                        },
+                        label = "shuffleBackgroundColor"
+                    )
+                    val shuffleIconColor by animateColorAsState(
+                        targetValue = if (shuffleModeEnabled) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            TextBackgroundColor
+                        },
+                        label = "shuffleIconColor"
+                    )
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
-                            .border(1.5.dp, borderColor, middleShape)
+                            .background(shuffleBackgroundColor, middleShape)
                             .clip(middleShape)
                             .clickable {
                                 playerConnection.player.shuffleModeEnabled = !playerConnection.player.shuffleModeEnabled
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
                         Icon(
                             painter = painterResource(id = R.drawable.shuffle),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(iconSize)
-                                .alpha(if (shuffleModeEnabled) 1f else 0.5f),
-                            tint = TextBackgroundColor
+                                .size(iconSize),
+                            tint = shuffleIconColor
                         )
                     }
 
+                    val lyricsBackgroundColor by animateColorAsState(
+                        targetValue = if (lyricsVisible) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color.Transparent
+                        },
+                        label = "lyricsBackgroundColor"
+                    )
+                    val lyricsIconColor by animateColorAsState(
+                        targetValue = if (lyricsVisible) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            TextBackgroundColor
+                        },
+                        label = "lyricsIconColor"
+                    )
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
-                            .border(1.5.dp, borderColor, RoundedCornerShape(lyricsShape))
+                            .background(lyricsBackgroundColor, RoundedCornerShape(lyricsShape))
                             .clip(RoundedCornerShape(lyricsShape))
                             .clickable {
                                 onShowLyrics()
@@ -346,14 +367,30 @@ fun Queue(
                             painter = painterResource(id = R.drawable.lyrics),
                             contentDescription = null,
                             modifier = Modifier.size(iconSize),
-                            tint = TextBackgroundColor
+                            tint = lyricsIconColor
                         )
                     }
 
+                    val repeatBackgroundColor by animateColorAsState(
+                        targetValue = if (repeatMode != Player.REPEAT_MODE_OFF) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color.Transparent
+                        },
+                        label = "repeatBackgroundColor"
+                    )
+                    val repeatIconColor by animateColorAsState(
+                        targetValue = if (repeatMode != Player.REPEAT_MODE_OFF) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            TextBackgroundColor
+                        },
+                        label = "repeatIconColor"
+                    )
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
-                            .border(1.5.dp, borderColor, repeatShape)
+                            .background(repeatBackgroundColor, repeatShape)
                             .clip(repeatShape)
                             .clickable {
                                 playerConnection.player.toggleRepeatMode()
@@ -369,10 +406,8 @@ fun Queue(
                                 }
                             ),
                             contentDescription = null,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
-                            tint = TextBackgroundColor
+                            modifier = Modifier.size(iconSize),
+                            tint = repeatIconColor
                         )
                     }
 
