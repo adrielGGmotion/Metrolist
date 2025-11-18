@@ -8,6 +8,7 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.flow.first
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 import java.net.URLEncoder
 
 @Serializable
@@ -54,6 +56,12 @@ object AppleMusicLyricsProvider : LyricsProvider {
                     },
                 )
             }
+            defaultRequest {
+                header(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+                )
+            }
         }
 
     private const val PRIMARY_URL = "http://lyrics.paxsenix.dpdns.org/"
@@ -87,6 +95,7 @@ object AppleMusicLyricsProvider : LyricsProvider {
                 successfulUrl = url
                 break
             } catch (e: Exception) {
+                Timber.e(e, "Failed to fetch from $url")
                 // Ignore and try the next URL
             }
         }
