@@ -7,6 +7,7 @@ import com.metrolist.music.utils.dataStore
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.*
@@ -56,6 +57,9 @@ object AppleMusicLyricsProvider : LyricsProvider {
                     },
                 )
             }
+            install(HttpTimeout) {
+                requestTimeoutMillis = 15000
+            }
             defaultRequest {
                 header(
                     "User-Agent",
@@ -91,7 +95,7 @@ object AppleMusicLyricsProvider : LyricsProvider {
         for (url in urls) {
             try {
                 val response: String = client.get("${url}searchAppleMusic.php?q=$query").body()
-                searchResults = json.decodeFromString(response)
+                searchResults = json.decodeFromString<List<SearchResult>>(response)
                 // If we got a result, we can break
                 if (searchResults != null) break
             } catch (e: Exception) {
