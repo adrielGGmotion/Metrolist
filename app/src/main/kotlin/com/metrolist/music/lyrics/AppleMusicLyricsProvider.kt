@@ -85,55 +85,68 @@ object AppleMusicLyricsProvider : LyricsProvider {
         duration: Int,
     ): Result<String> {
         val query = URLEncoder.encode("$title $artist", "UTF-8")
-        var successfulUrl: String? = null
         var searchResults: List<SearchResult>? = null
 
+        // --- 1. Search for the song on all available sources ---
         for (url in urls) {
             try {
                 val response: String = client.get("${url}searchAppleMusic.php?q=$query").body()
                 searchResults = json.decodeFromString(response)
-                successfulUrl = url
-                break
+                // If we got a result, we can break
+                if (searchResults != null) break
             } catch (e: Exception) {
-                Timber.e(e, "Failed to fetch from $url")
-                // Ignore and try the next URL
+                Timber.e(e, "Failed to fetch search results from $url")
             }
         }
 
-        if (successfulUrl == null || searchResults == null) {
+        if (searchResults == null) {
             return Result.failure(Exception("Failed to fetch search results from all sources."))
         }
 
+        // --- 2. Find the correct song ID from the results ---
         val songId =
             searchResults.find {
                 it.songName.equals(title, ignoreCase = true) &&
                     it.artistName.contains(artist, ignoreCase = true)
             }?.id ?: return Result.failure(Exception("Song not found in search results."))
 
-        return try {
-            val lyricsResponse: String = client.get("${successfulUrl}getAppleMusicLyrics.php?id=$songId").body()
+        // --- 3. Fetch the lyrics using the ID, with fallback ---
+        var lyricsResponse: String? = null
+        for (url in urls) {
+            try {
+                lyricsResponse = client.get("${url}getAppleMusicLyrics.php?id=$songId").body()
+                // If we got a non-blank response, break
+                if (!lyricsResponse.isNullOrBlank()) break
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to fetch lyrics for id $songId from $url")
+            }
+        }
 
-            // Try parsing as PaxResponse first
-            val lrc =
-                try {
-                    val paxResponse = json.decodeFromString<PaxResponse>(lyricsResponse)
-                    when (paxResponse.type) {
-                        "Syllable", "Line" -> formatLrc(paxResponse.content)
-                        else -> LyricsEntity.LYRICS_NOT_FOUND
-                    }
-                } catch (e: Exception) {
-                    // If that fails, try parsing as a direct list of lines
-                    try {
-                        val lines = json.decodeFromString<List<Line>>(lyricsResponse)
-                        formatLrc(lines)
-                    } catch (e2: Exception) {
-                        // If all parsing fails, return failure
-                        return Result.failure(Exception("Failed to parse lyrics response: $lyricsResponse"))
-                    }
+        if (lyricsResponse.isNullOrBlank()) {
+            return Result.failure(Exception("Failed to fetch lyrics from all sources for id $songId."))
+        }
+
+        // --- 4. Parse the response ---
+        val lrc =
+            try {
+                val paxResponse = json.decodeFromString<PaxResponse>(lyricsResponse)
+                when (paxResponse.type) {
+                    "Syllable", "Line" -> formatLrc(paxResponse.content)
+                    else -> LyricsEntity.LYRICS_NOT_FOUND
                 }
-            if (lrc.isBlank()) Result.failure(Exception("Lyrics content is empty.")) else Result.success(lrc)
-        } catch (e: Exception) {
-            Result.failure(Exception("Failed to fetch lyrics: ${e.message}"))
+            } catch (e: Exception) {
+                try {
+                    val lines = json.decodeFromString<List<Line>>(lyricsResponse)
+                    formatLrc(lines)
+                } catch (e2: Exception) {
+                    return Result.failure(Exception("Failed to parse lyrics response: $lyricsResponse"))
+                }
+            }
+
+        return if (lrc.isBlank()) {
+            Result.failure(Exception("Lyrics content is empty."))
+        } else {
+            Result.success(lrc)
         }
     }
 
