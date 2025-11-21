@@ -98,6 +98,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import com.metrolist.music.ui.component.Lyrics
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Player.STATE_ENDED
@@ -146,6 +147,12 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
+import com.metrolist.music.LocalDatabase
+import com.metrolist.music.db.entities.LyricsEntity
+import com.metrolist.music.di.LyricsHelperEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -390,6 +397,36 @@ fun BottomSheetPlayer(
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
+    }
+
+    var showLyrics by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val database = LocalDatabase.current
+    val coroutineScope = rememberCoroutineScope()
+    val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+
+    LaunchedEffect(mediaMetadata?.id, showLyrics, currentLyrics) {
+        if (showLyrics && currentLyrics == null) {
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val entryPoint = EntryPointAccessors.fromApplication(
+                        context.applicationContext,
+                        LyricsHelperEntryPoint::class.java
+                    )
+                    val lyricsHelper = entryPoint.lyricsHelper()
+                    mediaMetadata?.let {
+                        val lyrics = lyricsHelper.getLyrics(it)
+                        database.query {
+                            upsert(LyricsEntity(it.id, lyrics))
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Handle error
+                }
+            }
+        }
     }
 
     LaunchedEffect(playbackState) {
@@ -740,15 +777,6 @@ fun BottomSheetPlayer(
                         )
                     }
 
-                    Spacer(modifier = Modifier.size(12.dp))
-
-                    PlayerMoreMenuButton(
-                        mediaMetadata = mediaMetadata,
-                        navController = navController,
-                        state = state,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                    )
                 }
             }
 
@@ -1075,11 +1103,24 @@ fun BottomSheetPlayer(
                     ) {
                         val screenWidth = LocalConfiguration.current.screenWidthDp
                         val thumbnailSize = (screenWidth * 0.4).dp
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.size(thumbnailSize),
-                            isPlayerExpanded = state.isExpanded
-                        )
+                        AnimatedContent(
+                            targetState = showLyrics,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "lyrics"
+                        ) { showLyrics ->
+                            if (showLyrics) {
+                                Lyrics(
+                                    sliderPositionProvider = { sliderPosition },
+                                    modifier = Modifier.size(thumbnailSize),
+                                )
+                            } else {
+                                Thumbnail(
+                                    sliderPositionProvider = { sliderPosition },
+                                    modifier = Modifier.size(thumbnailSize),
+                                    isPlayerExpanded = state.isExpanded
+                                )
+                            }
+                        }
                     }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1111,10 +1152,33 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                            isPlayerExpanded = state.isExpanded
+                       AnimatedContent(
+                            targetState = showLyrics,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "lyrics"
+                        ) { showLyrics ->
+                            if (showLyrics) {
+                                Lyrics(
+                                    sliderPositionProvider = { sliderPosition },
+                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                )
+                            } else {
+                                Thumbnail(
+                                    sliderPositionProvider = { sliderPosition },
+                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                    isPlayerExpanded = state.isExpanded
+                                )
+                            }
+                        }
+                        PlayerMoreMenuButton(
+                            mediaMetadata = mediaMetadata!!,
+                            navController = navController,
+                            state = state,
+                            textButtonColor = textButtonColor,
+                            iconButtonColor = iconButtonColor,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
                         )
                     }
 
@@ -1141,35 +1205,11 @@ fun BottomSheetPlayer(
             TextBackgroundColor = TextBackgroundColor,
             textButtonColor = textButtonColor,
             iconButtonColor = iconButtonColor,
-            onShowLyrics = { lyricsSheetState.expandSoft() },
+            onShowLyrics = { showLyrics = !showLyrics },
             pureBlack = pureBlack,
         )
 
         mediaMetadata?.let { metadata ->
-            BottomSheet(
-                state = lyricsSheetState,
-                background = { Box(Modifier.fillMaxSize().background(Color.Unspecified)) },
-                onDismiss = { },
-                collapsedContent = {
-                }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.surface.copy(
-                                alpha = lyricsSheetState.progress.coerceIn(0f, 1f)
-                            )
-                        )
-                ) {
-                    LyricsScreen(
-                        mediaMetadata = metadata,
-                        onBackClick = { lyricsSheetState.collapseSoft() },
-                        navController = navController,
-                        backgroundAlpha = lyricsSheetState.progress.coerceIn(0f, 1f)
-                    )
-                }
-            }
         }
     }
 }
@@ -1195,6 +1235,7 @@ private fun PlayerMoreMenuButton(
     state: BottomSheetState,
     textButtonColor: Color,
     iconButtonColor: Color,
+    modifier: Modifier = Modifier,
 ) {
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
@@ -1202,7 +1243,7 @@ private fun PlayerMoreMenuButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier =
-        Modifier
+        modifier
             .size(40.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(textButtonColor)
