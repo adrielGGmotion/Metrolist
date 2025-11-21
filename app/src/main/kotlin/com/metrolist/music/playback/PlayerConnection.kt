@@ -111,6 +111,10 @@ class PlayerConnection(
         service.toggleLike()
     }
 
+    fun refetchLyrics() {
+        service.refetchLyrics()
+    }
+
     fun seekToNext() {
         player.seekToNext()
         player.prepare()

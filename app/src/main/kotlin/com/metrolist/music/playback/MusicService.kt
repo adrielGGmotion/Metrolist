@@ -1153,6 +1153,21 @@ class MusicService :
         }
     }
 
+    fun refetchLyrics() {
+        scope.launch {
+            val mediaMetadata = currentMediaMetadata.value ?: return@launch
+            val lyrics = lyricsHelper.getLyrics(mediaMetadata)
+            database.query {
+                upsert(
+                    LyricsEntity(
+                        id = mediaMetadata.id,
+                        lyrics = lyrics
+                    )
+                )
+            }
+        }
+    }
+
     override fun onPlaybackStateChanged(
         @Player.State playbackState: Int,
     ) {

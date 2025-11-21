@@ -74,6 +74,8 @@ import com.metrolist.music.ui.screens.settings.UpdaterScreen
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -330,5 +332,22 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("login") {
         LoginScreen(navController)
+    }
+    composable(
+        "lyrics",
+        enterTransition = {
+            slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(500)
+            ) + fadeIn(animationSpec = tween(500))
+        },
+        exitTransition = {
+            slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(500)
+            ) + fadeOut(animationSpec = tween(500))
+        }
+    ) {
+        LyricsScreen(navController)
     }
 }

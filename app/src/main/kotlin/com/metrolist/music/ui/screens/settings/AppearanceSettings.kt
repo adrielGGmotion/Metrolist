@@ -1,6 +1,7 @@
 package com.metrolist.music.ui.screens.settings
 
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1027,10 +1028,10 @@ enum class NavigationTab {
     LIBRARY,
 }
 
-enum class LyricsPosition {
-    LEFT,
-    CENTER,
-    RIGHT,
+enum class LyricsPosition(@StringRes val title: Int) {
+    LEFT(R.string.left),
+    CENTER(R.string.center),
+    RIGHT(R.string.right),
 }
 
 enum class PlayerTextAlignment {

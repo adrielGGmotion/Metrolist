@@ -14,6 +14,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -129,11 +131,13 @@ import com.metrolist.music.extensions.toggleRepeatMode
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetState
+import com.metrolist.music.ui.component.Lyrics
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.PlayerSliderTrack
 import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.rememberBottomSheetState
+import com.metrolist.music.ui.menu.LyricsMenu
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.utils.ShowMediaInfo
@@ -417,6 +421,9 @@ fun BottomSheetPlayer(
         collapsedBound = 0.dp,
         initialAnchor = 1
     )
+    var showLyrics by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     val bottomSheetBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> 
@@ -1111,11 +1118,77 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                            isPlayerExpanded = state.isExpanded
-                        )
+                        AnimatedContent(
+                            targetState = showLyrics,
+                            transitionSpec = {
+                                if (targetState) {
+                                    fadeIn(
+                                        animationSpec = tween(
+                                            durationMillis = 220,
+                                            delayMillis = 90
+                                        )
+                                    ) + scaleIn(
+                                        initialScale = 0.92f,
+                                        animationSpec = tween(
+                                            durationMillis = 220,
+                                            delayMillis = 90
+                                        )
+                                    ) togetherWith fadeOut(animationSpec = tween(durationMillis = 90))
+                                } else {
+                                    fadeIn(
+                                        animationSpec = tween(
+                                            durationMillis = 220,
+                                            delayMillis = 90
+                                        )
+                                    ) togetherWith fadeOut(animationSpec = tween(durationMillis = 90)) + scaleOut(
+                                        targetScale = 0.92f,
+                                        animationSpec = tween(durationMillis = 90)
+                                    )
+                                }
+                            },
+                            label = "ThumbnailToLyrics"
+                        ) { showLyrics ->
+                            if (showLyrics) {
+                                Lyrics(
+                                    sliderPositionProvider = { sliderPosition },
+                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
+                                )
+                            } else {
+                                Thumbnail(
+                                    sliderPositionProvider = { sliderPosition },
+                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                    isPlayerExpanded = state.isExpanded
+                                )
+                            }
+                        }
+                        if (showLyrics) {
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(16.dp)
+                            ) {
+                                FilledTonalIconButton(onClick = { navController.navigate("lyrics") }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.fullscreen),
+                                        contentDescription = "Fullscreen"
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                val menuState = LocalMenuState.current
+                                FilledTonalIconButton(onClick = {
+                                    menuState.show {
+                                        LyricsMenu(
+                                            onDismiss = menuState::dismiss
+                                        )
+                                    }
+                                }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.more_horiz),
+                                        contentDescription = "More"
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     mediaMetadata?.let {
@@ -1141,36 +1214,9 @@ fun BottomSheetPlayer(
             TextBackgroundColor = TextBackgroundColor,
             textButtonColor = textButtonColor,
             iconButtonColor = iconButtonColor,
-            onShowLyrics = { lyricsSheetState.expandSoft() },
+            onShowLyrics = { showLyrics = !showLyrics },
             pureBlack = pureBlack,
         )
-
-        mediaMetadata?.let { metadata ->
-            BottomSheet(
-                state = lyricsSheetState,
-                background = { Box(Modifier.fillMaxSize().background(Color.Unspecified)) },
-                onDismiss = { },
-                collapsedContent = {
-                }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.surface.copy(
-                                alpha = lyricsSheetState.progress.coerceIn(0f, 1f)
-                            )
-                        )
-                ) {
-                    LyricsScreen(
-                        mediaMetadata = metadata,
-                        onBackClick = { lyricsSheetState.collapseSoft() },
-                        navController = navController,
-                        backgroundAlpha = lyricsSheetState.progress.coerceIn(0f, 1f)
-                    )
-                }
-            }
-        }
     }
 }
 
