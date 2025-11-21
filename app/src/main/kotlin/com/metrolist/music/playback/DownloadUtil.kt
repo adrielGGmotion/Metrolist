@@ -21,6 +21,7 @@ import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
 import com.metrolist.music.utils.YTPlayerUtils
+import com.metrolist.music.utils.VideoQuality
 import com.metrolist.music.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
@@ -84,6 +85,7 @@ constructor(
                 YTPlayerUtils.playerResponseForPlayback(
                     mediaId,
                     audioQuality = audioQuality,
+                    videoQuality = VideoQuality.AUDIO_ONLY,
                     connectivityManager = connectivityManager,
                 )
             }.getOrThrow()

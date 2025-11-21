@@ -67,6 +67,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.SideEffect
+import android.widget.FrameLayout
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.ui.PlayerView
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -136,6 +140,9 @@ import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
+import com.metrolist.music.constants.VideoQualityKey
+import com.metrolist.music.ui.component.EnumDialog
+import com.metrolist.music.utils.VideoQuality
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberEnumPreference
@@ -203,6 +210,8 @@ fun BottomSheetPlayer(
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+
+    val showVideoPlayer by playerConnection.service.isVideoPlaying.collectAsState()
 
     var position by rememberSaveable(playbackState) {
         mutableLongStateOf(playerConnection.player.currentPosition)
@@ -1059,6 +1068,37 @@ fun BottomSheetPlayer(
                     }
                 }
             }
+            Row {
+                var showVideoQualityDialog by remember { mutableStateOf(false) }
+                FilledTonalIconButton(onClick = { showVideoQualityDialog = true }) {
+                    Icon(
+                        painter = painterResource(R.drawable.settings),
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                if (showVideoQualityDialog) {
+                    val (videoQuality, onVideoQualityChange) = rememberEnumPreference(
+                        key = VideoQualityKey,
+                        defaultValue = VideoQuality.AUTO
+                    )
+                    EnumDialog(
+                        onDismiss = { showVideoQualityDialog = false },
+                        onSelect = { onVideoQualityChange(it) },
+                        title = "Video Quality",
+                        current = videoQuality,
+                        values = VideoQuality.values().toList(),
+                        valueText = { it.name.replace('_', ' ') }
+                    )
+                }
+                FilledTonalIconButton(onClick = { playerConnection.service.toggleVideoPlayback() }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_video),
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
         }
 
         when (LocalConfiguration.current.orientation) {
@@ -1073,13 +1113,20 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
                     ) {
-                        val screenWidth = LocalConfiguration.current.screenWidthDp
-                        val thumbnailSize = (screenWidth * 0.4).dp
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.size(thumbnailSize),
-                            isPlayerExpanded = state.isExpanded
-                        )
+                        if (showVideoPlayer) {
+                            VideoPlayer(
+                                modifier = Modifier.fillMaxSize(),
+                                player = playerConnection.player
+                            )
+                        } else {
+                            val screenWidth = LocalConfiguration.current.screenWidthDp
+                            val thumbnailSize = (screenWidth * 0.4).dp
+                            Thumbnail(
+                                sliderPositionProvider = { sliderPosition },
+                                modifier = Modifier.size(thumbnailSize),
+                                isPlayerExpanded = state.isExpanded
+                            )
+                        }
                     }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1111,11 +1158,20 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                            isPlayerExpanded = state.isExpanded
-                        )
+                        if (showVideoPlayer) {
+                            VideoPlayer(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                player = playerConnection.player
+                            )
+                        } else {
+                            Thumbnail(
+                                sliderPositionProvider = { sliderPosition },
+                                modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                isPlayerExpanded = state.isExpanded
+                            )
+                        }
                     }
 
                     mediaMetadata?.let {
@@ -1172,6 +1228,33 @@ fun BottomSheetPlayer(
             }
         }
     }
+}
+
+@Composable
+fun VideoPlayer(
+    modifier: Modifier = Modifier,
+    player: Player
+) {
+    val context = LocalContext.current
+
+    val playerView = remember {
+        PlayerView(context).apply {
+            useController = true
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+    }
+
+    SideEffect {
+        playerView.player = player
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory = { playerView }
+    )
 }
 
 private fun Modifier.bouncy(interactionSource: InteractionSource) = composed {

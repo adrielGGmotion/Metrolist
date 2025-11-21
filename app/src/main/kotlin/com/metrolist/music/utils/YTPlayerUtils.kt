@@ -22,6 +22,19 @@ import com.metrolist.innertube.models.response.PlayerResponse
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
+enum class VideoQuality {
+    AUDIO_ONLY,
+    TINY, // 256x144
+    SMALL, // 426x240
+    MEDIUM, // 640x360
+    LARGE, // 854x480
+    HD, // 1280x720
+    FULL_HD, // 1920x1080
+    QUAD_HD, // 2560x1440
+    ULTRA_HD, // 3840x2160
+    AUTO,
+}
+
 object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
 
@@ -71,6 +84,7 @@ object YTPlayerUtils {
         videoId: String,
         playlistId: String? = null,
         audioQuality: AudioQuality,
+        videoQuality: VideoQuality,
         connectivityManager: ConnectivityManager,
     ): Result<PlaybackData> = runCatching {
         Timber.tag(logTag).d("Fetching player response for videoId: $videoId, playlistId: $playlistId")
@@ -142,6 +156,7 @@ object YTPlayerUtils {
                     findFormat(
                         streamPlayerResponse,
                         audioQuality,
+                        videoQuality,
                         connectivityManager,
                     )
 
@@ -241,27 +256,62 @@ object YTPlayerUtils {
     private fun findFormat(
         playerResponse: PlayerResponse,
         audioQuality: AudioQuality,
+        videoQuality: VideoQuality,
         connectivityManager: ConnectivityManager,
     ): PlayerResponse.StreamingData.Format? {
         Timber.tag(logTag).d("Finding format with audioQuality: $audioQuality, network metered: ${connectivityManager.isActiveNetworkMetered}")
 
-        val format = playerResponse.streamingData?.adaptiveFormats
-            ?.filter { it.isAudio && it.isOriginal }
-            ?.maxByOrNull {
-                it.bitrate * when (audioQuality) {
-                    AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
-                    AudioQuality.HIGH -> 1
-                    AudioQuality.LOW -> -1
-                } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
+        if (videoQuality == VideoQuality.AUDIO_ONLY) {
+            val format = playerResponse.streamingData?.adaptiveFormats
+                ?.filter { it.isAudio && it.isOriginal }
+                ?.maxByOrNull {
+                    it.bitrate * when (audioQuality) {
+                        AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
+                        AudioQuality.HIGH -> 1
+                        AudioQuality.LOW -> -1
+                    } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
+                }
+
+            if (format != null) {
+                Timber.tag(logTag).d("Selected format: ${format.mimeType}, bitrate: ${format.bitrate}")
+            } else {
+                Timber.tag(logTag).d("No suitable audio format found")
+            }
+            return format
+        } else {
+            val formats = playerResponse.streamingData?.formats
+                ?.filter { it.isOriginal }
+
+            val maxHeight = when (videoQuality) {
+                VideoQuality.TINY -> 144
+                VideoQuality.SMALL -> 240
+                VideoQuality.MEDIUM -> 360
+                VideoQuality.LARGE -> 480
+                VideoQuality.HD -> 720
+                VideoQuality.FULL_HD -> 1080
+                VideoQuality.QUAD_HD -> 1440
+                VideoQuality.ULTRA_HD -> 2160
+                VideoQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) 480 else 720
+                VideoQuality.AUDIO_ONLY -> 0
             }
 
-        if (format != null) {
-            Timber.tag(logTag).d("Selected format: ${format.mimeType}, bitrate: ${format.bitrate}")
-        } else {
-            Timber.tag(logTag).d("No suitable audio format found")
-        }
+            val format = formats
+                ?.mapNotNull { format ->
+                    val height = format.height ?: return@mapNotNull null
+                    if (height > maxHeight) return@mapNotNull null
+                    format to height
+                }
+                ?.maxByOrNull { it.second }
+                ?.first
 
-        return format
+            if (format != null) {
+                Timber.tag(logTag).d("Selected format: ${format.mimeType}, bitrate: ${format.bitrate}")
+            } else {
+                Timber.tag(logTag).d("No suitable audio format found")
+            }
+
+            return format
+        }
     }
     /**
      * Checks if the stream url returns a successful status.

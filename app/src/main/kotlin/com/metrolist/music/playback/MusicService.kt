@@ -89,6 +89,7 @@ import com.metrolist.music.constants.PersistentQueueKey
 import com.metrolist.music.constants.PlayerVolumeKey
 import com.metrolist.music.constants.RepeatModeKey
 import com.metrolist.music.constants.ShowLyricsKey
+import com.metrolist.music.constants.VideoQualityKey
 import com.metrolist.music.constants.SimilarContent
 import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.db.MusicDatabase
@@ -124,6 +125,7 @@ import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.ScrobbleManager
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.YTPlayerUtils
+import com.metrolist.music.utils.VideoQuality
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.enumPreference
 import com.metrolist.music.utils.get
@@ -194,6 +196,7 @@ class MusicService :
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
 
+    val isVideoPlaying = MutableStateFlow(false)
     val currentMediaMetadata = MutableStateFlow<com.metrolist.music.models.MediaMetadata?>(null)
     private val currentSong =
         currentMediaMetadata
@@ -257,9 +260,9 @@ class MusicService :
                     AudioAttributes
                         .Builder()
                         .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                         .build(),
-                    false,
+                    true,
                 ).setSeekBackIncrementMs(5000)
                 .setSeekForwardIncrementMs(5000)
                 .build()
@@ -981,6 +984,17 @@ class MusicService :
         }
     }
 
+    fun toggleVideoPlayback() {
+        isVideoPlaying.value = !isVideoPlaying.value
+        val currentPosition = player.currentPosition
+        val currentMediaItem = player.currentMediaItem
+        if (currentMediaItem != null) {
+            player.setMediaItem(currentMediaItem)
+            player.seekTo(currentPosition)
+            player.prepare()
+        }
+    }
+
     fun toggleLike() {
         database.query {
             currentSong.value?.let {
@@ -1342,10 +1356,16 @@ class MusicService :
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
+            val videoQuality = if (isVideoPlaying.value) {
+                dataStore.get(VideoQualityKey).toEnum(VideoQuality.AUTO)
+            } else {
+                VideoQuality.AUDIO_ONLY
+            }
             val playbackData = runBlocking(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(
                     mediaId,
                     audioQuality = audioQuality,
+                    videoQuality = videoQuality,
                     connectivityManager = connectivityManager,
                 )
             }.getOrElse { throwable ->
