@@ -333,21 +333,4 @@ fun NavGraphBuilder.navigationBuilder(
     composable("login") {
         LoginScreen(navController)
     }
-    composable(
-        "lyrics",
-        enterTransition = {
-            slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = tween(500)
-            ) + fadeIn(animationSpec = tween(500))
-        },
-        exitTransition = {
-            slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(500)
-            ) + fadeOut(animationSpec = tween(500))
-        }
-    ) {
-        LyricsScreen(navController)
-    }
 }

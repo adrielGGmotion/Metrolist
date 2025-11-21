@@ -14,6 +14,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
@@ -53,6 +54,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -139,6 +141,7 @@ import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.LyricsMenu
 import com.metrolist.music.ui.menu.PlayerMenu
+import com.metrolist.music.ui.screens.LyricsScreen
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.makeTimeString
@@ -424,6 +427,9 @@ fun BottomSheetPlayer(
     var showLyrics by rememberSaveable {
         mutableStateOf(false)
     }
+    var showFullscreenLyrics by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     val bottomSheetBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> 
@@ -678,6 +684,33 @@ fun BottomSheetPlayer(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        AnimatedVisibility(visible = showLyrics) {
+                            Row {
+                                IconButton(onClick = { showFullscreenLyrics = true }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.fullscreen),
+                                        contentDescription = "Fullscreen"
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    menuState.show {
+                                        val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+                                        val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+                                        LyricsMenu(
+                                            lyricsProvider = { currentLyrics },
+                                             songProvider = { currentSong as? com.metrolist.music.db.entities.SongEntity },
+                                            mediaMetadataProvider = { mediaMetadata },
+                                            onDismiss = menuState::dismiss
+                                        )
+                                    }
+                                }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.more_horiz),
+                                        contentDescription = "More"
+                                    )
+                                }
+                            }
+                        }
                         FilledIconButton(
                             onClick = {
                                 val intent = Intent().apply {
@@ -1161,34 +1194,6 @@ fun BottomSheetPlayer(
                                 )
                             }
                         }
-                        if (showLyrics) {
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(16.dp)
-                            ) {
-                                FilledTonalIconButton(onClick = { navController.navigate("lyrics") }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.fullscreen),
-                                        contentDescription = "Fullscreen"
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                val menuState = LocalMenuState.current
-                                FilledTonalIconButton(onClick = {
-                                    menuState.show {
-                                        LyricsMenu(
-                                            onDismiss = menuState::dismiss
-                                        )
-                                    }
-                                }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_horiz),
-                                        contentDescription = "More"
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     mediaMetadata?.let {
@@ -1217,6 +1222,14 @@ fun BottomSheetPlayer(
             onShowLyrics = { showLyrics = !showLyrics },
             pureBlack = pureBlack,
         )
+
+        AnimatedVisibility(
+            visible = showFullscreenLyrics,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            LyricsScreen(onClose = { showFullscreenLyrics = false })
+        }
     }
 }
 

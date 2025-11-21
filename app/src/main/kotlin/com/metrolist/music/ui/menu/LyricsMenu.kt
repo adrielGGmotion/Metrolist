@@ -3,10 +3,7 @@ package com.metrolist.music.ui.menu
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -16,6 +13,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
+import com.metrolist.music.db.entities.LyricsEntity
+import com.metrolist.music.db.entities.Song
+import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.dialog.EditLyricsDialog
 import com.metrolist.music.ui.dialog.SearchLyricsDialog
@@ -25,7 +25,13 @@ import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.LyricsMenuViewModel
 
 @Composable
-fun LyricsMenu(onDismiss: () -> Unit, lyricsMenuViewModel: LyricsMenuViewModel = hiltViewModel()) {
+fun LyricsMenu(
+    lyricsProvider: () -> LyricsEntity?,
+    songProvider: () -> com.metrolist.music.db.entities.SongEntity?,
+    mediaMetadataProvider: () -> MediaMetadata?,
+    onDismiss: () -> Unit,
+    lyricsMenuViewModel: LyricsMenuViewModel = hiltViewModel()
+) {
     val playerConnection = LocalPlayerConnection.current ?: return
     var showTextPositionDialog by remember {
         mutableStateOf(false)
