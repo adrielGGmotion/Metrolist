@@ -124,6 +124,10 @@ import com.metrolist.music.ui.menu.SelectionMediaMetadataMenu
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberPreference
+import com.metrolist.music.LocalDatabase
+import com.metrolist.music.db.entities.LyricsEntity
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -318,12 +322,36 @@ fun Queue(
                         )
                     }
 
+                    val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+                    val coroutineScope = rememberCoroutineScope()
+                    val database = LocalDatabase.current
                     Box(
                         modifier = Modifier
                             .size(buttonSize)
                             .border(1.5.dp, borderColor, middleShape)
                             .clip(middleShape)
                             .clickable {
+                                mediaMetadata?.let {
+                                    if (currentLyrics == null) {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            try {
+                                                val entryPoint = EntryPointAccessors.fromApplication(
+                                                    context.applicationContext,
+                                                    com.metrolist.music.di.LyricsHelperEntryPoint::class.java
+                                                )
+                                                val lyricsHelper = entryPoint.lyricsHelper()
+                                                val lyrics = lyricsHelper.getLyrics(it)
+                                                database.query {
+                                                    upsert(LyricsEntity(it.id, lyrics))
+                                                }
+                                            } catch (e: Exception) {
+                                                coroutineScope.launch(Dispatchers.Main) {
+                                                    Toast.makeText(context, "Failed to load lyrics", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 onShowLyrics()
                             },
                         contentAlignment = Alignment.Center

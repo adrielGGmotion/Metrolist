@@ -135,6 +135,8 @@ import com.metrolist.music.ui.component.PlayerSliderTrack
 import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.PlayerMenu
+import com.metrolist.music.ui.menu.LyricsMenu
+import com.metrolist.music.ui.component.Lyrics
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.makeTimeString
@@ -1061,6 +1063,7 @@ fun BottomSheetPlayer(
             }
         }
 
+        var showLyrics by remember { mutableStateOf(false) }
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 Row(
@@ -1111,11 +1114,73 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                            isPlayerExpanded = state.isExpanded
-                        )
+                        AnimatedContent(
+                            targetState = showLyrics,
+                            label = "Lyrics",
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
+                            },
+                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
+                        ) { show ->
+                            if (show) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Lyrics(
+                                        sliderPositionProvider = { sliderPosition },
+                                    )
+                                    mediaMetadata?.let { nnMediaMetadata ->
+                                        Row(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(bottom = 12.dp)
+                                        ) {
+                                            val menuState = LocalMenuState.current
+                                            val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+                                            val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+
+                                            FilledIconButton(
+                                                onClick = {
+                                                    menuState.show {
+                                                        LyricsMenu(
+                                                            lyricsProvider = { currentLyrics },
+                                                            songProvider = { currentSong?.song },
+                                                            mediaMetadataProvider = { nnMediaMetadata },
+                                                            onDismiss = menuState::dismiss
+                                                        )
+                                                    }
+                                                },
+                                                shape = RoundedCornerShape(50.dp),
+                                                modifier = Modifier.size(42.dp),
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.more_horiz),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(6.dp))
+
+                                            FilledIconButton(
+                                                onClick = { lyricsSheetState.expandSoft() },
+                                                shape = RoundedCornerShape(50.dp),
+                                                modifier = Modifier.size(42.dp),
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.fullscreen),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Thumbnail(
+                                    sliderPositionProvider = { sliderPosition },
+                                    isPlayerExpanded = state.isExpanded
+                                )
+                            }
+                        }
                     }
 
                     mediaMetadata?.let {
@@ -1141,7 +1206,7 @@ fun BottomSheetPlayer(
             TextBackgroundColor = TextBackgroundColor,
             textButtonColor = textButtonColor,
             iconButtonColor = iconButtonColor,
-            onShowLyrics = { lyricsSheetState.expandSoft() },
+            onShowLyrics = { showLyrics = !showLyrics },
             pureBlack = pureBlack,
         )
 
