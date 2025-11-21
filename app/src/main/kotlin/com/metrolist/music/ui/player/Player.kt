@@ -51,6 +51,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -1114,71 +1115,75 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
                     ) {
-                        AnimatedContent(
-                            targetState = showLyrics,
-                            label = "Lyrics",
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
-                            },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
-                        ) { show ->
-                            if (show) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Lyrics(
-                                        sliderPositionProvider = { sliderPosition },
-                                    )
-                                    mediaMetadata?.let { nnMediaMetadata ->
-                                        Row(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomEnd)
-                                                .padding(bottom = 12.dp)
-                                        ) {
-                                            val menuState = LocalMenuState.current
-                                            val currentSong by playerConnection.currentSong.collectAsState(initial = null)
-                                            val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
-
-                                            FilledIconButton(
-                                                onClick = {
-                                                    menuState.show {
-                                                        LyricsMenu(
-                                                            lyricsProvider = { currentLyrics },
-                                                            songProvider = { currentSong?.song },
-                                                            mediaMetadataProvider = { nnMediaMetadata },
-                                                            onDismiss = menuState::dismiss
-                                                        )
-                                                    }
-                                                },
-                                                shape = RoundedCornerShape(50.dp),
-                                                modifier = Modifier.size(42.dp),
+                        BoxWithConstraints {
+                            AnimatedContent(
+                                targetState = showLyrics,
+                                label = "Lyrics",
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
+                                },
+                                modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
+                            ) { show ->
+                                if (show) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.size(maxWidth, maxHeight)
+                                    ) {
+                                        Lyrics(
+                                            sliderPositionProvider = { sliderPosition },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        mediaMetadata?.let { nnMediaMetadata ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .padding(bottom = 8.dp, end = 8.dp)
                                             ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.more_horiz),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                            }
+                                                val menuState = LocalMenuState.current
+                                                val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+                                                val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
 
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                                IconButton(
+                                                    onClick = {
+                                                        menuState.show {
+                                                            LyricsMenu(
+                                                                lyricsProvider = { currentLyrics },
+                                                                songProvider = { currentSong?.song },
+                                                                mediaMetadataProvider = { nnMediaMetadata },
+                                                                onDismiss = menuState::dismiss
+                                                            )
+                                                        }
+                                                    },
+                                                    modifier = Modifier.size(32.dp),
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.more_horiz),
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
 
-                                            FilledIconButton(
-                                                onClick = { lyricsSheetState.expandSoft() },
-                                                shape = RoundedCornerShape(50.dp),
-                                                modifier = Modifier.size(42.dp),
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.fullscreen),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+
+                                                IconButton(
+                                                    onClick = { lyricsSheetState.expandSoft() },
+                                                    modifier = Modifier.size(32.dp),
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.fullscreen),
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
+                                } else {
+                                    Thumbnail(
+                                        sliderPositionProvider = { sliderPosition },
+                                        isPlayerExpanded = state.isExpanded
+                                    )
                                 }
-                            } else {
-                                Thumbnail(
-                                    sliderPositionProvider = { sliderPosition },
-                                    isPlayerExpanded = state.isExpanded
-                                )
                             }
                         }
                     }
