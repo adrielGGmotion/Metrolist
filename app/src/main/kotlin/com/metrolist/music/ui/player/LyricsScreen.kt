@@ -383,7 +383,10 @@ fun LyricsScreen(
                                     .padding(horizontal = 16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Lyrics(sliderPositionProvider = { sliderPosition })
+                                Lyrics(
+                                    sliderPositionProvider = { sliderPosition },
+                                    isSeekingProvider = { sliderPosition != null }
+                                )
                             }
                         }
                         Column(
@@ -556,7 +559,10 @@ fun LyricsScreen(
                             .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.TopCenter
                     ) {
-                        Lyrics(sliderPositionProvider = { sliderPosition })
+                        Lyrics(
+                            sliderPositionProvider = { sliderPosition },
+                            isSeekingProvider = { sliderPosition != null }
+                        )
                     }
                     Column(
                         modifier = Modifier

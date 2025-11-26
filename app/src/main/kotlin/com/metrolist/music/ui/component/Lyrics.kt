@@ -168,6 +168,7 @@ import kotlin.time.Duration.Companion.seconds
 @Composable
 fun Lyrics(
     sliderPositionProvider: () -> Long?,
+    isSeekingProvider: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -446,26 +447,10 @@ fun Lyrics(
         }
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                val visibleItemsInfo = lazyListState.layoutInfo.visibleItemsInfo
-                val isCurrentLineVisible = visibleItemsInfo.any { it.index in currentLineIndices }
-                if (isCurrentLineVisible) {
-                    initialScrollDone = false
-                }
-                isAppMinimized = true
-            } else if(event == Lifecycle.Event.ON_START) {
-                isAppMinimized = false
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+    // The LifecycleEventObserver was removed from here as it was causing a bug
+    // on Android 10 devices where the lyrics would disappear after a short period.
+    // The observer was responsible for resetting the scroll state when the app was
+    // minimized, which was a non-essential feature.
 
     // Reset selection mode if lyrics change
     LaunchedEffect(lines) {
@@ -480,9 +465,8 @@ fun Lyrics(
         }
         while (isActive) {
             delay(16)
-            val sliderPosition = sliderPositionProvider()
-            isSeeking = sliderPosition != null
-            currentPosition = sliderPosition ?: playerConnection.player.currentPosition
+            isSeeking = isSeekingProvider()
+            currentPosition = sliderPositionProvider() ?: playerConnection.player.currentPosition
         }
     }
 

@@ -1157,7 +1157,7 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
-                                InlineLyricsView(mediaMetadata = mediaMetadata)
+                                InlineLyricsView(mediaMetadata = mediaMetadata, sliderPosition = sliderPosition)
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = { sliderPosition },
@@ -1203,7 +1203,7 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
-                                InlineLyricsView(mediaMetadata = mediaMetadata)
+                                InlineLyricsView(mediaMetadata = mediaMetadata, sliderPosition = sliderPosition)
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = { sliderPosition },
@@ -1280,7 +1280,7 @@ fun BottomSheetPlayer(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun InlineLyricsView(mediaMetadata: MediaMetadata?) {
+fun InlineLyricsView(mediaMetadata: MediaMetadata?, sliderPosition: Long?) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
     val lyrics = remember(currentLyrics) { currentLyrics?.lyrics?.trim() }
@@ -1331,6 +1331,7 @@ fun InlineLyricsView(mediaMetadata: MediaMetadata?) {
                 val lyricsContent: @Composable () -> Unit = {
                     Lyrics(
                         sliderPositionProvider = { playerConnection.player.currentPosition },
+                        isSeekingProvider = { sliderPosition != null },
                         modifier = Modifier.padding(horizontal = 24.dp)
                     )
                 }
