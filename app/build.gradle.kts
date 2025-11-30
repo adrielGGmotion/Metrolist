@@ -17,12 +17,11 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 128
-        versionName = "12.7.0"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        // LastFM API keys from GitHub Secrets
         buildConfigField("String", "LASTFM_API_KEY", "\"${System.getenv("LASTFM_API_KEY") ?: ""}\"")
         buildConfigField("String", "LASTFM_SECRET", "\"${System.getenv("LASTFM_SECRET") ?: ""}\"")
     }
@@ -81,6 +80,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             isCrunchPngs = false
@@ -220,6 +220,8 @@ dependencies {
     implementation(project(":lrclib"))
     implementation(project(":kizzy"))
     implementation(project(":lastfm"))
+    implementation(project(":betterlyrics"))
+    implementation(project(":applelyrics"))
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.json)
