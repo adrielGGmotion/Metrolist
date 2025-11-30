@@ -42,6 +42,6 @@ class ApiService {
     }
 
     companion object {
-        const val BASE_URL = "https://metrolist-discord-rpc-api.fullerbread2032.workers.dev"
+        const val BASE_URL = "https://metrolist-discord-rpc-api.adrieldsilvas-2.workers.dev/"
     }
 }
