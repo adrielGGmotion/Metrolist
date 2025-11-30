@@ -7,8 +7,103 @@ import kotlinx.coroutines.withContext
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
+    private data class ParseResult(val entries: List<LyricsEntry>, val consumedLines: Int)
+
+    private sealed interface LyricsParserStrategy {
+        fun parse(line: String, nextLine: String?): ParseResult?
+    }
+
     val LINE_REGEX = "((\\[\\d\\d:\\d\\d\\.\\d{2,3}\\] ?)+)(.+)".toRegex()
     val TIME_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\]".toRegex()
+    val APPLE_MUSIC_LINE_REGEX = "\\[(\\d{2}:\\d{2}\\.\\d{2,3})\\] ?(v\\d+|bg):(.*)".toRegex()
+    val APPLE_MUSIC_WORD_REGEX = "<(\\d{2}:\\d{2}\\.\\d{2,3})>(.*?)<(\\d{2}:\\d{2}\\.\\d{2,3})>".toRegex()
+    val APPLE_MUSIC_BG_ONLY_LINE_REGEX = "\\[(bg):(.*)\\]".toRegex()
+
+    private const val LAST_LINE_FALLBACK_DURATION_MS = 5000L
+
+    private val parserStrategies = listOf(
+        AppleMusicLyricsParser,
+        BetterLyricsParser,
+        DefaultLyricsParser
+    )
+
+    private object AppleMusicLyricsParser : LyricsParserStrategy {
+        override fun parse(line: String, nextLine: String?): ParseResult? {
+            val appleMusicMatch = APPLE_MUSIC_LINE_REGEX.matchEntire(line.trim())
+            if (appleMusicMatch != null) {
+                val (timeString, voice, content) = appleMusicMatch.destructured
+                val startTime = parseAppleMusicTimestamp(timeString)
+                val words = parseWords(content)
+                val entry = if (words.isNotEmpty()) {
+                    LyricsEntry(
+                        time = startTime,
+                        text = content.replace(APPLE_MUSIC_WORD_REGEX, "$2"),
+                        words = words,
+                        voice = voice
+                    )
+                } else {
+                    LyricsEntry(
+                        time = startTime,
+                        text = content,
+                        voice = voice
+                    )
+                }
+                return ParseResult(listOf(entry), 1)
+            }
+
+            val bgOnlyMatch = APPLE_MUSIC_BG_ONLY_LINE_REGEX.matchEntire(line.trim())
+            if (bgOnlyMatch != null) {
+                val (voice, content) = bgOnlyMatch.destructured
+                val words = parseWords(content)
+                if (words.isNotEmpty()) {
+                    val startTime = words.first().startTime
+                    val entry = LyricsEntry(
+                        time = startTime,
+                        text = content.replace(APPLE_MUSIC_WORD_REGEX, "$2"),
+                        words = words,
+                        voice = voice
+                    )
+                    return ParseResult(listOf(entry), 1)
+                }
+            }
+
+            return null
+        }
+    }
+
+    private object BetterLyricsParser : LyricsParserStrategy {
+        override fun parse(line: String, nextLine: String?): ParseResult? {
+            val matchResult = LINE_REGEX.matchEntire(line.trim()) ?: return null
+            if (nextLine?.trim()?.startsWith("<") == true) {
+                val text = matchResult.groupValues[3]
+                val words = parseBetterLyricsWords(text, nextLine)
+                if (words.isNotEmpty()) {
+                    val times = matchResult.groupValues[1]
+                    val timeMatchResults = TIME_REGEX.findAll(times)
+                    val entries = timeMatchResults.map { timeMatchResult ->
+                        val time = parseLrcTimestamp(timeMatchResult)
+                        LyricsEntry(time, text, words)
+                    }.toList()
+                    return ParseResult(entries, 2)
+                }
+            }
+            return null
+        }
+    }
+
+    private object DefaultLyricsParser : LyricsParserStrategy {
+        override fun parse(line: String, nextLine: String?): ParseResult? {
+            val matchResult = LINE_REGEX.matchEntire(line.trim()) ?: return null
+            val times = matchResult.groupValues[1]
+            val text = matchResult.groupValues[3]
+            val timeMatchResults = TIME_REGEX.findAll(times)
+            val entries = timeMatchResults.map { timeMatchResult ->
+                val time = parseLrcTimestamp(timeMatchResult)
+                LyricsEntry(time, text)
+            }.toList()
+            return ParseResult(entries, 1)
+        }
+    }
 
     private val KANA_ROMAJI_MAP: Map<String, String> = mapOf(
         // Digraphs (Yōon - combinations like kya, sho)
@@ -266,46 +361,162 @@ object LyricsUtils {
         Tokenizer()
     }
 
-    fun parseLyrics(lyrics: String): List<LyricsEntry> =
-        lyrics
-            .lines()
-            .flatMap { line ->
-                parseLine(line).orEmpty()
-            }.sorted()
-
-    private fun parseLine(line: String): List<LyricsEntry>? {
-        if (line.isEmpty()) {
-            return null
+    private fun parseLrcTimestamp(timeMatchResult: MatchResult): Long {
+        val min = timeMatchResult.groupValues[1].toLong()
+        val sec = timeMatchResult.groupValues[2].toLong()
+        val milString = timeMatchResult.groupValues[3]
+        var mil = milString.toLong()
+        if (milString.length == 2) {
+            mil *= 10
         }
-        val matchResult = LINE_REGEX.matchEntire(line.trim()) ?: return null
-        val times = matchResult.groupValues[1]
-        val text = matchResult.groupValues[3]
-        val timeMatchResults = TIME_REGEX.findAll(times)
-
-        return timeMatchResults
-            .map { timeMatchResult ->
-                val min = timeMatchResult.groupValues[1].toLong()
-                val sec = timeMatchResult.groupValues[2].toLong()
-                val milString = timeMatchResult.groupValues[3]
-                var mil = milString.toLong()
-                if (milString.length == 2) {
-                    mil *= 10
-                }
-                val time = min * DateUtils.MINUTE_IN_MILLIS + sec * DateUtils.SECOND_IN_MILLIS + mil
-                LyricsEntry(time, text)
-            }.toList()
+        return min * DateUtils.MINUTE_IN_MILLIS + sec * DateUtils.SECOND_IN_MILLIS + mil
     }
 
-    fun findCurrentLineIndex(
-        lines: List<LyricsEntry>,
-        position: Long,
-    ): Int {
-        for (index in lines.indices) {
-            if (lines[index].time >= position + 300L) {
-                return index - 1
+    private fun parseBetterLyricsWords(textLine: String, timingLine: String): List<Word> {
+        val fragments = mutableListOf<Syllable>()
+        val content = timingLine.trim().drop(1).dropLast(1) // Remove < and >
+        val wordData = content.split('|')
+
+        for (data in wordData) {
+            val parts = data.split(':')
+            if (parts.size == 3) {
+                val text = parts[0]
+                try {
+                    val startTime = (parts[1].toDouble() * 1000).toLong()
+                    val endTime = (parts[2].toDouble() * 1000).toLong()
+                    fragments.add(Syllable(text, startTime, endTime))
+                } catch (e: NumberFormatException) {
+                    // Ignore malformed timestamps
+                }
             }
         }
-        return lines.lastIndex
+
+        if (fragments.isEmpty()) return emptyList()
+
+        val words = mutableListOf<Word>()
+        val plainWords = textLine.split(" ").filter { it.isNotEmpty() }
+        var fragmentIndex = 0
+
+        for (plainWord in plainWords) {
+            val currentSyllables = mutableListOf<Syllable>()
+            var reconstructedWord = ""
+            while (reconstructedWord.length < plainWord.length && fragmentIndex < fragments.size) {
+                val fragment = fragments[fragmentIndex]
+                currentSyllables.add(fragment)
+                reconstructedWord += fragment.text
+                fragmentIndex++
+            }
+
+            if (currentSyllables.isNotEmpty()) {
+                val wordStartTime = currentSyllables.first().startTime
+                val wordEndTime = currentSyllables.last().endTime
+                words.add(Word(plainWord, wordStartTime, wordEndTime, currentSyllables.toList()))
+            }
+        }
+        return words
+    }
+
+    fun parseLyrics(lyrics: String): List<LyricsEntry> {
+        val entries = mutableListOf<LyricsEntry>()
+        val lines = lyrics.lines()
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
+            if (line.isBlank()) {
+                i++
+                continue
+            }
+
+            var parsed = false
+            for (strategy in parserStrategies) {
+                val result = strategy.parse(line, lines.getOrNull(i + 1))
+                if (result != null) {
+                    entries.addAll(result.entries)
+                    i += result.consumedLines
+                    parsed = true
+                    break
+                }
+            }
+
+            if (!parsed) {
+                i++
+            }
+        }
+        return entries.sorted()
+    }
+
+    private fun parseWords(content: String): List<Word> {
+        val fragments = APPLE_MUSIC_WORD_REGEX.findAll(content).toList()
+        if (fragments.isEmpty()) return emptyList()
+
+        val words = mutableListOf<Word>()
+        var currentSyllables = mutableListOf<Syllable>()
+        var currentWordText = ""
+        var currentWordStartTime = -1L
+
+        fragments.forEachIndexed { index, fragment ->
+            val (startTimeString, text, endTimeString) = fragment.destructured
+            val startTime = parseAppleMusicTimestamp(startTimeString)
+            val endTime = parseAppleMusicTimestamp(endTimeString)
+
+            if (currentWordStartTime == -1L) {
+                currentWordStartTime = startTime
+            }
+            currentWordText += text
+            currentSyllables.add(Syllable(text, startTime, endTime))
+
+            val isLastFragment = index == fragments.size - 1
+            val nextCharIsSpace =
+                fragment.range.last + 1 < content.length && content[fragment.range.last + 1].isWhitespace()
+
+            if (nextCharIsSpace || isLastFragment) {
+                words.add(
+                    Word(
+                        currentWordText,
+                        currentWordStartTime,
+                        endTime,
+                        currentSyllables.toList()
+                    )
+                )
+                currentWordText = ""
+                currentSyllables = mutableListOf()
+                currentWordStartTime = -1L
+            }
+        }
+
+        return words
+    }
+
+    private fun parseAppleMusicTimestamp(timestamp: String): Long {
+        val parts = timestamp.split(":", ".")
+        val minutes = parts[0].toLong()
+        val seconds = parts[1].toLong()
+        var millis = parts[2].toLong()
+        if (parts[2].length == 2) {
+            millis *= 10
+        }
+        return minutes * 60 * 1000 + seconds * 1000 + millis
+    }
+
+    fun findCurrentLineIndices(
+        lines: List<LyricsEntry>,
+        position: Long,
+    ): List<Int> {
+        if (lines.isEmpty()) return emptyList()
+
+        val activeIndices = lines.indices.filter { index ->
+            val line = lines[index]
+            val endTime = line.words?.lastOrNull()?.endTime
+                ?: (if (index + 1 < lines.size) lines[index + 1].time else line.time + LAST_LINE_FALLBACK_DURATION_MS)
+
+            position >= line.time && position < endTime
+        }
+
+        if (activeIndices.isNotEmpty()) {
+            return activeIndices
+        }
+
+        return emptyList()
     }
 
     // TODO: Will be useful if we let the user pick the language, useless for now
