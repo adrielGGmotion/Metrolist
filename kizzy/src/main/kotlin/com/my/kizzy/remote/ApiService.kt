@@ -36,7 +36,7 @@ class ApiService {
 
     suspend fun getImage(url: String) = runCatching {
          client.get {
-             url("$BASE_URL/image")
+             url(BASE_URL)
              parameter("url", url)
          }
     }
