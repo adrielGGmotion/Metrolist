@@ -287,6 +287,17 @@ fun Lyrics(
             !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
         }
 
+    val currentPosition by remember(isSynced, sliderPositionProvider) {
+        derivedStateOf {
+            if (isSynced) {
+                val sliderPosition = sliderPositionProvider()
+                sliderPosition ?: playerConnection.player.currentPosition
+            } else {
+                0L
+            }
+        }
+    }
+
     val textColor = when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.secondary
         else ->
@@ -307,7 +318,6 @@ fun Lyrics(
     var isSeeking by remember {
         mutableStateOf(false)
     }
-    var currentPosition by remember { mutableLongStateOf(0L) }
 
     var initialScrollDone by rememberSaveable {
         mutableStateOf(false)
@@ -365,9 +375,7 @@ fun Lyrics(
         }
     }
 
-    currentLineIndices = remember(currentPosition) {
-        findCurrentLineIndices(lines, currentPosition)
-    }
+    currentLineIndices = findCurrentLineIndices(lines, currentPosition)
 
     LaunchedEffect(currentLineIndices) {
         lines.getOrNull(currentLineIndices.firstOrNull() ?: -1)?.let {
@@ -404,18 +412,15 @@ fun Lyrics(
         selectedIndices.clear()
     }
 
-    LaunchedEffect(lyrics) {
+    LaunchedEffect(lyrics, sliderPositionProvider) {
         if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
-            currentLineIndices = emptyList()
             return@LaunchedEffect
         }
-        while (isActive) {
-            delay(16)
-            val sliderPosition = sliderPositionProvider()
-            isSeeking = sliderPosition != null
-            currentPosition = sliderPosition ?: playerConnection.player.currentPosition
-        }
+
+        val sliderPosition = sliderPositionProvider()
+        isSeeking = sliderPosition != null
     }
+
 
     LaunchedEffect(isSeeking, lastPreviewTime) {
         if (isSeeking) {

@@ -254,7 +254,7 @@ fun BottomSheetPlayer(
                     val request = ImageRequest.Builder(context)
                         .data(currentMetadata.thumbnailUrl)
                         .size(100, 100)
-                        .allowHardware(false)
+                        .allowHardware(true)
                         .memoryCacheKey("gradient_${currentMetadata.id}")
                         .build()
 
@@ -474,7 +474,7 @@ fun BottomSheetPlayer(
                                         model = ImageRequest.Builder(context)
                                             .data(thumbnailUrl)
                                             .size(100, 100)
-                                            .allowHardware(false)
+                                            .allowHardware(true)
                                             .build(),
                                         contentDescription = null,
                                         contentScale = ContentScale.Crop,
@@ -979,6 +979,7 @@ fun BottomSheetPlayer(
                         modifier = Modifier
                             .height(64.dp)
                             .weight(playPauseWeight)
+                            .graphicsLayer()
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

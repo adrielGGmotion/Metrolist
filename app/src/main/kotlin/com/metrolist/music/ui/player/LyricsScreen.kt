@@ -176,7 +176,7 @@ fun LyricsScreen(
                 val request = ImageRequest.Builder(context)
                     .data(mediaMetadata.thumbnailUrl)
                     .size(100, 100)
-                    .allowHardware(false)
+                    .allowHardware(true)
                     .memoryCacheKey("gradient_${mediaMetadata.id}")
                     .build()
                 val result = runCatching { context.imageLoader.execute(request).image }.getOrNull()
