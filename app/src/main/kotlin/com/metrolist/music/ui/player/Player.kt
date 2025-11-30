@@ -140,7 +140,9 @@ import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.Lyrics
 import com.metrolist.music.ui.component.PlayerSliderTrack
 import com.metrolist.music.ui.component.ResizableIconButton
+import com.metrolist.innertube.YouTube
 import com.metrolist.music.ui.component.rememberBottomSheetState
+import com.metrolist.music.ui.menu.AddToPlaylistDialog
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.lyrics.LyricsEntry
@@ -542,6 +544,8 @@ fun BottomSheetPlayer(
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
+            val coroutineScope = rememberCoroutineScope()
+            val database = LocalDatabase.current
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
                 animationSpec = tween(durationMillis = 90, easing = LinearEasing),
@@ -799,6 +803,65 @@ fun BottomSheetPlayer(
                         iconButtonColor = iconButtonColor,
                     )
                 }
+            }
+
+            var showChoosePlaylistDialog by rememberSaveable {
+                mutableStateOf(false)
+            }
+
+            AddToPlaylistDialog(
+                isVisible = showChoosePlaylistDialog,
+                onGetSong = { playlist ->
+                    database.transaction {
+                        insert(mediaMetadata)
+                    }
+                    coroutineScope.launch(Dispatchers.IO) {
+                        playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
+                    }
+                    listOf(mediaMetadata.id)
+                },
+                onDismiss = {
+                    showChoosePlaylistDialog = false
+                }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PlayerHorizontalPadding),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val context = LocalContext.current
+                val playerConnection = LocalPlayerConnection.current ?: return@Row
+                ActionCard(
+                    iconRes = R.drawable.radio,
+                    label = stringResource(R.string.start_radio),
+                    onClick = {
+                        Toast.makeText(context, context.getString(R.string.starting_radio), Toast.LENGTH_SHORT).show()
+                        playerConnection.startRadioSeamlessly()
+                    },
+                    tint = TextBackgroundColor
+                )
+                ActionCard(
+                    iconRes = R.drawable.playlist_add,
+                    label = stringResource(R.string.add_to_playlist),
+                    onClick = { showChoosePlaylistDialog = true },
+                    tint = TextBackgroundColor
+                )
+                ActionCard(
+                    iconRes = R.drawable.link,
+                    label = stringResource(R.string.copy_link),
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Song Link", "https://music.youtube.com/watch?v=${mediaMetadata.id}")
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                    },
+                    tint = TextBackgroundColor
+                )
             }
 
             Spacer(Modifier.height(12.dp))
@@ -1364,6 +1427,37 @@ private fun Modifier.bouncy(interactionSource: InteractionSource) = composed {
     graphicsLayer {
         scaleX = scale
         scaleY = scale
+    }
+}
+
+@Composable
+private fun ActionCard(
+    iconRes: Int,
+    label: String,
+    onClick: () -> Unit,
+    tint: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = label,
+            modifier = Modifier.size(24.dp),
+            tint = tint
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = tint
+        )
     }
 }
 

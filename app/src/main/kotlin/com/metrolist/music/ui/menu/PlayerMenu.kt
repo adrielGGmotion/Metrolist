@@ -103,26 +103,6 @@ fun PlayerMenu(
             mediaMetadata.artists.filter { it.id != null }
         }
 
-    var showChoosePlaylistDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    AddToPlaylistDialog(
-        isVisible = showChoosePlaylistDialog,
-        onGetSong = { playlist ->
-            database.transaction {
-                insert(mediaMetadata)
-            }
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
-            }
-            listOf(mediaMetadata.id)
-        },
-        onDismiss = {
-            showChoosePlaylistDialog = false
-        }
-    )
-
     var showSelectArtistDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -273,38 +253,6 @@ fun PlayerMenu(
                 )
             }
         }
-        item {
-            Material3MenuGroup(
-                items = listOf(
-                    Material3MenuItem(
-                        icon = { Icon(painter = painterResource(R.drawable.radio), contentDescription = null) },
-                        title = { Text(stringResource(R.string.start_radio)) },
-                        onClick = {
-                            Toast.makeText(context, context.getString(R.string.starting_radio), Toast.LENGTH_SHORT).show()
-                            playerConnection.startRadioSeamlessly()
-                            onDismiss()
-                        }
-                    ),
-                    Material3MenuItem(
-                        icon = { Icon(painter = painterResource(R.drawable.playlist_add), contentDescription = null) },
-                        title = { Text(stringResource(R.string.add_to_playlist)) },
-                        onClick = { showChoosePlaylistDialog = true }
-                    ),
-                    Material3MenuItem(
-                        icon = { Icon(painter = painterResource(R.drawable.link), contentDescription = null) },
-                        title = { Text(stringResource(R.string.copy_link)) },
-                        onClick = {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("Song Link", "https://music.youtube.com/watch?v=${mediaMetadata.id}")
-                            clipboard.setPrimaryClip(clip)
-                            android.widget.Toast.makeText(context, R.string.link_copied, android.widget.Toast.LENGTH_SHORT).show()
-                            onDismiss()
-                        }
-                    )
-                )
-            )
-        }
-
         val navigationItems = mutableListOf<Material3MenuItem>()
         if (artists.isNotEmpty()) {
             navigationItems.add(Material3MenuItem(
