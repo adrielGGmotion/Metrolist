@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -27,13 +28,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.ui.component.IconButton
-import com.metrolist.music.ui.component.PreferenceEntry
+import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.menu.AddToPlaylistDialogOnline
 import com.metrolist.music.ui.menu.LoadingScreen
 import com.metrolist.music.ui.utils.backToMain
@@ -102,6 +105,7 @@ fun BackupAndRestore(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
     ) {
         Spacer(
             Modifier.windowInsetsPadding(
@@ -111,38 +115,43 @@ fun BackupAndRestore(
             )
         )
 
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.action_backup)) },
-            icon = { Icon(painterResource(R.drawable.backup), null) },
-            onClick = {
-                val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-                backupLauncher.launch(
-                    "${context.getString(R.string.app_name)}_${
-                        LocalDateTime.now().format(formatter)
-                    }.backup"
+        Material3SettingsGroup(
+            title = stringResource(R.string.backup_restore),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.backup),
+                    title = { Text(stringResource(R.string.action_backup)) },
+                    onClick = {
+                        val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+                        backupLauncher.launch(
+                            "${context.getString(R.string.app_name)}_${
+                                LocalDateTime.now().format(formatter)
+                            }.backup"
+                        )
+                    }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.restore),
+                    title = { Text(stringResource(R.string.action_restore)) },
+                    onClick = {
+                        restoreLauncher.launch(arrayOf("application/octet-stream"))
+                    }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.playlist_add),
+                    title = {Text(stringResource(R.string.import_online))},
+                    onClick = {
+                        importM3uLauncherOnline.launch(arrayOf("audio/*"))
+                    }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.playlist_add),
+                    title = { Text(stringResource(R.string.import_csv)) },
+                    onClick = {
+                        importPlaylistFromCsv.launch(arrayOf("text/csv"))
+                    }
                 )
-            },
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.action_restore)) },
-            icon = { Icon(painterResource(R.drawable.restore), null) },
-            onClick = {
-                restoreLauncher.launch(arrayOf("application/octet-stream"))
-            },
-        )
-        PreferenceEntry(
-            title = {Text(stringResource(R.string.import_online))},
-            icon = { Icon(painterResource(R.drawable.playlist_add), null) },
-            onClick = {
-                importM3uLauncherOnline.launch(arrayOf("audio/*"))
-            }
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.import_csv)) },
-            icon = { Icon(painterResource(R.drawable.playlist_add), null) },
-            onClick = {
-                importPlaylistFromCsv.launch(arrayOf("text/csv"))
-            }
+            )
         )
     }
 

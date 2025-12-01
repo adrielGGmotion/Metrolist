@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -14,7 +15,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -41,11 +41,10 @@ import com.metrolist.music.constants.MaxImageCacheSizeKey
 import com.metrolist.music.constants.MaxSongCacheSizeKey
 import com.metrolist.music.extensions.tryOrNull
 import com.metrolist.music.ui.component.ActionPromptDialog
-import com.metrolist.music.ui.component.DefaultDialog
+import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
-import com.metrolist.music.ui.component.ListPreference
-import com.metrolist.music.ui.component.PreferenceEntry
-import com.metrolist.music.ui.component.PreferenceGroupTitle
+import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.ui.utils.formatFileSize
 import com.metrolist.music.utils.rememberPreference
@@ -58,7 +57,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun StorageSettings(
     navController: NavController,
-    scrollBehavior: TopAppBarScrollBehavior,
+    scrollBehavior: TopAppBarScrollBehavior
 ) {
     val context = LocalContext.current
     val imageDiskCache = context.imageLoader.diskCache ?: return
@@ -77,6 +76,48 @@ fun StorageSettings(
     var clearCacheDialog by remember { mutableStateOf(false) }
     var clearDownloads by remember { mutableStateOf(false) }
     var clearImageCacheDialog by remember { mutableStateOf(false) }
+
+    var showMaxSongCacheDialog by remember { mutableStateOf(false) }
+    var showMaxImageCacheDialog by remember { mutableStateOf(false) }
+
+    if (showMaxSongCacheDialog) {
+        EnumDialog(
+            onDismiss = { showMaxSongCacheDialog = false },
+            onSelect = {
+                onMaxSongCacheSizeChange(it)
+                showMaxSongCacheDialog = false
+            },
+            title = stringResource(R.string.max_cache_size),
+            current = maxSongCacheSize,
+            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192, -1),
+            valueText = {
+                when (it) {
+                    0 -> stringResource(R.string.disable)
+                    -1 -> stringResource(R.string.unlimited)
+                    else -> formatFileSize(it * 1024 * 1024L)
+                }
+            }
+        )
+    }
+
+    if (showMaxImageCacheDialog) {
+        EnumDialog(
+            onDismiss = { showMaxImageCacheDialog = false },
+            onSelect = {
+                onMaxImageCacheSizeChange(it)
+                showMaxImageCacheDialog = false
+            },
+            title = stringResource(R.string.max_cache_size),
+            current = maxImageCacheSize,
+            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
+            valueText = {
+                when (it) {
+                    0 -> stringResource(R.string.disable)
+                    else -> formatFileSize(it * 1024 * 1024L)
+                }
+            }
+        )
+    }
 
     var imageCacheSize by remember {
         mutableStateOf(imageDiskCache.size)
@@ -138,7 +179,8 @@ fun StorageSettings(
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
     ) {
         Spacer(
             Modifier.windowInsetsPadding(
@@ -148,20 +190,16 @@ fun StorageSettings(
             )
         )
 
-        PreferenceGroupTitle(
+        Material3SettingsGroup(
             title = stringResource(R.string.downloaded_songs),
-        )
-
-        Text(
-            text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_all_downloads)) },
-            onClick = {clearDownloads = true
-            },
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.offline),
+                    title = { Text(stringResource(R.string.clear_all_downloads)) },
+                    description = { Text(stringResource(R.string.size_used, formatFileSize(downloadCacheSize))) },
+                    onClick = {clearDownloads = true }
+                )
+            )
         )
 
         if (clearDownloads) {
@@ -183,64 +221,60 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
             title = stringResource(R.string.song_cache),
-        )
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.cached),
+                    title = { Text(stringResource(R.string.max_cache_size)) },
+                    description = {
+                        Column {
+                            if (maxSongCacheSize != 0) {
+                                if (maxSongCacheSize == -1) {
+                                    Text(
+                                        text = stringResource(R.string.size_used, formatFileSize(playerCacheSize)),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(vertical = 6.dp),
+                                    )
+                                } else {
+                                    LinearProgressIndicator(
+                                        progress = { playerCacheProgress },
+                                        modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 6.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        strokeCap = StrokeCap.Round
+                                    )
 
-        if (maxSongCacheSize != 0) {
-            if (maxSongCacheSize == -1) {
-                Text(
-                    text = stringResource(R.string.size_used, formatFileSize(playerCacheSize)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                    Text(
+                                        text =
+                                        stringResource(
+                                            R.string.size_used,
+                                            "${formatFileSize(playerCacheSize)} / ${
+                                                formatFileSize(
+                                                    maxSongCacheSize * 1024 * 1024L,
+                                                )
+                                            }",
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(vertical = 6.dp),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    onClick = { showMaxSongCacheDialog = true }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.clear_all),
+                    title = { Text(stringResource(R.string.clear_song_cache)) },
+                    onClick = { clearCacheDialog = true },
                 )
-            } else {
-                // Use M3 LinearProgressIndicator with theme colors
-                LinearProgressIndicator(
-                    progress = { playerCacheProgress },
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
-                    strokeCap = StrokeCap.Round // M3 default style
-                )
-
-                Text(
-                    text =
-                    stringResource(
-                        R.string.size_used,
-                        "${formatFileSize(playerCacheSize)} / ${
-                            formatFileSize(
-                                maxSongCacheSize * 1024 * 1024L,
-                            )
-                        }",
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            }
-        }
-
-        ListPreference(
-            title = { Text(stringResource(R.string.max_cache_size)) },
-            selectedValue = maxSongCacheSize,
-            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192, -1),
-            valueText = {
-                when (it) {
-                    0 -> stringResource(R.string.disable)
-                    -1 -> stringResource(R.string.unlimited)
-                    else -> formatFileSize(it * 1024 * 1024L)
-                }
-            },
-            onValueSelected = onMaxSongCacheSizeChange,
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_song_cache)) },
-            onClick = { clearCacheDialog = true
-            },
+            )
         )
 
         if (clearCacheDialog) {
@@ -262,50 +296,47 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
             title = stringResource(R.string.image_cache),
-        )
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.insert_photo),
+                    title = { Text(stringResource(R.string.max_cache_size)) },
+                    description = {
+                        Column {
+                            if (maxImageCacheSize > 0) {
+                                LinearProgressIndicator(
+                                    progress = { imageCacheProgress },
+                                    modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    strokeCap = StrokeCap.Round
+                                )
 
-        if (maxImageCacheSize > 0) {
-            // Use M3 LinearProgressIndicator with theme colors
-            LinearProgressIndicator(
-                progress = { imageCacheProgress },
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
-                strokeCap = StrokeCap.Round // M3 default style
-            )
-
-            Text(
-                text = stringResource(
-                    R.string.size_used,
-                    "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
+                                Text(
+                                    text = stringResource(
+                                        R.string.size_used,
+                                        "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 6.dp),
+                                )
+                            }
+                        }
+                    },
+                    onClick = { showMaxImageCacheDialog = true }
                 ),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.clear_all),
+                    title = { Text(stringResource(R.string.clear_image_cache)) },
+                    onClick = { clearImageCacheDialog = true },
+                )
             )
-        }
-
-        ListPreference(
-            title = { Text(stringResource(R.string.max_cache_size)) },
-            selectedValue = maxImageCacheSize,
-            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
-            valueText = {
-                when (it) {
-                    0 -> stringResource(R.string.disable)
-                    else -> formatFileSize(it * 1024 * 1024L)
-                }
-            },
-            onValueSelected = onMaxImageCacheSizeChange,
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_image_cache)) },
-            onClick = { clearImageCacheDialog = true
-            },
         )
 
         if (clearImageCacheDialog) {
