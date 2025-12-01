@@ -329,7 +329,7 @@ fun NavGraphBuilder.navigationBuilder(
         DiscordLoginScreen(navController)
     }
     composable("settings/updater") {
-        UpdaterScreen(navController, scrollBehavior)
+        UpdaterSettings(navController, scrollBehavior)
     }
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)

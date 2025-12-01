@@ -37,7 +37,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun Material3SettingsGroup(
     title: String? = null,
-    items: List<Material3SettingsItem>
+    items: List<Material3SettingsItem>,
+    isRows: Boolean = false
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -53,29 +54,61 @@ fun Material3SettingsGroup(
         }
 
         // Settings items
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items.forEachIndexed { index, item ->
-                val shape = when {
-                    items.size == 1 -> RoundedCornerShape(24.dp)
-                    index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
-                    index == items.size - 1 -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-                    else -> RoundedCornerShape(6.dp)
+        if (isRows) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items.forEach { item ->
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .animateContentSize(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Material3SettingsItemRow(item = item, isRows = true)
+                    }
                 }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items.forEachIndexed { index, item ->
+                    val shape = when {
+                        items.size == 1 -> RoundedCornerShape(24.dp)
+                        index == 0 -> RoundedCornerShape(
+                            topStart = 24.dp,
+                            topEnd = 24.dp,
+                            bottomStart = 6.dp,
+                            bottomEnd = 6.dp
+                        )
+                        index == items.size - 1 -> RoundedCornerShape(
+                            topStart = 6.dp,
+                            topEnd = 6.dp,
+                            bottomStart = 24.dp,
+                            bottomEnd = 24.dp
+                        )
+                        else -> RoundedCornerShape(6.dp)
+                    }
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(),
-                    shape = shape,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Material3SettingsItemRow(item = item)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateContentSize(),
+                        shape = shape,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Material3SettingsItemRow(item = item)
+                    }
                 }
             }
         }
@@ -87,39 +120,76 @@ fun Material3SettingsGroup(
  */
 @Composable
 private fun Material3SettingsItemRow(
-    item: Material3SettingsItem
+    item: Material3SettingsItem,
+    isRows: Boolean = false
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                enabled = item.onClick != null,
-                onClick = { item.onClick?.invoke() }
-            )
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Icon with background
-        item.icon?.let { icon ->
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(
-                            alpha = if (item.isHighlighted) 0.15f else 0.1f
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (item.showBadge) {
-                    BadgedBox(
-                        badge = {
-                            Badge(
-                                containerColor = MaterialTheme.colorScheme.error
+    if (isRows) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    enabled = item.onClick != null,
+                    onClick = { item.onClick?.invoke() }
+                )
+                .padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item.icon?.let { icon ->
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            ProvideTextStyle(MaterialTheme.typography.labelMedium) {
+                item.title()
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    enabled = item.onClick != null,
+                    onClick = { item.onClick?.invoke() }
+                )
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon with background
+            item.icon?.let { icon ->
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(
+                                alpha = if (item.isHighlighted) 0.15f else 0.1f
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (item.showBadge) {
+                        BadgedBox(
+                            badge = {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        ) {
+                            Icon(
+                                painter = icon,
+                                contentDescription = null,
+                                tint = if (item.isHighlighted)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                                modifier = Modifier.size(24.dp)
                             )
                         }
-                    ) {
+                    } else {
                         Icon(
                             painter = icon,
                             contentDescription = null,
@@ -130,48 +200,38 @@ private fun Material3SettingsItemRow(
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                } else {
-                    Icon(
-                        painter = icon,
-                        contentDescription = null,
-                        tint = if (item.isHighlighted)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                        modifier = Modifier.size(24.dp)
-                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+            }
+
+            // Title and description
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                // Title content
+                ProvideTextStyle(MaterialTheme.typography.titleMedium) {
+                    item.title()
+                }
+
+                // Description if provided
+                item.description?.let { desc ->
+                    Spacer(modifier = Modifier.height(2.dp))
+                    ProvideTextStyle(
+                        MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        desc()
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-        }
-
-        // Title and description
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            // Title content
-            ProvideTextStyle(MaterialTheme.typography.titleMedium) {
-                item.title()
+            // Trailing content
+            item.trailingContent?.let { trailing ->
+                Spacer(modifier = Modifier.width(8.dp))
+                trailing()
             }
-
-            // Description if provided
-            item.description?.let { desc ->
-                Spacer(modifier = Modifier.height(2.dp))
-                ProvideTextStyle(
-                    MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    desc()
-                }
-            }
-        }
-
-        // Trailing content
-        item.trailingContent?.let { trailing ->
-            Spacer(modifier = Modifier.width(8.dp))
-            trailing()
         }
     }
 }

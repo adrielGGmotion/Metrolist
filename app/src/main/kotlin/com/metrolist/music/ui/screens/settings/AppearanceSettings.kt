@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -568,7 +569,16 @@ fun AppearanceSettings(
                         trailingContent = {
                             Switch(
                                 checked = enableDynamicIcon,
-                                onCheckedChange = { handleIconChange(it) }
+                                onCheckedChange = { handleIconChange(it) },
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (enableDynamicIcon) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
                             )
                         },
                         onClick = { handleIconChange(!enableDynamicIcon) }
@@ -581,7 +591,16 @@ fun AppearanceSettings(
                         trailingContent = {
                             Switch(
                                 checked = dynamicTheme,
-                                onCheckedChange = onDynamicThemeChange
+                                onCheckedChange = onDynamicThemeChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (dynamicTheme) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
                             )
                         },
                         onClick = { onDynamicThemeChange(!dynamicTheme) }
@@ -611,7 +630,16 @@ fun AppearanceSettings(
                             trailingContent = {
                                 Switch(
                                     checked = pureBlack,
-                                    onCheckedChange = onPureBlackChange
+                                    onCheckedChange = onPureBlackChange,
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (pureBlack) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    }
                                 )
                             },
                             onClick = { onPureBlackChange(!pureBlack) }
@@ -643,7 +671,16 @@ fun AppearanceSettings(
                                 trailingContent = {
                                     Switch(
                                         checked = pureBlackMiniPlayer,
-                                        onCheckedChange = onPureBlackMiniPlayerChange
+                                        onCheckedChange = onPureBlackMiniPlayerChange,
+                                        thumbContent = {
+                                            Icon(
+                                                painter = painterResource(
+                                                    id = if (pureBlackMiniPlayer) R.drawable.check else R.drawable.close
+                                                ),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                            )
+                                        }
                                     )
                                 },
                                 onClick = { onPureBlackMiniPlayerChange(!pureBlackMiniPlayer) }
@@ -657,7 +694,16 @@ fun AppearanceSettings(
                                     trailingContent = {
                                         Switch(
                                             checked = miniPlayerOutline,
-                                            onCheckedChange = onMiniPlayerOutlineChange
+                                            onCheckedChange = onMiniPlayerOutlineChange,
+                                            thumbContent = {
+                                                Icon(
+                                                    painter = painterResource(
+                                                        id = if (miniPlayerOutline) R.drawable.check else R.drawable.close
+                                                    ),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                                )
+                                            }
                                         )
                                     },
                                     onClick = { onMiniPlayerOutlineChange(!miniPlayerOutline) }
@@ -680,7 +726,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = useNewPlayerDesign,
-                            onCheckedChange = onUseNewPlayerDesignChange
+                            onCheckedChange = onUseNewPlayerDesignChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (useNewPlayerDesign) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onUseNewPlayerDesignChange(!useNewPlayerDesign) }
@@ -691,7 +746,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = useNewMiniPlayerDesign,
-                            onCheckedChange = onUseNewMiniPlayerDesignChange
+                            onCheckedChange = onUseNewMiniPlayerDesignChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (useNewMiniPlayerDesign) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onUseNewMiniPlayerDesignChange(!useNewMiniPlayerDesign) }
@@ -717,7 +781,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = hidePlayerThumbnail,
-                            onCheckedChange = onHidePlayerThumbnailChange
+                            onCheckedChange = onHidePlayerThumbnailChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (hidePlayerThumbnail) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onHidePlayerThumbnailChange(!hidePlayerThumbnail) }
@@ -755,7 +828,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = swipeThumbnail,
-                            onCheckedChange = onSwipeThumbnailChange
+                            onCheckedChange = onSwipeThumbnailChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (swipeThumbnail) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onSwipeThumbnailChange(!swipeThumbnail) }
@@ -879,7 +961,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = lyricsClick,
-                            onCheckedChange = onLyricsClickChange
+                            onCheckedChange = onLyricsClickChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsClick) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onLyricsClickChange(!lyricsClick) }
@@ -890,7 +981,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = lyricsScroll,
-                            onCheckedChange = onLyricsScrollChange
+                            onCheckedChange = onLyricsScrollChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsScroll) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onLyricsScrollChange(!lyricsScroll) }
@@ -939,7 +1039,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = swipeToSong,
-                            onCheckedChange = onSwipeToSongChange
+                            onCheckedChange = onSwipeToSongChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (swipeToSong) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onSwipeToSongChange(!swipeToSong) }
@@ -950,7 +1059,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = swipeToRemoveSong,
-                            onCheckedChange = onSwipeToRemoveSongChange
+                            onCheckedChange = onSwipeToRemoveSongChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (swipeToRemoveSong) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onSwipeToRemoveSongChange(!swipeToRemoveSong) }
@@ -961,7 +1079,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = slimNav,
-                            onCheckedChange = onSlimNavChange
+                            onCheckedChange = onSlimNavChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (slimNav) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onSlimNavChange(!slimNav) }
@@ -993,7 +1120,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = showLikedPlaylist,
-                            onCheckedChange = onShowLikedPlaylistChange
+                            onCheckedChange = onShowLikedPlaylistChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showLikedPlaylist) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onShowLikedPlaylistChange(!showLikedPlaylist) }
@@ -1004,7 +1140,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = showDownloadedPlaylist,
-                            onCheckedChange = onShowDownloadedPlaylistChange
+                            onCheckedChange = onShowDownloadedPlaylistChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showDownloadedPlaylist) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onShowDownloadedPlaylistChange(!showDownloadedPlaylist) }
@@ -1015,7 +1160,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = showTopPlaylist,
-                            onCheckedChange = onShowTopPlaylistChange
+                            onCheckedChange = onShowTopPlaylistChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showTopPlaylist) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onShowTopPlaylistChange(!showTopPlaylist) }
@@ -1026,7 +1180,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = showCachedPlaylist,
-                            onCheckedChange = onShowCachedPlaylistChange
+                            onCheckedChange = onShowCachedPlaylistChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showCachedPlaylist) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onShowCachedPlaylistChange(!showCachedPlaylist) }
@@ -1037,7 +1200,16 @@ fun AppearanceSettings(
                     trailingContent = {
                         Switch(
                             checked = showUploadedPlaylist,
-                            onCheckedChange = onShowUploadedPlaylistChange
+                            onCheckedChange = onShowUploadedPlaylistChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showUploadedPlaylist) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onShowUploadedPlaylistChange(!showUploadedPlaylist) }

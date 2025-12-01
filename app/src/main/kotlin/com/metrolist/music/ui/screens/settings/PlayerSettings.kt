@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -203,7 +204,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = skipSilence,
-                            onCheckedChange = onSkipSilenceChange
+                            onCheckedChange = onSkipSilenceChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (skipSilence) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onSkipSilenceChange(!skipSilence) }
@@ -214,7 +224,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = audioNormalization,
-                            onCheckedChange = onAudioNormalizationChange
+                            onCheckedChange = onAudioNormalizationChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (audioNormalization) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onAudioNormalizationChange(!audioNormalization) }
@@ -226,7 +245,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = audioOffload,
-                            onCheckedChange = onAudioOffloadChange
+                            onCheckedChange = onAudioOffloadChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (audioOffload) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onAudioOffloadChange(!audioOffload) }
@@ -238,7 +266,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = seekExtraSeconds,
-                            onCheckedChange = onSeekExtraSeconds
+                            onCheckedChange = onSeekExtraSeconds,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (seekExtraSeconds) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onSeekExtraSeconds(!seekExtraSeconds) }
@@ -258,7 +295,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = persistentQueue,
-                            onCheckedChange = onPersistentQueueChange
+                            onCheckedChange = onPersistentQueueChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (persistentQueue) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onPersistentQueueChange(!persistentQueue) }
@@ -270,7 +316,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = autoLoadMore,
-                            onCheckedChange = onAutoLoadMoreChange
+                            onCheckedChange = onAutoLoadMoreChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (autoLoadMore) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onAutoLoadMoreChange(!autoLoadMore) }
@@ -282,7 +337,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = disableLoadMoreWhenRepeatAll,
-                            onCheckedChange = onDisableLoadMoreWhenRepeatAllChange
+                            onCheckedChange = onDisableLoadMoreWhenRepeatAllChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (disableLoadMoreWhenRepeatAll) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onDisableLoadMoreWhenRepeatAllChange(!disableLoadMoreWhenRepeatAll) }
@@ -294,7 +358,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = autoDownloadOnLike,
-                            onCheckedChange = onAutoDownloadOnLikeChange
+                            onCheckedChange = onAutoDownloadOnLikeChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (autoDownloadOnLike) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onAutoDownloadOnLikeChange(!autoDownloadOnLike) }
@@ -306,7 +379,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = similarContentEnabled,
-                            onCheckedChange = similarContentEnabledChange
+                            onCheckedChange = similarContentEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (similarContentEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { similarContentEnabledChange(!similarContentEnabled) }
@@ -318,7 +400,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = autoSkipNextOnError,
-                            onCheckedChange = onAutoSkipNextOnErrorChange
+                            onCheckedChange = onAutoSkipNextOnErrorChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (autoSkipNextOnError) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onAutoSkipNextOnErrorChange(!autoSkipNextOnError) }
@@ -337,7 +428,16 @@ fun PlayerSettings(
                     trailingContent = {
                         Switch(
                             checked = stopMusicOnTaskClear,
-                            onCheckedChange = onStopMusicOnTaskClearChange
+                            onCheckedChange = onStopMusicOnTaskClearChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (stopMusicOnTaskClear) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onStopMusicOnTaskClearChange(!stopMusicOnTaskClear) }
