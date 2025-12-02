@@ -73,6 +73,27 @@ open class KizzyRPC(token: String) {
         if (!isRpcRunning()) {
             discordWebSocket.connect()
         }
+
+        val externalImages = listOfNotNull(largeImage, smallImage).filterIsInstance<RpcImage.ExternalImage>()
+        val resolvedImages = if (externalImages.isNotEmpty()) {
+            kizzyRepository.getImages(externalImages.map { it.image })
+                ?.associate { it.originalUrl to it.id } ?: emptyMap()
+        } else {
+            emptyMap()
+        }
+
+        val largeImageId = when (largeImage) {
+            is RpcImage.DiscordImage -> "mp:${largeImage.image}"
+            is RpcImage.ExternalImage -> resolvedImages[largeImage.image]
+            null -> null
+        }
+
+        val smallImageId = when (smallImage) {
+            is RpcImage.DiscordImage -> "mp:${smallImage.image}"
+            is RpcImage.ExternalImage -> resolvedImages[smallImage.image]
+            null -> null
+        }
+
         val presence = Presence(
             activities = listOf(
                 Activity(
@@ -85,8 +106,8 @@ open class KizzyRPC(token: String) {
                     statusDisplayType = statusDisplayType.value,
                     timestamps = Timestamps(startTime, endTime),
                     assets = Assets(
-                        largeImage = largeImage?.resolveImage(kizzyRepository),
-                        smallImage = smallImage?.resolveImage(kizzyRepository),
+                        largeImage = largeImageId,
+                        smallImage = smallImageId,
                         largeText = largeText,
                         smallText = smallText
                     ),
