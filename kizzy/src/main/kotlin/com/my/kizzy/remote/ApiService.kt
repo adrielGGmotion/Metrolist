@@ -12,6 +12,8 @@
 package com.my.kizzy.remote
 
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
@@ -24,7 +26,7 @@ import kotlinx.serialization.json.Json
  * Modified by Zion Huang
  */
 class ApiService {
-    private val client = HttpClient {
+    private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
@@ -32,6 +34,9 @@ class ApiService {
             })
         }
         install(HttpCache)
+        install(UserAgent) {
+            agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+        }
     }
 
     suspend fun getImages(urls: List<String>) = runCatching {

@@ -23,6 +23,11 @@ class KizzyRepository {
     private val api = ApiService()
 
     suspend fun getImages(urls: List<String>): List<ApiResult>? {
-        return api.getImages(urls).getOrNull()?.toImageAssets()
+        val result = api.getImages(urls)
+        result.onFailure { exception ->
+            println("KizzyRPC Error: Failed to get images. Exception: ${exception.message}")
+            exception.printStackTrace()
+        }
+        return result.getOrNull()?.toImageAssets()
     }
 }
