@@ -40,6 +40,7 @@ class ApiService {
     }
 
     suspend fun getImages(urls: List<String>) = runCatching {
+        println("ApiService Debug: Uploading images with URLs: $urls")
          client.get {
              url("$BASE_URL/image")
              parameters {
