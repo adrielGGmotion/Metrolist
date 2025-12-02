@@ -3,7 +3,6 @@ package com.metrolist.music.ui.component
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,8 +53,7 @@ fun Material3SettingsGroup(
 
         // Settings items
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             items.forEachIndexed { index, item ->
                 val shape = when {
@@ -76,6 +74,9 @@ fun Material3SettingsGroup(
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Material3SettingsItemRow(item = item)
+                }
+                if (index < items.size - 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
