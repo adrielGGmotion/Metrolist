@@ -52,7 +52,6 @@ import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.Material3SettingsGroup
-import com.metrolist.music.ui.component.PreferenceGroupTitle
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.ui.utils.formatFileSize
 import com.metrolist.music.utils.rememberPreference
@@ -197,49 +196,40 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(title = stringResource(R.string.song_cache))
-        if (maxSongCacheSize != 0) {
-            Card(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                onClick = { clearCacheDialog = true }
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    if (maxSongCacheSize == -1) {
-                        Text(
-                            text = stringResource(
-                                R.string.size_used,
-                                formatFileSize(playerCacheSize)
-                            ),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    } else {
-                        LinearProgressIndicator(
-                            progress = { playerCacheProgress },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            strokeCap = StrokeCap.Round
-                        )
-
-                        Text(
-                            text =
-                            stringResource(
-                                R.string.size_used,
-                                "${formatFileSize(playerCacheSize)} / ${
-                                    formatFileSize(
-                                        maxSongCacheSize * 1024 * 1024L,
-                                    )
-                                }",
-                            ),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-        }
         Material3SettingsGroup(
+            title = stringResource(R.string.song_cache),
             items =
-            listOf(
+            listOfNotNull(
+                if (maxSongCacheSize != 0) {
+                    Material3SettingsItem(
+                        title = { Text(stringResource(R.string.storage_used)) },
+                        description = {
+                            Column {
+                                LinearProgressIndicator(
+                                    progress = { playerCacheProgress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    strokeCap = StrokeCap.Round
+                                )
+                                Text(
+                                    text =
+                                    stringResource(
+                                        R.string.size_used,
+                                        "${formatFileSize(playerCacheSize)} / ${
+                                            formatFileSize(
+                                                maxSongCacheSize * 1024 * 1024L,
+                                            )
+                                        }",
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    )
+                } else {
+                    null
+                },
                 Material3SettingsItem(
                     title = { Text(stringResource(R.string.max_cache_size)) },
                     description = {
@@ -315,33 +305,35 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(title = stringResource(R.string.image_cache))
-        if (maxImageCacheSize > 0) {
-            Card(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                onClick = { clearImageCacheDialog = true }
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    LinearProgressIndicator(
-                        progress = { imageCacheProgress },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        strokeCap = StrokeCap.Round
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.size_used,
-                            "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
-                        ),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
         Material3SettingsGroup(
+            title = stringResource(R.string.image_cache),
             items =
-            listOf(
+            listOfNotNull(
+                if (maxImageCacheSize > 0) {
+                    Material3SettingsItem(
+                        title = { Text(stringResource(R.string.storage_used)) },
+                        description = {
+                            Column {
+                                LinearProgressIndicator(
+                                    progress = { imageCacheProgress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    strokeCap = StrokeCap.Round
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.size_used,
+                                        "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    )
+                } else {
+                    null
+                },
                 Material3SettingsItem(
                     title = { Text(stringResource(R.string.max_cache_size)) },
                     description = {
