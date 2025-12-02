@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -19,7 +19,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProgressIndicatorDefaults
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -33,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -50,8 +51,14 @@ import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.ListDialog
-import com.metrolist.music.ui.component.Material3SettingsItem
+import com.metrolist.music.ui.component.ListPreference
 import com.metrolist.music.ui.component.Material3SettingsGroup
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
+import com.metrolist.music.ui.component.Material3SettingsItem
+import com.metrolist.music.ui.component.PreferenceEntry
+import com.metrolist.music.ui.component.PreferenceGroupTitle
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.ui.utils.formatFileSize
 import com.metrolist.music.utils.rememberPreference
@@ -158,21 +165,12 @@ fun StorageSettings(
 
         Material3SettingsGroup(
             title = stringResource(R.string.downloaded_songs),
-            items =
-            listOf(
+            items = listOf(
                 Material3SettingsItem(
-                    title = { Text(stringResource(R.string.clear_all_downloads)) },
-                    description = {
-                        Text(
-                            stringResource(
-                                R.string.size_used,
-                                formatFileSize(downloadCacheSize)
-                            )
-                        )
-                    },
-                    onClick = {
-                        clearDownloads = true
-                    },
+                    icon = painterResource(id = R.drawable.storage),
+                    title = { Text(stringResource(R.string.storage_used)) },
+                    description = { Text(stringResource(R.string.size_used, formatFileSize(downloadCacheSize))) },
+                    onClick = { clearDownloads = true }
                 )
             )
         )
@@ -196,58 +194,37 @@ fun StorageSettings(
             )
         }
 
-        Material3SettingsGroup(
+        StorageUsageItem(
+            icon = R.drawable.storage,
             title = stringResource(R.string.song_cache),
-            items =
-            listOfNotNull(
-                if (maxSongCacheSize != 0) {
-                    Material3SettingsItem(
-                        title = { Text(stringResource(R.string.storage_used)) },
-                        description = {
-                            Column {
-                                LinearProgressIndicator(
-                                    progress = { playerCacheProgress },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    strokeCap = StrokeCap.Round
-                                )
-                                Text(
-                                    text =
-                                    stringResource(
-                                        R.string.size_used,
-                                        "${formatFileSize(playerCacheSize)} / ${
-                                            formatFileSize(
-                                                maxSongCacheSize * 1024 * 1024L,
-                                            )
-                                        }",
-                                    ),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
+            progress = playerCacheProgress,
+            usage = stringResource(
+                R.string.size_used,
+                "${formatFileSize(playerCacheSize)} / ${
+                    formatFileSize(
+                        maxSongCacheSize * 1024 * 1024L,
                     )
-                } else {
-                    null
-                },
+                }",
+            )
+        )
+        Material3SettingsGroup(
+            items = listOf(
                 Material3SettingsItem(
+                    icon = painterResource(id = R.drawable.tune),
                     title = { Text(stringResource(R.string.max_cache_size)) },
-                    description = {
-                        Text(
-                            when (maxSongCacheSize) {
-                                0 -> stringResource(R.string.disable)
-                                -1 -> stringResource(R.string.unlimited)
-                                else -> formatFileSize(maxSongCacheSize * 1024 * 1024L)
-                            }
-                        )
-                    },
-                    onClick = { showSongCacheDialog = true },
+                    description = { Text(
+                        when (maxSongCacheSize) {
+                            0 -> stringResource(R.string.disable)
+                            -1 -> stringResource(R.string.unlimited)
+                            else -> formatFileSize(maxSongCacheSize * 1024 * 1024L)
+                        }
+                    ) },
+                    onClick = { showSongCacheDialog = true }
                 ),
                 Material3SettingsItem(
+                    icon = painterResource(id = R.drawable.delete),
                     title = { Text(stringResource(R.string.clear_song_cache)) },
-                    onClick = {
-                        clearCacheDialog = true
-                    },
+                    onClick = { clearCacheDialog = true }
                 )
             )
         )
@@ -305,52 +282,32 @@ fun StorageSettings(
             )
         }
 
-        Material3SettingsGroup(
+        StorageUsageItem(
+            icon = R.drawable.storage,
             title = stringResource(R.string.image_cache),
-            items =
-            listOfNotNull(
-                if (maxImageCacheSize > 0) {
-                    Material3SettingsItem(
-                        title = { Text(stringResource(R.string.storage_used)) },
-                        description = {
-                            Column {
-                                LinearProgressIndicator(
-                                    progress = { imageCacheProgress },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    strokeCap = StrokeCap.Round
-                                )
-                                Text(
-                                    text = stringResource(
-                                        R.string.size_used,
-                                        "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
-                                    ),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    )
-                } else {
-                    null
-                },
+            progress = imageCacheProgress,
+            usage = stringResource(
+                R.string.size_used,
+                "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
+            )
+        )
+        Material3SettingsGroup(
+            items = listOf(
                 Material3SettingsItem(
+                    icon = painterResource(id = R.drawable.tune),
                     title = { Text(stringResource(R.string.max_cache_size)) },
-                    description = {
-                        Text(
-                            when (maxImageCacheSize) {
-                                0 -> stringResource(R.string.disable)
-                                else -> formatFileSize(maxImageCacheSize * 1024 * 1024L)
-                            }
-                        )
-                    },
-                    onClick = { showImageCacheDialog = true },
+                    description = { Text(
+                        when (maxImageCacheSize) {
+                            0 -> stringResource(R.string.disable)
+                            else -> formatFileSize(maxImageCacheSize * 1024 * 1024L)
+                        }
+                    ) },
+                    onClick = { showImageCacheDialog = true }
                 ),
                 Material3SettingsItem(
+                    icon = painterResource(id = R.drawable.delete),
                     title = { Text(stringResource(R.string.clear_image_cache)) },
-                    onClick = {
-                        clearImageCacheDialog = true
-                    },
+                    onClick = { clearImageCacheDialog = true }
                 )
             )
         )
@@ -420,4 +377,49 @@ fun StorageSettings(
             }
         }
     )
+}
+
+@Composable
+private fun StorageUsageItem(
+    icon: Int,
+    title: String,
+    progress: Float,
+    usage: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = icon),
+                contentDescription = null,
+                modifier = Modifier.padding(end = 16.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                    strokeCap = StrokeCap.Round
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = usage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
