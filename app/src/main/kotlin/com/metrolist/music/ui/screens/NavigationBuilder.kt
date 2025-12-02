@@ -71,7 +71,7 @@ import com.metrolist.music.ui.screens.settings.PrivacySettings
 import com.metrolist.music.ui.screens.settings.RomanizationSettings
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.screens.settings.StorageSettings
-import com.metrolist.music.ui.screens.settings.UpdaterScreen
+import com.metrolist.music.ui.screens.settings.UpdaterSettings
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference

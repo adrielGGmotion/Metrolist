@@ -275,7 +275,6 @@ fun PlayerMenu(
         }
         item {
             Material3MenuGroup(
-                title = stringResource(R.string.song_options),
                 items = listOf(
                     Material3MenuItem(
                         icon = { Icon(painter = painterResource(R.drawable.radio), contentDescription = null) },
@@ -302,8 +301,7 @@ fun PlayerMenu(
                             onDismiss()
                         }
                     )
-                ),
-                isRows = true
+                )
             )
         }
 
