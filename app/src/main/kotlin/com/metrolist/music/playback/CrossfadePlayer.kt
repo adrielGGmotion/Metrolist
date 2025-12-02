@@ -26,6 +26,7 @@ class CrossfadePlayer(
     private val playerB: ExoPlayer = buildExoPlayer()
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
+    private var fadingOutPlayer: ExoPlayer? = null
     private var analyticsListener: AnalyticsListener? = null
 
     private fun swapPlayers() {
@@ -184,24 +185,25 @@ class CrossfadePlayer(
         nextPlayer.playWhenReady = true
         nextPlayer.prepare()
 
-        val fadingOutPlayer = currentPlayer
-        val oldTimeline = fadingOutPlayer.currentTimeline
+        fadingOutPlayer = currentPlayer
+        val fadingPlayer = fadingOutPlayer ?: return
+        val oldTimeline = fadingPlayer.currentTimeline
         val oldWindow = Timeline.Window()
         val oldPeriod = Timeline.Period()
         if (!oldTimeline.isEmpty) {
-            oldTimeline.getWindow(fadingOutPlayer.currentMediaItemIndex, oldWindow)
-            oldTimeline.getPeriod(fadingOutPlayer.currentPeriodIndex, oldPeriod)
+            oldTimeline.getWindow(fadingPlayer.currentMediaItemIndex, oldWindow)
+            oldTimeline.getPeriod(fadingPlayer.currentPeriodIndex, oldPeriod)
         }
         val oldPosition = Player.PositionInfo(
             oldWindow.uid,
-            fadingOutPlayer.currentMediaItemIndex,
-            fadingOutPlayer.currentMediaItem,
+            fadingPlayer.currentMediaItemIndex,
+            fadingPlayer.currentMediaItem,
             oldPeriod.uid,
-            fadingOutPlayer.currentPeriodIndex,
-            fadingOutPlayer.currentPosition,
-            fadingOutPlayer.contentPosition,
-            fadingOutPlayer.currentAdGroupIndex,
-            fadingOutPlayer.currentAdIndexInAdGroup
+            fadingPlayer.currentPeriodIndex,
+            fadingPlayer.currentPosition,
+            fadingPlayer.contentPosition,
+            fadingPlayer.currentAdGroupIndex,
+            fadingPlayer.currentAdIndexInAdGroup
         )
         swapPlayers()
         val newTimeline = currentPlayer.currentTimeline
@@ -240,23 +242,41 @@ class CrossfadePlayer(
                         val fadeInVolume = crossfadeConfig.curve.interpolator.transform(progress)
 
                         currentPlayer.volume = fadeInVolume
-                        fadingOutPlayer.volume = 1f - fadeInVolume
+                        fadingOutPlayer?.volume = 1f - fadeInVolume
 
                         if (progress >= 1f) {
                             break
                         }
                         delay(16)
                     }
-                    fadingOutPlayer.stop()
-                    fadingOutPlayer.volume = 1f
+                    fadingOutPlayer?.stop()
+                    fadingOutPlayer?.volume = 1f
                 }
             } finally {
                 isCrossfading = false
+                fadingOutPlayer = null
                 if (playWhenReady) {
                     startPositionMonitor()
                 }
             }
         }
+    }
+
+    private fun forceStopCrossfade() {
+        if (!isCrossfading) return
+
+        crossfadeJob?.cancel()
+        fadingOutPlayer?.stop()
+        fadingOutPlayer?.volume = 1f
+        currentPlayer.volume = 1f
+
+        isCrossfading = false
+        fadingOutPlayer = null
+
+        if (playWhenReady) {
+            startPositionMonitor()
+        }
+        Timber.d("forceStopCrossfade: Crossfade stopped.")
     }
 
     // --- Player Interface Implementation ---
@@ -265,60 +285,63 @@ class CrossfadePlayer(
     override fun removeListener(listener: Player.Listener) { listeners.remove(listener) }
 
     override fun setMediaItems(mediaItems: List<MediaItem>, startIndex: Int, startPositionMs: Long) {
+        forceStopCrossfade()
         val mutableMediaItems = mediaItems.toMutableList()
         playerA.setMediaItems(mutableMediaItems, startIndex, startPositionMs)
         playerB.setMediaItems(mutableMediaItems, startIndex, startPositionMs)
     }
 
     override fun setMediaItems(mediaItems: List<MediaItem>, resetPosition: Boolean) {
+        forceStopCrossfade()
         val mutableMediaItems = mediaItems.toMutableList()
         playerA.setMediaItems(mutableMediaItems, resetPosition)
         playerB.setMediaItems(mutableMediaItems, resetPosition)
     }
 
     override fun addMediaItems(index: Int, mediaItems: List<MediaItem>) {
+        forceStopCrossfade()
         val mutableMediaItems = mediaItems.toMutableList()
         playerA.addMediaItems(index, mutableMediaItems)
         playerB.addMediaItems(index, mutableMediaItems)
     }
 
     override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
+        forceStopCrossfade()
         playerA.removeMediaItems(fromIndex, toIndex)
         playerB.removeMediaItems(fromIndex, toIndex)
     }
 
     override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) {
+        forceStopCrossfade()
         playerA.moveMediaItems(fromIndex, toIndex, newIndex)
         playerB.moveMediaItems(fromIndex, toIndex, newIndex)
     }
 
     override fun clearMediaItems() {
+        forceStopCrossfade()
         playerA.clearMediaItems()
         playerB.clearMediaItems()
     }
 
     override fun prepare() {
-        if (isCrossfading) return
+        forceStopCrossfade()
         currentPlayer.prepare()
     }
+
     override fun play() {
-        if (isCrossfading) return
+        forceStopCrossfade()
         playWhenReady = true
     }
+
     override fun pause() {
-        if (isCrossfading) {
-            crossfadeJob?.cancel()
-            playerA.pause()
-            playerB.pause()
-        } else {
-            playWhenReady = false
-        }
+        forceStopCrossfade()
+        playWhenReady = false
     }
+
     override fun stop() {
-        if (isCrossfading) return
+        forceStopCrossfade()
         currentPlayer.stop()
         nextPlayer.stop()
-        crossfadeJob?.cancel()
         stopPositionMonitor()
     }
     override fun release() {
@@ -328,8 +351,7 @@ class CrossfadePlayer(
     }
 
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
-        if (isCrossfading) return
-        crossfadeJob?.cancel()
+        forceStopCrossfade()
         currentPlayer.seekTo(mediaItemIndex, positionMs)
         nextPlayer.seekTo(mediaItemIndex, positionMs)
         nextPlayer.stop()
