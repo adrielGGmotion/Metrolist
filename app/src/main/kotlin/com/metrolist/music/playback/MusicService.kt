@@ -69,6 +69,11 @@ import com.metrolist.music.constants.AudioQualityKey
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AutoLoadMoreKey
 import com.metrolist.music.constants.AutoSkipNextOnErrorKey
+import com.metrolist.music.constants.CrossfadeAutomaticOnSilenceKey
+import com.metrolist.music.constants.CrossfadeCurveKey
+import com.metrolist.music.constants.CrossfadeDurationKey
+import com.metrolist.music.constants.CrossfadeEnabledKey
+import com.metrolist.music.constants.CrossfadeTriggerPositionKey
 import com.metrolist.music.constants.DisableLoadMoreWhenRepeatAllKey
 import com.metrolist.music.constants.DiscordTokenKey
 import com.metrolist.music.constants.DiscordUseDetailsKey
@@ -256,7 +261,6 @@ class MusicService :
             addListener(sleepTimer)
             setAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
             setOffloadEnabled(dataStore.get(AudioOffload, false))
-            setCrossfadeConfig(CrossfadeConfig(duration = 5000, isEnabled = true)) // Example config
         }
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -350,6 +354,33 @@ class MusicService :
             .distinctUntilChanged()
             .collectLatest(scope) {
                 player.skipSilenceEnabled = it
+            }
+
+        combine(
+            dataStore.data.map { it[CrossfadeEnabledKey] ?: false },
+            dataStore.data.map { it[CrossfadeTriggerPositionKey] ?: 5 },
+            dataStore.data.map { it[CrossfadeDurationKey] ?: 5 },
+            dataStore.data.map { it[CrossfadeAutomaticOnSilenceKey] ?: false },
+            dataStore.data.map {
+                it[CrossfadeCurveKey]?.let { name ->
+                    try {
+                        enumValueOf<CrossfadeCurve>(name)
+                    } catch (e: IllegalArgumentException) {
+                        CrossfadeCurve.Linear
+                    }
+                } ?: CrossfadeCurve.Linear
+            }
+        ) { enabled, trigger, duration, automatic, curve ->
+            CrossfadeConfig(
+                isEnabled = enabled,
+                triggerPosition = trigger * 1000,
+                fadeDuration = duration * 1000,
+                isAutomatic = automatic,
+                curve = curve
+            )
+        }.distinctUntilChanged()
+            .collectLatest(scope) {
+                player.setCrossfadeConfig(it)
             }
 
         combine(

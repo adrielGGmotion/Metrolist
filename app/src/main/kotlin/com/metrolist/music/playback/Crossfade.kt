@@ -3,11 +3,18 @@ package com.metrolist.music.playback
 import kotlin.math.log10
 
 data class CrossfadeConfig(
-    val duration: Int = 0,
-    val curve: VolumeInterpolator = VolumeInterpolator.Linear,
     val isEnabled: Boolean = false,
+    val triggerPosition: Int = 0,
+    val fadeDuration: Int = 0,
+    val curve: CrossfadeCurve = CrossfadeCurve.Linear,
     val isAutomatic: Boolean = false
 )
+
+enum class CrossfadeCurve(val interpolator: VolumeInterpolator) {
+    Linear(VolumeInterpolator.Linear),
+    Logarithmic(VolumeInterpolator.Logarithmic),
+    Exponential(VolumeInterpolator.Exponential)
+}
 
 fun interface VolumeInterpolator {
     fun transform(progress: Float): Float

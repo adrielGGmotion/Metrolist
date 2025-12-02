@@ -76,6 +76,8 @@ class CrossfadePlayer(
                 crossfadeConfig.isEnabled &&
                 currentPlayer.nextMediaItemIndex != C.INDEX_UNSET
             ) {
+                // Don't propagate the STATE_ENDED event if we're about to crossfade.
+                // The crossfade will handle the media item transition.
                 return
             }
             listeners.forEach { it.onPlaybackStateChanged(playbackState) }
@@ -131,7 +133,7 @@ class CrossfadePlayer(
         val position = currentPlayer.currentPosition
         val remaining = duration - position
 
-        if (remaining < 10000) { // Only trigger if near the end
+        if (remaining < crossfadeConfig.triggerPosition) { // Only trigger if near the end
             startCrossfade(false)
         }
     }
@@ -156,7 +158,7 @@ class CrossfadePlayer(
                     val position = currentPlayer.currentPosition
                     val remaining = duration - position
 
-                    if (remaining <= crossfadeConfig.duration) {
+                    if (remaining <= crossfadeConfig.triggerPosition) {
                         startCrossfade(false)
                         break
                     }
@@ -229,13 +231,13 @@ class CrossfadePlayer(
         crossfadeJob = coroutineScope.launch {
             try {
                 withContext(NonCancellable) {
-                    val duration = crossfadeConfig.duration.toLong()
+                    val duration = crossfadeConfig.fadeDuration.toLong()
                     val startTime = System.currentTimeMillis()
 
                     while (isActive) {
                         val elapsedTime = System.currentTimeMillis() - startTime
                         val progress = (elapsedTime.toFloat() / duration).coerceIn(0f, 1f)
-                        val fadeInVolume = crossfadeConfig.curve.transform(progress)
+                        val fadeInVolume = crossfadeConfig.curve.interpolator.transform(progress)
 
                         currentPlayer.volume = fadeInVolume
                         fadingOutPlayer.volume = 1f - fadeInVolume

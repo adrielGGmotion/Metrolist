@@ -292,6 +292,13 @@
     <string name="stop_music_on_task_clear">Stop music on task clear</string>
     <string name="equalizer">Equalizer</string>
 
+    <string name="crossfade">Crossfade</string>
+    <string name="crossfade_enabled">Enable Crossfade</string>
+    <string name="crossfade_trigger_position">Trigger position</string>
+    <string name="crossfade_duration">Fade duration</string>
+    <string name="crossfade_automatic_on_silence">Automatic on silence</string>
+    <string name="crossfade_curve">Fade curve</string>
+
     <string name="storage">Storage</string>
     <string name="cache">Cache</string>
     <string name="image_cache">Image Cache</string>

@@ -53,9 +53,15 @@ import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.SeekExtraSeconds
+import com.metrolist.music.playback.CrossfadeCurve
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.constants.CrossfadeAutomaticOnSilenceKey
+import com.metrolist.music.constants.CrossfadeCurveKey
+import com.metrolist.music.constants.CrossfadeDurationKey
+import com.metrolist.music.constants.CrossfadeEnabledKey
+import com.metrolist.music.constants.CrossfadeTriggerPositionKey
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.rememberEnumPreference
@@ -124,7 +130,31 @@ fun PlayerSettings(
         defaultValue = 30f
     )
 
+    val (crossfadeEnabled, onCrossfadeEnabledChange) = rememberPreference(
+        CrossfadeEnabledKey,
+        defaultValue = false
+    )
+    val (crossfadeTriggerPosition, onCrossfadeTriggerPositionChange) = rememberPreference(
+        CrossfadeTriggerPositionKey,
+        defaultValue = 5
+    )
+    val (crossfadeDuration, onCrossfadeDurationChange) = rememberPreference(
+        CrossfadeDurationKey,
+        defaultValue = 5
+    )
+    val (crossfadeAutomaticOnSilence, onCrossfadeAutomaticOnSilenceChange) = rememberPreference(
+        CrossfadeAutomaticOnSilenceKey,
+        defaultValue = false
+    )
+    val (crossfadeCurve, onCrossfadeCurveChange) = rememberEnumPreference(
+        CrossfadeCurveKey,
+        defaultValue = CrossfadeCurve.Linear
+    )
+
     var showAudioQualityDialog by remember {
+        mutableStateOf(false)
+    }
+    var showCrossfadeCurveDialog by remember {
         mutableStateOf(false)
     }
 
@@ -145,6 +175,20 @@ fun PlayerSettings(
                     AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
                 }
             }
+        )
+    }
+
+    if (showCrossfadeCurveDialog) {
+        EnumDialog(
+            onDismiss = { showCrossfadeCurveDialog = false },
+            onSelect = {
+                onCrossfadeCurveChange(it)
+                showCrossfadeCurveDialog = false
+            },
+            title = stringResource(R.string.crossfade_curve),
+            current = crossfadeCurve,
+            values = CrossfadeCurve.values().toList(),
+            valueText = { it.name }
         )
     }
 
@@ -242,6 +286,75 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onSeekExtraSeconds(!seekExtraSeconds) }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.crossfade),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.waves),
+                    title = { Text(stringResource(R.string.crossfade_enabled)) },
+                    trailingContent = {
+                        Switch(
+                            checked = crossfadeEnabled,
+                            onCheckedChange = onCrossfadeEnabledChange
+                        )
+                    },
+                    onClick = { onCrossfadeEnabledChange(!crossfadeEnabled) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.history),
+                    title = { Text(stringResource(R.string.crossfade_trigger_position)) },
+                    description = {
+                        Column {
+                            Text("${crossfadeTriggerPosition}s")
+                            Slider(
+                                value = crossfadeTriggerPosition.toFloat(),
+                                onValueChange = { onCrossfadeTriggerPositionChange(it.toInt()) },
+                                valueRange = 1f..12f,
+                                steps = 10,
+                                enabled = crossfadeEnabled
+                            )
+                        }
+                    }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.history),
+                    title = { Text(stringResource(R.string.crossfade_duration)) },
+                    description = {
+                        Column {
+                            Text("${crossfadeDuration}s")
+                            Slider(
+                                value = crossfadeDuration.toFloat(),
+                                onValueChange = { onCrossfadeDurationChange(it.toInt()) },
+                                valueRange = 1f..12f,
+                                steps = 10,
+                                enabled = crossfadeEnabled
+                            )
+                        }
+                    }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.graphic_eq),
+                    title = { Text(stringResource(R.string.crossfade_curve)) },
+                    description = { Text(crossfadeCurve.name) },
+                    onClick = { if (crossfadeEnabled) showCrossfadeCurveDialog = true }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.fast_forward),
+                    title = { Text(stringResource(R.string.crossfade_automatic_on_silence)) },
+                    trailingContent = {
+                        Switch(
+                            checked = crossfadeAutomaticOnSilence,
+                            onCheckedChange = onCrossfadeAutomaticOnSilenceChange,
+                            enabled = crossfadeEnabled
+                        )
+                    },
+                    onClick = { if (crossfadeEnabled) onCrossfadeAutomaticOnSilenceChange(!crossfadeAutomaticOnSilence) }
                 )
             )
         )

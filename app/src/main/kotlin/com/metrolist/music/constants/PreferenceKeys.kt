@@ -48,6 +48,12 @@ val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
+val CrossfadeEnabledKey = booleanPreferencesKey("crossfade_enabled")
+val CrossfadeTriggerPositionKey = intPreferencesKey("crossfade_trigger_position")
+val CrossfadeDurationKey = intPreferencesKey("crossfade_duration")
+val CrossfadeAutomaticOnSilenceKey = booleanPreferencesKey("crossfade_automatic_on_silence")
+val CrossfadeCurveKey = stringPreferencesKey("crossfade_curve")
+
 enum class AudioQuality {
     AUTO,
     HIGH,
