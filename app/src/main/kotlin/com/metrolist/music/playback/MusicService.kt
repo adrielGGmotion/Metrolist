@@ -225,12 +225,14 @@ class MusicService :
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
     private var discordRpc: DiscordRPC? = null
-    private var lastPlaybackSpeed = 1.0f
-    private var discordUpdateJob: kotlinx.coroutines.Job? = null
+    private var discordUpdateJob: Job? = null
 
     private var scrobbleManager: ScrobbleManager? = null
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
+
+    val isPlaying = MutableStateFlow(false)
+    val playbackParameters = MutableStateFlow(PlaybackParameters(1f))
 
     private var consecutivePlaybackErr = 0
 
@@ -328,13 +330,8 @@ class MusicService :
             }
         }
 
-        currentSong.debounce(1000).collect(scope) { song ->
+        currentSong.debounce(1000).collect(scope) {
             updateNotification()
-            if (song != null && player.playWhenReady && player.playbackState == Player.STATE_READY) {
-                discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
-            } else {
-                discordRpc?.closeRPC()
-            }
         }
 
         combine(
@@ -376,39 +373,48 @@ class MusicService :
 
         dataStore.data
             .map { it[DiscordTokenKey] to (it[EnableDiscordRPCKey] ?: true) }
-            .debounce(300)
             .distinctUntilChanged()
-            .collect(scope) { (key, enabled) ->
-                if (discordRpc?.isRpcRunning() == true) {
-                    discordRpc?.closeRPC()
-                }
+            .collectLatest(scope) { (key, enabled) ->
+                discordRpc?.closeRPC()
                 discordRpc = null
+                discordUpdateJob?.cancel()
+
                 if (key != null && enabled) {
                     discordRpc = DiscordRPC(this, key)
-                    if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
-                        currentSong.value?.let {
-                            discordRpc?.updateSong(it, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                    discordUpdateJob = scope.launch {
+                        combine(
+                            currentSong,
+                            dataStore.data.map { it[DiscordUseDetailsKey] ?: false },
+                            connectivityObserver.networkStatus,
+                            isPlaying,
+                            playbackParameters,
+                        ) { song, useDetails, isConnected, isPlaying, playbackParameters ->
+                            Triple(song, useDetails, Triple(isConnected, isPlaying, playbackParameters))
                         }
+                            .debounce(500)
+                            .collect { (song, useDetails, playerState) ->
+                                val (isConnected, isPlaying, playbackParameters) = playerState
+                                if (!isConnected) {
+                                    if (discordRpc?.isRpcRunning() == true) {
+                                        discordRpc?.closeRPC()
+                                    }
+                                    return@collect
+                                }
+                                if (player.playbackState == Player.STATE_READY && isPlaying && song != null) {
+                                    discordRpc?.updateSong(
+                                        song = song,
+                                        currentPlaybackTimeMillis = player.currentPosition,
+                                        playbackSpeed = playbackParameters.speed,
+                                        useDetails = useDetails
+                                    )
+                                } else {
+                                    discordRpc?.stopActivity()
+                                }
+                            }
                     }
                 }
             }
 
-        // details key stuff
-        dataStore.data
-            .map { it[DiscordUseDetailsKey] ?: false }
-            .debounce(1000)
-            .distinctUntilChanged()
-            .collect(scope) { useDetails ->
-                if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
-                    currentSong.value?.let { song ->
-                        discordUpdateJob?.cancel()
-                        discordUpdateJob = scope.launch {
-                            delay(1000)
-                            discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, useDetails)
-                        }
-                    }
-                }
-            }
 
         dataStore.data
             .map { it[EnableLastFMScrobblingKey] ?: false }
@@ -1104,11 +1110,7 @@ class MusicService :
         mediaItem: MediaItem?,
         reason: Int,
     ) {
-        lastPlaybackSpeed = -1.0f // force update song
-
         setupLoudnessEnhancer()
-
-        discordUpdateJob?.cancel()
 
         scrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
@@ -1180,27 +1182,10 @@ class MusicService :
             currentMediaMetadata.value = player.currentMetadata
         }
 
-        // Discord RPC updates
-
-        // Update the Discord RPC activity if the player is playing
-        if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
-            if (player.isPlaying) {
-                currentSong.value?.let { song ->
-                    scope.launch {
-                        discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
-                    }
-                }
-            }
-            // Send empty activity to the Discord RPC if the player is not playing
-            else if (!events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)){
-                scope.launch {
-                    discordRpc?.stopActivity()
-                }
-            }
-        }
 
         // Scrobbling
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
+            isPlaying.value = player.isPlaying
             scrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
         }
 
@@ -1243,20 +1228,7 @@ class MusicService :
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
         super.onPlaybackParametersChanged(playbackParameters)
-        if (playbackParameters.speed != lastPlaybackSpeed) {
-            lastPlaybackSpeed = playbackParameters.speed
-            discordUpdateJob?.cancel()
-
-            // update scheduling thingy
-            discordUpdateJob = scope.launch {
-                delay(1000)
-                if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
-                    currentSong.value?.let { song ->
-                        discordRpc?.updateSong(song, player.currentPosition, playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
-                    }
-                }
-            }
-        }
+        this.playbackParameters.value = playbackParameters
     }
 
     override fun onPlayerError(error: PlaybackException) {
