@@ -3,6 +3,7 @@ package com.my.kizzy.remote
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ApiResponse(
-    val id: List<String>
+data class ApiResult(
+    val id: String,
+    val originalUrl: String
 )

@@ -12,12 +12,14 @@
 package com.my.kizzy.remote
 
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.url
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -39,14 +41,19 @@ class ApiService {
         }
     }
 
-    suspend fun getImages(urls: List<String>) = runCatching {
-        println("ApiService Debug: Uploading images with URLs: $urls")
-         client.get {
-             url("$BASE_URL/image")
-             parameters {
-                 appendAll("url", urls)
-             }
-         }
+    suspend fun getImages(urls: List<String>): Result<ApiResponse> {
+        return runCatching {
+            println("ApiService Debug: Uploading images with URLs: $urls")
+            val response: HttpResponse = client.get {
+                url("$BASE_URL/image")
+                parameters {
+                    appendAll("url", urls)
+                }
+            }
+            val responseBody: String = response.body()
+            println("ApiService Debug: Received response body: $responseBody")
+            Json { ignoreUnknownKeys = true }.decodeFromString<ApiResponse>(responseBody)
+        }
     }
 
     companion object {
