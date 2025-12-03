@@ -34,6 +34,7 @@ class CoilBitmapLoader(
             val request = ImageRequest.Builder(context)
                 .data(uri)
                 .allowHardware(false)
+                .size(coil3.size.Size.ORIGINAL)
                 .build()
 
             val result = context.imageLoader.execute(request)
