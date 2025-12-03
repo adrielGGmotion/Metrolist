@@ -24,15 +24,10 @@ class KizzyRepository {
 
     suspend fun getImages(urls: List<String>): List<ApiResult>? {
         val result = api.getImages(urls)
-        result.onSuccess {
-            println("KizzyRepository Debug: Successfully parsed response: $it")
-        }
         result.onFailure { exception ->
             println("KizzyRPC Error: Failed to get images. Exception: ${exception.message}")
             exception.printStackTrace()
         }
-        val assets = result.getOrNull()?.toImageAssets()
-        println("KizzyRepository Debug: Converted to ImageAssets: $assets")
-        return assets
+        return result.getOrNull()?.toImageAssets()
     }
 }
