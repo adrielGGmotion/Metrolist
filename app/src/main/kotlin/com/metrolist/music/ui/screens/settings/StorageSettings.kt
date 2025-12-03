@@ -185,6 +185,8 @@ fun StorageSettings(
             )
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         Material3SettingsGroup(
             items = listOf(
                 Material3SettingsItem(
@@ -287,6 +289,8 @@ fun StorageSettings(
                 }
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Material3SettingsGroup(
             items = listOf(
