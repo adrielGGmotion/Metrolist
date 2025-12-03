@@ -25,9 +25,6 @@ class DiscordRPC(
         val remainingDuration = song.song.duration * 1000L - currentPlaybackTimeMillis
         val adjustedRemainingDuration = (remainingDuration / playbackSpeed).toLong()
         
-        println("KizzyRPC Info: Song thumbnail URL: ${song.song.thumbnailUrl}")
-        println("KizzyRPC Info: Artist thumbnail URL: ${song.artists.firstOrNull()?.thumbnailUrl}")
-
         setActivity(
             name = context.getString(R.string.app_name).removeSuffix(" Debug"),
             details = songTitleWithRate,

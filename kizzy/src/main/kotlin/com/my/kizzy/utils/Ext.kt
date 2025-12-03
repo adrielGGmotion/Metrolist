@@ -12,18 +12,12 @@
 
 package com.my.kizzy.utils
 
-import com.my.kizzy.remote.ApiResponse
 import com.my.kizzy.remote.ApiResult
+import com.my.kizzy.remote.BatchApiResponse
 import com.my.kizzy.rpc.RpcImage
 
-fun ApiResponse.toImageAssets(originalUrls: List<String>): List<ApiResult> {
-    val count = minOf(id.size, originalUrls.size)
-    return (0 until count).map { index ->
-        ApiResult(
-            id = id[index],
-            originalUrl = originalUrls[index]
-        )
-    }
+fun BatchApiResponse.toImageAssets(): List<ApiResult> {
+    return this.results.filter { it.status == "success" }
 }
 
 fun String.toRpcImage(): RpcImage? {

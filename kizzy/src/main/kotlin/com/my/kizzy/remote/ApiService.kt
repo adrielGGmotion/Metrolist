@@ -19,7 +19,6 @@ import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.url
-import io.ktor.client.statement.HttpResponse
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -41,19 +40,15 @@ class ApiService {
         }
     }
 
-    suspend fun getImages(urls: List<String>): Result<ApiResponse> {
-        return runCatching {
-            println("ApiService Debug: Uploading images with URLs: $urls")
-            val response: HttpResponse = client.get {
-                url("$BASE_URL/image")
-                parameters {
-                    appendAll("url", urls)
-                }
-            }
-            val responseBody: String = response.body()
-            println("ApiService Debug: Received response body: $responseBody")
-            Json { ignoreUnknownKeys = true }.decodeFromString<ApiResponse>(responseBody)
-        }
+    suspend fun getImages(urls: List<String>) = runCatching {
+         client.get {
+             url("$BASE_URL/image")
+             parameters {
+                 urls.forEach {
+                    append("url", it)
+                 }
+             }
+         }.body<BatchApiResponse>()
     }
 
     companion object {
