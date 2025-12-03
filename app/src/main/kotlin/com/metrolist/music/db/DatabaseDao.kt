@@ -1234,6 +1234,17 @@ interface DatabaseDao {
                     position = index,
                 )
             )
+
+            artist.id?.let { channelId ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val currentArtist = getArtistById(artistId)
+                    if (currentArtist != null && currentArtist.thumbnailUrl == null) {
+                        com.metrolist.innertube.YouTube.artist(channelId).getOrNull()?.let { artistPage ->
+                            update(currentArtist, artistPage)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1320,6 +1331,17 @@ interface DatabaseDao {
                     position = index,
                 ),
             )
+
+            artist.id?.let { channelId ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val currentArtist = getArtistById(artistId)
+                    if (currentArtist != null && currentArtist.thumbnailUrl == null) {
+                        com.metrolist.innertube.YouTube.artist(channelId).getOrNull()?.let { artistPage ->
+                            update(currentArtist, artistPage)
+                        }
+                    }
+                }
+            }
         }
     }
 
