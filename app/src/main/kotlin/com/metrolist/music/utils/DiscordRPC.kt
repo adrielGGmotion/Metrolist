@@ -3,6 +3,7 @@ package com.metrolist.music.utils
 import android.content.Context
 import com.metrolist.music.R
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.ui.utils.resize
 import com.my.kizzy.rpc.KizzyRPC
 import com.my.kizzy.rpc.RpcImage
 
@@ -31,7 +32,7 @@ class DiscordRPC(
             state = song.artists.joinToString { it.name },
             detailsUrl = "https://music.youtube.com/watch?v=${song.song.id}",
             largeImage = song.song.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
-            smallImage = song.artists.firstOrNull()?.thumbnailUrl?.let { RpcImage.ExternalImage(it) },
+            smallImage = song.artists.firstOrNull()?.thumbnailUrl?.resize(1024)?.let { RpcImage.ExternalImage(it) },
             largeText = song.album?.title,
             smallText = song.artists.firstOrNull()?.name,
             buttons = listOf(

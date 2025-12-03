@@ -5,8 +5,17 @@ fun String.resize(
     height: Int? = null,
 ): String {
     if (width == null && height == null) return this
-    if (this matches "https://yt3\\.ggpht\\.com/.*=s(\\d+)".toRegex()) {
-        return "$this-s${width ?: height}"
+    val size = width ?: height ?: return this
+
+    val regex = Regex("=s[0-9]+")
+    val matchResult = regex.find(this) ?: return this
+
+    val baseUrl = this.substring(0, matchResult.range.first)
+    val remaining = this.substring(matchResult.range.last + 1)
+
+    if (remaining.startsWith("-c")) {
+        return "$baseUrl=s$size$remaining"
+    } else {
+        return "$baseUrl=s$size-c$remaining"
     }
-    return this
 }
