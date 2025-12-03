@@ -141,6 +141,7 @@ import com.metrolist.music.ui.component.Lyrics
 import com.metrolist.music.ui.component.PlayerSliderTrack
 import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.rememberBottomSheetState
+import com.metrolist.music.ui.menu.LyricsMenu
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.lyrics.LyricsEntry
@@ -1162,7 +1163,40 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
-                                InlineLyricsView(mediaMetadata = mediaMetadata, showLyrics = showLyrics && !lyricsSheetState.isExpanded)
+                                Box {
+                                    InlineLyricsView(
+                                        mediaMetadata = mediaMetadata,
+                                        showLyrics = showLyrics && !lyricsSheetState.isExpanded
+                                    )
+                                    mediaMetadata?.let { nnMediaMetadata ->
+                                        val currentLyrics by playerConnection.currentLyrics.collectAsState(
+                                            initial = null
+                                        )
+                                        val currentSong by playerConnection.currentSong.collectAsState(
+                                            initial = null
+                                        )
+                                        FilledIconButton(
+                                            onClick = {
+                                                menuState.show {
+                                                    LyricsMenu(
+                                                        lyricsProvider = { currentLyrics },
+                                                        songProvider = { currentSong?.song },
+                                                        mediaMetadataProvider = { nnMediaMetadata },
+                                                        onDismiss = menuState::dismiss
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(12.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.more_vert),
+                                                contentDescription = stringResource(R.string.more_options)
+                                            )
+                                        }
+                                    }
+                                }
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = { sliderPosition },
@@ -1208,7 +1242,40 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
-                                InlineLyricsView(mediaMetadata = mediaMetadata, showLyrics = showLyrics && !lyricsSheetState.isExpanded)
+                                Box {
+                                    InlineLyricsView(
+                                        mediaMetadata = mediaMetadata,
+                                        showLyrics = showLyrics && !lyricsSheetState.isExpanded
+                                    )
+                                    mediaMetadata?.let { nnMediaMetadata ->
+                                        val currentLyrics by playerConnection.currentLyrics.collectAsState(
+                                            initial = null
+                                        )
+                                        val currentSong by playerConnection.currentSong.collectAsState(
+                                            initial = null
+                                        )
+                                        FilledIconButton(
+                                            onClick = {
+                                                menuState.show {
+                                                    LyricsMenu(
+                                                        lyricsProvider = { currentLyrics },
+                                                        songProvider = { currentSong?.song },
+                                                        mediaMetadataProvider = { nnMediaMetadata },
+                                                        onDismiss = menuState::dismiss
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(12.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.more_vert),
+                                                contentDescription = stringResource(R.string.more_options)
+                                            )
+                                        }
+                                    }
+                                }
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = { sliderPosition },
@@ -1253,33 +1320,6 @@ fun BottomSheetPlayer(
                 }
             },
         )
-
-        mediaMetadata?.let { metadata ->
-            BottomSheet(
-                state = lyricsSheetState,
-                background = { Box(Modifier.fillMaxSize().background(Color.Unspecified)) },
-                onDismiss = { },
-                collapsedContent = {
-                }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.surface.copy(
-                                alpha = lyricsSheetState.progress.coerceIn(0f, 1f)
-                            )
-                        )
-                ) {
-                    LyricsScreen(
-                        mediaMetadata = metadata,
-                        onBackClick = { lyricsSheetState.collapseSoft() },
-                        navController = navController,
-                        backgroundAlpha = lyricsSheetState.progress.coerceIn(0f, 1f)
-                    )
-                }
-            }
-        }
     }
 }
 

@@ -337,10 +337,6 @@ fun Queue(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(),
                             onClick = { onToggleLyrics(false) },
-                            onLongClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onToggleLyrics(true)
-                            }
                         )
 
                     Box(
