@@ -563,7 +563,10 @@ fun BottomSheetPlayer(
                     if (showLyrics) {
                         Row {
                             AsyncImage(
-                                model = mediaMetadata.thumbnailUrl,
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(mediaMetadata.thumbnailUrl)
+                                    .size(coil3.size.Size.ORIGINAL)
+                                    .build(),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(56.dp)

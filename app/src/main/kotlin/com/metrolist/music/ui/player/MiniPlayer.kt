@@ -334,7 +334,10 @@ private fun NewMiniPlayer(
                         // Thumbnail background
                         mediaMetadata?.let { metadata ->
                             AsyncImage(
-                                model = metadata.thumbnailUrl,
+                                model = coil3.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                    .data(metadata.thumbnailUrl)
+                                    .size(coil3.size.Size.ORIGINAL)
+                                    .build(),
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
@@ -782,7 +785,10 @@ private fun LegacyMiniMediaInfo(
 
             // Main thumbnail
             AsyncImage(
-                model = mediaMetadata.thumbnailUrl,
+                model = coil3.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    .data(mediaMetadata.thumbnailUrl)
+                    .size(coil3.size.Size.ORIGINAL)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
