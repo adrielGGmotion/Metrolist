@@ -56,6 +56,7 @@ class CrossfadePlayer(
         }
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+            if (currentPlayer !== this.player) return
             listeners.forEach { it.onTimelineChanged(timeline, reason) }
         }
 
