@@ -49,20 +49,18 @@ class CrossfadePlayer(
     var crossfadeConfig: CrossfadeConfig = CrossfadeConfig()
         private set
 
-    private val internalListener = object : Player.Listener {
+    private inner class InternalListener(private val player: ExoPlayer) : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
-            if (player !== currentPlayer) {
-                return
-            }
+            if (currentPlayer !== this.player) return
             listeners.forEach { it.onEvents(this@CrossfadePlayer, events) }
         }
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-            // Always forward timeline changes from either player.
             listeners.forEach { it.onTimelineChanged(timeline, reason) }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (currentPlayer !== this.player) return
             if (crossfadeConfig.isEnabled && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                 if (!isCrossfading) {
                     startCrossfade(true)
@@ -73,26 +71,24 @@ class CrossfadePlayer(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            if (currentPlayer !== this.player) return
             if (currentPlayer.playbackState == Player.STATE_ENDED &&
                 crossfadeConfig.isEnabled &&
                 currentPlayer.nextMediaItemIndex != C.INDEX_UNSET
             ) {
-                // Don't propagate the STATE_ENDED event if we're about to crossfade.
-                // The crossfade will handle the media item transition.
                 return
             }
             listeners.forEach { it.onPlaybackStateChanged(playbackState) }
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (currentPlayer !== this.player) return
             if (playWhenReady) {
                 startPositionMonitor()
             } else {
                 stopPositionMonitor()
                 if (isCrossfading) {
-                    crossfadeJob?.cancel()
-                    playerA.pause()
-                    playerB.pause()
+                    forceStopCrossfade()
                 }
             }
             listeners.forEach { it.onPlayWhenReadyChanged(playWhenReady, reason) }
@@ -102,8 +98,8 @@ class CrossfadePlayer(
     private var positionMonitorJob: Job? = null
 
     init {
-        playerA.addListener(internalListener)
-        playerB.addListener(internalListener)
+        playerA.addListener(InternalListener(playerA))
+        playerB.addListener(InternalListener(playerB))
     }
 
     private fun buildExoPlayer(): ExoPlayer {
