@@ -62,6 +62,8 @@ import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.ListDialog
+import com.metrolist.music.ui.component.Material3MenuItemData
+import com.metrolist.music.ui.component.Material3MenuGroup
 import com.metrolist.music.ui.component.NewAction
 import com.metrolist.music.ui.component.NewActionGrid
 import com.metrolist.music.ui.component.TextFieldDialog
@@ -394,35 +396,26 @@ fun LyricsMenu(
         }
 
         item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.romanize_current_track)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.language_korean_latin),
-                        contentDescription = null,
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = isChecked,
-                        onCheckedChange = { newCheckedState ->
-                            isChecked = newCheckedState
+            Material3MenuGroup(
+                items = listOf(
+                    Material3MenuItemData(
+                        title = { Text(text = stringResource(R.string.romanize_current_track)) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.language_korean_latin),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            isChecked = !isChecked
                             songProvider()?.let { song ->
                                 database.query {
-                                    upsert(song.copy(romanizeLyrics = newCheckedState))
+                                    upsert(song.copy(romanizeLyrics = isChecked))
                                 }
                             }
                         }
                     )
-                },
-                modifier = Modifier.clickable {
-                    isChecked = !isChecked
-                    songProvider()?.let { song ->
-                        database.query {
-                            upsert(song.copy(romanizeLyrics = isChecked))
-                        }
-                    }
-                }
+                )
             )
         }
     }
