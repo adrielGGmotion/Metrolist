@@ -88,6 +88,7 @@
 
     <!-- Menu -->
     <string name="details">Details</string>
+    <string name="details_desc">View the song\'s information</string>
     <string name="edit">Edit</string>
     <string name="start_radio">Start radio</string>
     <string name="play">Play</string>
@@ -113,6 +114,8 @@
     <string name="search_online">Search online</string>
     <string name="action_sync">Sync</string>
     <string name="advanced">Advanced</string>
+    <string name="advanced_desc">Change the song\'s tempo and pitch</string>
+    <string name="equalizer_desc">Adjust the audio equalizer</string>
     <string name="tempo_and_pitch">Tempo and Pitch</string>
 
     <!-- Sort menu -->
