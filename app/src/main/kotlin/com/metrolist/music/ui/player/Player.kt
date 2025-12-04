@@ -1171,21 +1171,23 @@ fun BottomSheetPlayer(
                                 )
                             }
                         }
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier =
-                        Modifier
-                            .weight(1f)
-                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
-                    ) {
-                        Spacer(Modifier.weight(1f))
-
-                        mediaMetadata?.let {
-                            controlsContent(it)
+                        if (showInlineLyrics) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp)
+                            ) {
+                                mediaMetadata?.let {
+                                    MoreActionsButton(
+                                        mediaMetadata = it,
+                                        navController = navController,
+                                        state = state,
+                                        textButtonColor = textButtonColor,
+                                        iconButtonColor = iconButtonColor,
+                                    )
+                                }
+                            }
                         }
-
-                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
@@ -1208,7 +1210,7 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
-                                InlineLyricsView(mediaMetadata = mediaMetadata, showLyrics = showLyrics && !lyricsSheetState.isExpanded)
+                                InlineLyricsView(mediaMetadata = mediaMetadata, showLyrics = showLyrics)
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = { sliderPosition },
@@ -1364,6 +1366,48 @@ private fun Modifier.bouncy(interactionSource: InteractionSource) = composed {
     graphicsLayer {
         scaleX = scale
         scaleY = scale
+    }
+}
+
+@Composable
+fun MoreActionsButton(
+    mediaMetadata: MediaMetadata,
+    navController: NavController,
+    state: BottomSheetState,
+    textButtonColor: Color,
+    iconButtonColor: Color
+) {
+    val menuState = LocalMenuState.current
+    val bottomSheetPageState = LocalBottomSheetPageState.current
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(textButtonColor)
+            .clickable {
+                menuState.show {
+                    PlayerMenu(
+                        mediaMetadata = mediaMetadata,
+                        navController = navController,
+                        playerBottomSheetState = state,
+                        onShowDetailsDialog = {
+                            mediaMetadata.id.let {
+                                bottomSheetPageState.show {
+                                    ShowMediaInfo(it)
+                                }
+                            }
+                        },
+                        onDismiss = menuState::dismiss
+                    )
+                }
+            }
+    ) {
+        Image(
+            painter = painterResource(R.drawable.more_horiz),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(iconButtonColor)
+        )
     }
 }
 

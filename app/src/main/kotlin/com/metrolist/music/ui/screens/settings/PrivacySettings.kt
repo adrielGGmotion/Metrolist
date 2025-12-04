@@ -13,7 +13,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -159,16 +158,7 @@ fun PrivacySettings(
                     trailingContent = {
                         Switch(
                             checked = pauseListenHistory,
-                            onCheckedChange = onPauseListenHistoryChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (pauseListenHistory) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            onCheckedChange = onPauseListenHistoryChange
                         )
                     },
                     onClick = { onPauseListenHistoryChange(!pauseListenHistory) }
@@ -192,16 +182,7 @@ fun PrivacySettings(
                     trailingContent = {
                         Switch(
                             checked = pauseSearchHistory,
-                            onCheckedChange = onPauseSearchHistoryChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (pauseSearchHistory) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            onCheckedChange = onPauseSearchHistoryChange
                         )
                     },
                     onClick = { onPauseSearchHistoryChange(!pauseSearchHistory) }
@@ -226,16 +207,7 @@ fun PrivacySettings(
                     trailingContent = {
                         Switch(
                             checked = disableScreenshot,
-                            onCheckedChange = onDisableScreenshotChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (disableScreenshot) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            onCheckedChange = onDisableScreenshotChange
                         )
                     },
                     onClick = { onDisableScreenshotChange(!disableScreenshot) }

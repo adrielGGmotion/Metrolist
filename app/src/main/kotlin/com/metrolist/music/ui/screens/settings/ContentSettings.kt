@@ -413,16 +413,7 @@ fun ContentSettings(
                     trailingContent = {
                         Switch(
                             checked = hideExplicit,
-                            onCheckedChange = onHideExplicitChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (hideExplicit) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            onCheckedChange = onHideExplicitChange
                         )
                     },
                     onClick = { onHideExplicitChange(!hideExplicit) }
@@ -475,16 +466,7 @@ fun ContentSettings(
                         trailingContent = {
                             Switch(
                                 checked = proxyEnabled,
-                                onCheckedChange = onProxyEnabledChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (proxyEnabled) R.drawable.check else R.drawable.close
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-                                    )
-                                }
+                                onCheckedChange = onProxyEnabledChange
                             )
                         },
                         onClick = { onProxyEnabledChange(!proxyEnabled) }
@@ -513,16 +495,7 @@ fun ContentSettings(
                     trailingContent = {
                         Switch(
                             checked = enableLrclib,
-                            onCheckedChange = onEnableLrclibChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (enableLrclib) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            onCheckedChange = onEnableLrclibChange
                         )
                     },
                     onClick = { onEnableLrclibChange(!enableLrclib) }
@@ -533,16 +506,7 @@ fun ContentSettings(
                     trailingContent = {
                         Switch(
                             checked = enableKugou,
-                            onCheckedChange = onEnableKugouChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (enableKugou) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            onCheckedChange = onEnableKugouChange
                         )
                     },
                     onClick = { onEnableKugouChange(!enableKugou) }
@@ -551,7 +515,12 @@ fun ContentSettings(
                     icon = painterResource(R.drawable.lyrics),
                     title = { Text(stringResource(R.string.set_first_lyrics_provider)) },
                     description = {
-                        Text(preferredProvider.name)
+                        Text(
+                            when (preferredProvider) {
+                                PreferredLyricsProvider.LRCLIB -> "LrcLib"
+                                PreferredLyricsProvider.KUGOU -> "KuGou"
+                            }
+                        )
                     },
                     onClick = { showPreferredProviderDialog = true }
                 ),

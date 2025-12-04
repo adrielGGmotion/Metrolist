@@ -50,6 +50,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -235,6 +236,7 @@ fun Queue(
                 ) {
                     val buttonSize = 42.dp
                     val iconSize = 24.dp
+                    val borderColor = TextBackgroundColor.copy(alpha = 0.35f)
                     val queueShape = RoundedCornerShape(
                         topStart = 50.dp, bottomStart = 50.dp,
                         topEnd = 5.dp, bottomEnd = 5.dp
@@ -245,10 +247,13 @@ fun Queue(
                         topEnd = 50.dp, bottomEnd = 50.dp
                     )
 
-                    OutlinedIconButton(
-                        onClick = { state.expandSoft() },
-                        shape = queueShape,
-                        modifier = Modifier.size(buttonSize)
+                    Box(
+                        modifier = Modifier
+                            .size(buttonSize)
+                            .border(1.5.dp, borderColor, queueShape)
+                            .clip(queueShape)
+                            .clickable { state.expandSoft() },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.queue_music),
@@ -363,25 +368,7 @@ fun Queue(
                         )
                     }
 
-                    if (repeatMode != Player.REPEAT_MODE_OFF) {
-                        FilledIconButton(
-                            onClick = { playerConnection.player.toggleRepeatMode() },
-                            shape = repeatShape,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = textButtonColor,
-                                contentColor = iconButtonColor
-                            ),
-                            modifier = Modifier.size(buttonSize)
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    id = if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(iconSize)
-                            )
-                        }
-                    } else {
+                    if (repeatMode == Player.REPEAT_MODE_OFF) {
                         OutlinedIconButton(
                             onClick = { playerConnection.player.toggleRepeatMode() },
                             shape = repeatShape,
@@ -394,6 +381,29 @@ fun Queue(
                                     .size(iconSize)
                                     .alpha(0.5f),
                                 tint = TextBackgroundColor
+                            )
+                        }
+
+                    } else {
+                        FilledIconButton(
+                            onClick = { playerConnection.player.toggleRepeatMode() },
+                            shape = repeatShape,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = textButtonColor,
+                                contentColor = iconButtonColor
+                            ),
+                            modifier = Modifier.size(buttonSize)
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    id = when (repeatMode) {
+                                        Player.REPEAT_MODE_ALL -> R.drawable.repeat
+                                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
+                                        else -> R.drawable.repeat
+                                    }
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.size(iconSize)
                             )
                         }
                     }
