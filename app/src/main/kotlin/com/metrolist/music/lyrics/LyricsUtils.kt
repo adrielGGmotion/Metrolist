@@ -7,33 +7,8 @@ import kotlinx.coroutines.withContext
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
-    private data class ParseResult(val entries: List<LyricsEntry>, val consumedLines: Int)
-
-    private sealed interface LyricsParserStrategy {
-        fun parse(line: String, nextLine: String?): ParseResult?
-    }
-
     val LINE_REGEX = "((\\[\\d\\d:\\d\\d\\.\\d{2,3}\\] ?)+)(.+)".toRegex()
     val TIME_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\]".toRegex()
-    private const val LAST_LINE_FALLBACK_DURATION_MS = 5000L
-
-    private val parserStrategies = listOf(
-        DefaultLyricsParser
-    )
-
-    private object DefaultLyricsParser : LyricsParserStrategy {
-        override fun parse(line: String, nextLine: String?): ParseResult? {
-            val matchResult = LINE_REGEX.matchEntire(line.trim()) ?: return null
-            val times = matchResult.groupValues[1]
-            val text = matchResult.groupValues[3]
-            val timeMatchResults = TIME_REGEX.findAll(times)
-            val entries = timeMatchResults.map { timeMatchResult ->
-                val time = parseLrcTimestamp(timeMatchResult)
-                LyricsEntry(time, text)
-            }.toList()
-            return ParseResult(entries, 1)
-        }
-    }
 
     private val KANA_ROMAJI_MAP: Map<String, String> = mapOf(
         // Digraphs (Yōon - combinations like kya, sho)
@@ -291,65 +266,46 @@ object LyricsUtils {
         Tokenizer()
     }
 
-    private fun parseLrcTimestamp(timeMatchResult: MatchResult): Long {
-        val min = timeMatchResult.groupValues[1].toLong()
-        val sec = timeMatchResult.groupValues[2].toLong()
-        val milString = timeMatchResult.groupValues[3]
-        var mil = milString.toLong()
-        if (milString.length == 2) {
-            mil *= 10
+    fun parseLyrics(lyrics: String): List<LyricsEntry> =
+        lyrics
+            .lines()
+            .flatMap { line ->
+                parseLine(line).orEmpty()
+            }.sorted()
+
+    private fun parseLine(line: String): List<LyricsEntry>? {
+        if (line.isEmpty()) {
+            return null
         }
-        return min * DateUtils.MINUTE_IN_MILLIS + sec * DateUtils.SECOND_IN_MILLIS + mil
-    }
+        val matchResult = LINE_REGEX.matchEntire(line.trim()) ?: return null
+        val times = matchResult.groupValues[1]
+        val text = matchResult.groupValues[3]
+        val timeMatchResults = TIME_REGEX.findAll(times)
 
-    fun parseLyrics(lyrics: String): List<LyricsEntry> {
-        val entries = mutableListOf<LyricsEntry>()
-        val lines = lyrics.lines()
-        var i = 0
-        while (i < lines.size) {
-            val line = lines[i]
-            if (line.isBlank()) {
-                i++
-                continue
-            }
-
-            var parsed = false
-            for (strategy in parserStrategies) {
-                val result = strategy.parse(line, lines.getOrNull(i + 1))
-                if (result != null) {
-                    entries.addAll(result.entries)
-                    i += result.consumedLines
-                    parsed = true
-                    break
+        return timeMatchResults
+            .map { timeMatchResult ->
+                val min = timeMatchResult.groupValues[1].toLong()
+                val sec = timeMatchResult.groupValues[2].toLong()
+                val milString = timeMatchResult.groupValues[3]
+                var mil = milString.toLong()
+                if (milString.length == 2) {
+                    mil *= 10
                 }
-            }
-
-            if (!parsed) {
-                i++
-            }
-        }
-        return entries.sorted()
+                val time = min * DateUtils.MINUTE_IN_MILLIS + sec * DateUtils.SECOND_IN_MILLIS + mil
+                LyricsEntry(time, text)
+            }.toList()
     }
 
-    fun findCurrentLineIndices(
+    fun findCurrentLineIndex(
         lines: List<LyricsEntry>,
         position: Long,
-    ): List<Int> {
-        if (lines.isEmpty()) return emptyList()
-
-        val activeIndices = lines.indices.filter { index ->
-            val line = lines[index]
-            val endTime = line.words?.lastOrNull()?.endTime
-                ?: (if (index + 1 < lines.size) lines[index + 1].time else line.time + LAST_LINE_FALLBACK_DURATION_MS)
-
-            position >= line.time && position < endTime
+    ): Int {
+        for (index in lines.indices) {
+            if (lines[index].time >= position + 300L) {
+                return index - 1
+            }
         }
-
-        if (activeIndices.isNotEmpty()) {
-            return activeIndices
-        }
-
-        return emptyList()
+        return lines.lastIndex
     }
 
     // TODO: Will be useful if we let the user pick the language, useless for now

@@ -27,8 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Switch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +67,7 @@ import com.metrolist.music.ui.component.NewActionGrid
 import com.metrolist.music.ui.component.TextFieldDialog
 import com.metrolist.music.viewmodels.LyricsMenuViewModel
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsMenu(
     lyricsProvider: () -> LyricsEntity?,
@@ -217,9 +215,9 @@ fun LyricsMenu(
         }
     }
 
-    val isLoading by viewModel.isLoading.collectAsState()
     if (showSearchResultDialog) {
         val results by viewModel.results.collectAsState()
+        val isLoading by viewModel.isLoading.collectAsState()
 
         var expandedItemIndex by rememberSaveable {
             mutableStateOf(-1)
@@ -301,7 +299,7 @@ fun LyricsMenu(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        ContainedLoadingIndicator()
+                        CircularProgressIndicator()
                     }
                 }
             }
@@ -335,10 +333,9 @@ fun LyricsMenu(
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
-    if (!isLoading) {
-        LazyColumn(
-            userScrollEnabled = !isPortrait,
-            contentPadding = PaddingValues(
+    LazyColumn(
+        userScrollEnabled = !isPortrait,
+        contentPadding = PaddingValues(
             start = 0.dp,
             top = 0.dp,
             end = 0.dp,
@@ -429,7 +426,6 @@ fun LyricsMenu(
             )
         }
     }
-}
     /* if (showRomanizationDialog) {
         var isChecked by remember { mutableStateOf(songProvider()?.romanizeLyrics ?: true) }
 

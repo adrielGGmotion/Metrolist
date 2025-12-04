@@ -48,7 +48,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -383,7 +382,6 @@ fun Queue(
                                 tint = TextBackgroundColor
                             )
                         }
-
                     } else {
                         FilledIconButton(
                             onClick = { playerConnection.player.toggleRepeatMode() },
@@ -407,7 +405,6 @@ fun Queue(
                             )
                         }
                     }
-
 
                     Spacer(modifier = Modifier.weight(1f))
 

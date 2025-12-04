@@ -76,8 +76,7 @@ import com.metrolist.music.viewmodels.AccountSettingsViewModel
 fun AccountSettings(
     navController: NavController,
     onClose: () -> Unit,
-    latestVersionName: String,
-    onVersionClick: () -> Unit
+    latestVersionName: String
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -334,7 +333,9 @@ fun AccountSettings(
                             Icon(painterResource(R.drawable.update), null)
                         }
                     },
-                    onClick = onVersionClick
+                    onClick = {
+                        uriHandler.openUri(Updater.getLatestDownloadUrl())
+                    }
                 )
             }
         }

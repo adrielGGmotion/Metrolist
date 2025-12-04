@@ -22,9 +22,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 
 class LyricsHelper
@@ -33,15 +30,37 @@ constructor(
     @ApplicationContext private val context: Context,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-    private val allProviders =
+    private var lyricsProviders =
         listOf(
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider
         )
+
+    val preferred =
+        context.dataStore.data
+            .map {
+                it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.LRCLIB)
+            }.distinctUntilChanged()
+            .map {
+                lyricsProviders =
+                    if (it == PreferredLyricsProvider.LRCLIB) {
+                        listOf(
+                            LrcLibLyricsProvider,
+                            KuGouLyricsProvider,
+                            YouTubeSubtitleLyricsProvider,
+                            YouTubeLyricsProvider
+                        )
+                    } else {
+                        listOf(
+                            KuGouLyricsProvider,
+                            LrcLibLyricsProvider,
+                            YouTubeSubtitleLyricsProvider,
+                            YouTubeLyricsProvider
+                        )
+                    }
+            }
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
     private var currentLyricsJob: Job? = null
@@ -54,81 +73,48 @@ constructor(
             return cached.lyrics
         }
 
+        // Check network connectivity before making network requests
+        // Use synchronous check as fallback if flow doesn't emit
         val isNetworkAvailable = try {
             networkConnectivity.isCurrentlyConnected()
         } catch (e: Exception) {
+            // If network check fails, try to proceed anyway
             true
         }
-
+        
         if (!isNetworkAvailable) {
+            // Still proceed but return not found to avoid hanging
             return LYRICS_NOT_FOUND
         }
 
-        val preferredProviderEnum = context.dataStore.data.map {
-            it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.LRCLIB)
-        }.first()
-
-        val preferredProviderFromSettings = allProviders.find { it.name.equals(preferredProviderEnum.name, true) }
-        val enabledProviders = allProviders.filter { it.isEnabled(context) }
-
-        val sortedProviders = enabledProviders.sortedBy { it != preferredProviderFromSettings }
-
-        val preferredProvider = sortedProviders.firstOrNull()
-
-        if (preferredProvider != null) {
-            try {
-                val result = withTimeoutOrNull(PREFERRED_PROVIDER_TIMEOUT_MS) {
-                    preferredProvider.getLyrics(
-                        mediaMetadata.id,
-                        mediaMetadata.title,
-                        mediaMetadata.artists.joinToString { it.name },
-                        mediaMetadata.duration
-                    )
-                }
-
-                if (result?.isSuccess == true) {
-                    val lyrics = result.getOrThrow()
-                    if (lyrics.isNotEmpty()) {
-                        return lyrics
-                    }
-                }
-            } catch (e: Exception) {
-                reportException(e)
-            }
-        }
-
-        val otherProviders = sortedProviders.drop(1)
-
-        if (otherProviders.isNotEmpty()) {
-            val results = coroutineScope {
-                otherProviders.map { provider ->
-                    async {
-                        try {
-                            provider.getLyrics(
-                                mediaMetadata.id,
-                                mediaMetadata.title,
-                                mediaMetadata.artists.joinToString { it.name },
-                                mediaMetadata.duration
-                            )
-                        } catch (e: Exception) {
-                            reportException(e)
-                            Result.failure(e)
+        val scope = CoroutineScope(SupervisorJob())
+        val deferred = scope.async {
+            for (provider in lyricsProviders) {
+                if (provider.isEnabled(context)) {
+                    try {
+                        val result = provider.getLyrics(
+                            mediaMetadata.id,
+                            mediaMetadata.title,
+                            mediaMetadata.artists.joinToString { it.name },
+                            mediaMetadata.duration,
+                        )
+                        result.onSuccess { lyrics ->
+                            return@async lyrics
+                        }.onFailure {
+                            reportException(it)
                         }
-                    }
-                }.awaitAll()
-            }
-
-            for (result in results) {
-                if (result.isSuccess) {
-                    val lyrics = result.getOrThrow()
-                    if (lyrics.isNotEmpty()) {
-                        return lyrics
+                    } catch (e: Exception) {
+                        // Catch network-related exceptions like UnresolvedAddressException
+                        reportException(e)
                     }
                 }
             }
+            return@async LYRICS_NOT_FOUND
         }
 
-        return LYRICS_NOT_FOUND
+        val lyrics = deferred.await()
+        scope.cancel()
+        return lyrics
     }
 
     suspend fun getAllLyrics(
@@ -136,45 +122,52 @@ constructor(
         songTitle: String,
         songArtists: String,
         duration: Int,
-    ): List<LyricsResult> {
+        callback: (LyricsResult) -> Unit,
+    ) {
         currentLyricsJob?.cancel()
 
         val cacheKey = "$songArtists-$songTitle".replace(" ", "")
-        val cachedResults = cache.get(cacheKey)
-        if (cachedResults != null) {
-            return cachedResults
+        cache.get(cacheKey)?.let { results ->
+            results.forEach {
+                callback(it)
+            }
+            return
         }
 
+        // Check network connectivity before making network requests
+        // Use synchronous check as fallback if flow doesn't emit
         val isNetworkAvailable = try {
             networkConnectivity.isCurrentlyConnected()
         } catch (e: Exception) {
+            // If network check fails, try to proceed anyway
             true
         }
-
+        
         if (!isNetworkAvailable) {
-            return emptyList()
+            // Still try to proceed in case of false negative
+            return
         }
 
-        val allResults = mutableListOf<LyricsResult>()
-        val job = CoroutineScope(SupervisorJob()).async {
-            allProviders.filter { it.isEnabled(context) }.map { provider ->
-                async {
+        val allResult = mutableListOf<LyricsResult>()
+        currentLyricsJob = CoroutineScope(SupervisorJob()).launch {
+            lyricsProviders.forEach { provider ->
+                if (provider.isEnabled(context)) {
                     try {
                         provider.getAllLyrics(mediaId, songTitle, songArtists, duration) { lyrics ->
                             val result = LyricsResult(provider.name, lyrics)
-                            synchronized(allResults) {
-                                allResults.add(result)
-                            }
+                            allResult += result
+                            callback(result)
                         }
                     } catch (e: Exception) {
+                        // Catch network-related exceptions like UnresolvedAddressException
                         reportException(e)
                     }
                 }
-            }.awaitAll()
+            }
+            cache.put(cacheKey, allResult)
         }
-        job.await()
-        cache.put(cacheKey, allResults)
-        return allResults
+
+        currentLyricsJob?.join()
     }
 
     fun cancelCurrentLyricsJob() {
@@ -184,7 +177,6 @@ constructor(
 
     companion object {
         private const val MAX_CACHE_SIZE = 3
-        private const val PREFERRED_PROVIDER_TIMEOUT_MS = 15000L
     }
 }
 

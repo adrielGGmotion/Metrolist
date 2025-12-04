@@ -70,8 +70,11 @@ constructor(
         job?.cancel()
         job =
             viewModelScope.launch(Dispatchers.IO) {
-                val lyricsResults = lyricsHelper.getAllLyrics(mediaId, title, artist, duration)
-                results.value = lyricsResults
+                lyricsHelper.getAllLyrics(mediaId, title, artist, duration) { result ->
+                    results.update {
+                        it + result
+                    }
+                }
                 isLoading.value = false
             }
     }

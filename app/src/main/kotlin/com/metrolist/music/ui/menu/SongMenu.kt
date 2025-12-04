@@ -1,23 +1,30 @@
 package com.metrolist.music.ui.menu
 
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -69,18 +78,21 @@ import com.metrolist.music.db.entities.ArtistEntity
 import com.metrolist.music.db.entities.Event
 import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.db.entities.SongArtistMap
+import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
-import com.metrolist.music.ui.component.Material3MenuGroup
-import com.metrolist.music.ui.component.Material3MenuItem
+import com.metrolist.music.ui.component.NewAction
+import com.metrolist.music.ui.component.NewActionGrid
 import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.TextFieldDialog
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.viewmodels.CachePlaylistViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -213,34 +225,18 @@ fun SongMenu(
             },
         ) {
             item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                    Modifier
-                        .height(ListItemHeight)
-                        .clickable { showErrorPlaylistAddDialog = false }
-                        .padding(horizontal = 12.dp),
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.close),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground),
-                        modifier = Modifier
-                            .size(ListThumbnailSize)
-                            .padding(8.dp),
-                    )
-                    Text(
-                        text = stringResource(R.string.already_in_playlist),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp),
-                    )
-                }
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.already_in_playlist)) },
+                    leadingContent = {
+                        Image(
+                            painter = painterResource(R.drawable.close),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground),
+                            modifier = Modifier.size(ListThumbnailSize),
+                        )
+                    },
+                    modifier = Modifier.clickable { showErrorPlaylistAddDialog = false },
+                )
             }
 
             items(listOf(song)) { song ->
@@ -323,125 +319,58 @@ fun SongMenu(
 
     HorizontalDivider()
 
+    Spacer(modifier = Modifier.height(12.dp))
+
     val bottomSheetPageState = LocalBottomSheetPageState.current
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
     LazyColumn(
-        contentPadding =
-        PaddingValues(top = 12.dp, bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        userScrollEnabled = !isPortrait,
+        contentPadding = PaddingValues(
+            start = 0.dp,
+            top = 0.dp,
+            end = 0.dp,
+            bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
+        ),
     ) {
         item {
-            Material3MenuGroup(
-                items = listOf(
-                    when (download?.state) {
-                        Download.STATE_COMPLETED -> {
-                            Material3MenuItem(
-                                title = {
-                                    Text(
-                                        text = stringResource(R.string.remove_download),
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.offline),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                onClick = {
-                                    DownloadService.sendRemoveDownload(
-                                        context,
-                                        ExoDownloadService::class.java,
-                                        song.id,
-                                        false,
-                                    )
-                                },
-                                cardColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
-                                textColor = MaterialTheme.colorScheme.error
-                            )
-                        }
-
-                        Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                            Material3MenuItem(
-                                title = { Text(text = stringResource(R.string.downloading)) },
-                                icon = {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                },
-                                onClick = {
-                                    DownloadService.sendRemoveDownload(
-                                        context,
-                                        ExoDownloadService::class.java,
-                                        song.id,
-                                        false,
-                                    )
-                                }
-                            )
-                        }
-
-                        else -> {
-                            Material3MenuItem(
-                                title = { Text(text = stringResource(R.string.action_download)) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.download),
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    val downloadRequest =
-                                        DownloadRequest
-                                            .Builder(song.id, song.id.toUri())
-                                            .setCustomCacheKey(song.id)
-                                            .setData(song.song.title.toByteArray())
-                                            .build()
-                                    DownloadService.sendAddDownload(
-                                        context,
-                                        ExoDownloadService::class.java,
-                                        downloadRequest,
-                                        false,
-                                    )
-                                }
-                            )
-                        }
-                    }
-                )
-            )
-        }
-        item {
-            Material3MenuGroup(
-                items = listOf(
-                    Material3MenuItem(
+            NewActionGrid(
+                actions = listOf(
+                    NewAction(
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.edit),
                                 contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
-                        title = { Text(stringResource(R.string.edit)) },
+                        text = stringResource(R.string.edit),
                         onClick = { showEditDialog = true }
                     ),
-                    Material3MenuItem(
+                    NewAction(
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.playlist_add),
                                 contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
-                        title = { Text(stringResource(R.string.add_to_playlist)) },
+                        text = stringResource(R.string.add_to_playlist),
                         onClick = { showChoosePlaylistDialog = true }
                     ),
-                    Material3MenuItem(
+                    NewAction(
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.share),
                                 contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
-                        title = { Text(stringResource(R.string.share)) },
+                        text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
                             val intent = Intent().apply {
@@ -452,247 +381,305 @@ fun SongMenu(
                             context.startActivity(Intent.createChooser(intent, null))
                         }
                     )
-                )
+                ),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
             )
         }
 
         item {
-            Material3MenuGroup(
-                items = listOf(
-                    Material3MenuItem(
-                        title = { Text(text = stringResource(R.string.start_radio)) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.radio),
-                                contentDescription = null,
-                            )
-                        },
-                        onClick = {
-                            onDismiss()
-                            playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
-                        }
-                    ),
-                    Material3MenuItem(
-                        title = { Text(text = stringResource(R.string.play_next)) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.playlist_play),
-                                contentDescription = null,
-                            )
-                        },
-                        onClick = {
-                            onDismiss()
-                            playerConnection.playNext(song.toMediaItem())
-                        }
-                    ),
-                    Material3MenuItem(
-                        title = { Text(text = stringResource(R.string.add_to_queue)) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.queue_music),
-                                contentDescription = null,
-                            )
-                        },
-                        onClick = {
-                            onDismiss()
-                            playerConnection.addToQueue(song.toMediaItem())
-                        }
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.start_radio)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.radio),
+                        contentDescription = null,
                     )
-                )
+                },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
+                }
             )
         }
-
         item {
-            Material3MenuGroup(
-                items = buildList {
-                    add(
-                        Material3MenuItem(
-                            title = {
-                                Text(
-                                    text = stringResource(
-                                        if (song.song.inLibrary == null) R.string.add_to_library
-                                        else R.string.remove_from_library
-                                    )
-                                )
-                            },
-                            icon = {
-                                Icon(
-                                    painter = painterResource(
-                                        if (song.song.inLibrary == null) R.drawable.library_add
-                                        else R.drawable.library_add_check
-                                    ),
-                                    contentDescription = null,
-                                )
-                            },
-                            onClick = {
-                                val currentSong = song.song
-                                val isInLibrary = currentSong.inLibrary != null
-                                val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.play_next)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.playlist_play),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    playerConnection.playNext(song.toMediaItem())
+                }
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.queue_music),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    playerConnection.addToQueue(song.toMediaItem())
+                }
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = stringResource(
+                            if (song.song.inLibrary == null) R.string.add_to_library
+                            else R.string.remove_from_library
+                        )
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(
+                            if (song.song.inLibrary == null) R.drawable.library_add
+                            else R.drawable.library_add_check
+                        ),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    val currentSong = song.song
+                    val isInLibrary = currentSong.inLibrary != null
+                    val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
 
-                                token?.let {
-                                    coroutineScope.launch {
-                                        YouTube.feedback(listOf(it))
+                    token?.let { 
+                        coroutineScope.launch {
+                            YouTube.feedback(listOf(it))
+                        }
+                    }
+
+                    database.query {
+                        update(song.song.toggleLibrary())
+                    }
+                }
+            )
+        }
+        if (event != null) {
+            item {
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.remove_from_history)) },
+                    leadingContent = {
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            contentDescription = null,
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        database.query {
+                            delete(event)
+                        }
+                    }
+                )
+            }
+        }
+        if (playlistSong != null) {
+            item {
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.remove_from_playlist)) },
+                    leadingContent = {
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            contentDescription = null,
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        database.transaction {
+                            coroutineScope.launch {
+                                playlistBrowseId?.let { playlistId ->
+                                    if (playlistSong.map.setVideoId != null) {
+                                        YouTube.removeFromPlaylist(
+                                            playlistId, playlistSong.map.songId, playlistSong.map.setVideoId
+                                        )
                                     }
-                                }
-
-                                database.query {
-                                    update(song.song.toggleLibrary())
                                 }
                             }
+                            move(playlistSong.map.playlistId, playlistSong.map.position, Int.MAX_VALUE)
+                            delete(playlistSong.map.copy(position = Int.MAX_VALUE))
+                        }
+                        onDismiss()
+                    }
+                )
+            }
+        }
+        if (isFromCache) {
+            item {
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.remove_from_cache)) },
+                    leadingContent = {
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            contentDescription = null,
                         )
+                    },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        cacheViewModel.removeSongFromCache(song.id)
+                    }
+                )
+            }
+        }
+        item {
+            when (download?.state) {
+                Download.STATE_COMPLETED -> {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.remove_download),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.offline),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            DownloadService.sendRemoveDownload(
+                                context,
+                                ExoDownloadService::class.java,
+                                song.id,
+                                false,
+                            )
+                        }
                     )
-                    if (event != null) {
-                        add(
-                            Material3MenuItem(
-                                title = { Text(text = stringResource(R.string.remove_from_history)) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.delete),
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    onDismiss()
-                                    database.query {
-                                        delete(event)
-                                    }
-                                }
+                }
+                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+                    ListItem(
+                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                        leadingContent = {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
                             )
-                        )
+                        },
+                        modifier = Modifier.clickable {
+                            DownloadService.sendRemoveDownload(
+                                context,
+                                ExoDownloadService::class.java,
+                                song.id,
+                                false,
+                            )
+                        }
+                    )
+                }
+                else -> {
+                    ListItem(
+                        headlineContent = { Text(text = stringResource(R.string.action_download)) },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.download),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            val downloadRequest =
+                                DownloadRequest
+                                    .Builder(song.id, song.id.toUri())
+                                    .setCustomCacheKey(song.id)
+                                    .setData(song.song.title.toByteArray())
+                                    .build()
+                            DownloadService.sendAddDownload(
+                                context,
+                                ExoDownloadService::class.java,
+                                downloadRequest,
+                                false,
+                            )
+                        }
+                    )
+                }
+            }
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.view_artist)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.artist),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    if (song.artists.size == 1) {
+                        navController.navigate("artist/${song.artists[0].id}")
+                        onDismiss()
+                    } else {
+                        showSelectArtistDialog = true
                     }
-                    if (playlistSong != null) {
-                        add(
-                            Material3MenuItem(
-                                title = { Text(text = stringResource(R.string.remove_from_playlist)) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.delete),
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    database.transaction {
-                                        coroutineScope.launch {
-                                            playlistBrowseId?.let { playlistId ->
-                                                if (playlistSong.map.setVideoId != null) {
-                                                    YouTube.removeFromPlaylist(
-                                                        playlistId, playlistSong.map.songId, playlistSong.map.setVideoId
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        move(playlistSong.map.playlistId, playlistSong.map.position, Int.MAX_VALUE)
-                                        delete(playlistSong.map.copy(position = Int.MAX_VALUE))
-                                    }
-                                    onDismiss()
-                                }
-                            )
+                }
+            )
+        }
+        if (song.song.albumId != null) {
+            item {
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.view_album)) },
+                    leadingContent = {
+                        Icon(
+                            painter = painterResource(R.drawable.album),
+                            contentDescription = null,
                         )
+                    },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        navController.navigate("album/${song.song.albumId}")
                     }
-                    if (isFromCache) {
-                        add(
-                            Material3MenuItem(
-                                title = { Text(text = stringResource(R.string.remove_from_cache)) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.delete),
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    onDismiss()
-                                    cacheViewModel.removeSongFromCache(song.id)
+                )
+            }
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.refetch)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.sync),
+                        contentDescription = null,
+                        modifier = Modifier.graphicsLayer(rotationZ = rotationAnimation),
+                    )
+                },
+                modifier = Modifier.clickable {
+                    refetchIconDegree -= 360
+                    scope.launch(Dispatchers.IO) {
+                        YouTube.queue(listOf(song.id)).onSuccess {
+                            val newSong = it.firstOrNull()
+                            if (newSong != null) {
+                                database.transaction {
+                                    update(song, newSong.toMediaMetadata())
                                 }
-                            )
-                        )
+                            }
+                        }
                     }
                 }
             )
         }
         item {
-            Material3MenuGroup(
-                items = buildList {
-                    add(
-                        Material3MenuItem(
-                            title = { Text(text = stringResource(R.string.view_artist)) },
-                            icon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.artist),
-                                    contentDescription = null,
-                                )
-                            },
-                            onClick = {
-                                if (song.artists.size == 1) {
-                                    navController.navigate("artist/${song.artists[0].id}")
-                                    onDismiss()
-                                } else {
-                                    showSelectArtistDialog = true
-                                }
-                            }
-                        )
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.details)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.info),
+                        contentDescription = null,
                     )
-                    if (song.song.albumId != null) {
-                        add(
-                            Material3MenuItem(
-                                title = { Text(text = stringResource(R.string.view_album)) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.album),
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    onDismiss()
-                                    navController.navigate("album/${song.song.albumId}")
-                                }
-                            )
-                        )
+                },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    bottomSheetPageState.show {
+                        ShowMediaInfo(song.id)
                     }
                 }
-            )
-        }
-        item {
-            Material3MenuGroup(
-                items = listOf(
-                    Material3MenuItem(
-                        title = { Text(text = stringResource(R.string.refetch)) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.sync),
-                                contentDescription = null,
-                                modifier = Modifier.graphicsLayer(rotationZ = rotationAnimation),
-                            )
-                        },
-                        onClick = {
-                            refetchIconDegree -= 360
-                            scope.launch(Dispatchers.IO) {
-                                YouTube.queue(listOf(song.id)).onSuccess {
-                                    val newSong = it.firstOrNull()
-                                    if (newSong != null) {
-                                        database.transaction {
-                                            update(song, newSong.toMediaMetadata())
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    ),
-                    Material3MenuItem(
-                        title = { Text(text = stringResource(R.string.details)) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.info),
-                                contentDescription = null,
-                            )
-                        },
-                        onClick = {
-                            onDismiss()
-                            bottomSheetPageState.show {
-                                ShowMediaInfo(song.id)
-                            }
-                        }
-                    )
-                )
             )
         }
     }

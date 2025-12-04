@@ -69,11 +69,6 @@ import androidx.navigation.NavController
 import com.metrolist.music.R
 import com.metrolist.music.ui.screens.settings.AccountSettings
 import kotlinx.coroutines.delay
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import com.metrolist.music.utils.Updater
 
 @Composable
 fun DefaultDialog(
@@ -154,20 +149,6 @@ fun AccountSettingsDialog(
     onDismiss: () -> Unit,
     latestVersionName: String
 ) {
-    var showUpdateDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-
-    if (showUpdateDialog) {
-        UpdateDialog(
-            onDismiss = { showUpdateDialog = false },
-            onUpdate = {
-                val downloadUrl = Updater.getLatestDownloadUrl()
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
-                context.startActivity(intent)
-            }
-        )
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -198,10 +179,7 @@ fun AccountSettingsDialog(
                 AccountSettings(
                     navController = navController,
                     onClose = onDismiss,
-                    latestVersionName = latestVersionName,
-                    onVersionClick = {
-                        showUpdateDialog = true
-                    }
+                    latestVersionName = latestVersionName
                 )
             }
         }

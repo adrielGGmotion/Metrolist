@@ -28,9 +28,7 @@ import androidx.navigation.NavController
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
-import com.metrolist.music.constants.DeveloperModeKey
 import com.metrolist.music.ui.component.IconButton
-import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.ReleaseNotesCard
@@ -47,7 +45,6 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val isAndroid12OrLater = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val (devMode) = rememberPreference(DeveloperModeKey, false)
 
     Column(
         Modifier
@@ -218,20 +215,6 @@ fun SettingsScreen(
         if (latestVersionName != BuildConfig.VERSION_NAME) {
             Spacer(modifier = Modifier.height(16.dp))
             ReleaseNotesCard()
-        }
-
-        if (devMode) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Material3SettingsGroup(
-                title = stringResource(R.string.developer_mode),
-                items = listOf(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.settings),
-                        title = { Text(stringResource(R.string.developer_mode)) },
-                        onClick = { navController.navigate("settings/developer") }
-                    )
-                )
-            )
         }
         
         Spacer(modifier = Modifier.height(16.dp))
