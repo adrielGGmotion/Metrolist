@@ -413,6 +413,19 @@ fun LyricsMenu(
                                     upsert(song.copy(romanizeLyrics = isChecked))
                                 }
                             }
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = isChecked,
+                                onCheckedChange = { newCheckedState ->
+                                    isChecked = newCheckedState
+                                    songProvider()?.let { song ->
+                                        database.query {
+                                            upsert(song.copy(romanizeLyrics = newCheckedState))
+                                        }
+                                    }
+                                }
+                            )
                         }
                     )
                 )

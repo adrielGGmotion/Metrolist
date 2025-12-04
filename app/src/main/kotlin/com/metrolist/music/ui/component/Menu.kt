@@ -93,6 +93,10 @@ private fun Material3MenuItemRow(
                 }
             }
         }
+        item.trailingContent?.let { trailing ->
+            Spacer(modifier = Modifier.width(8.dp))
+            trailing()
+        }
     }
 }
 
@@ -101,5 +105,6 @@ data class Material3MenuItemData(
     val title: @Composable () -> Unit,
     val description: (@Composable () -> Unit)? = null,
     val onClick: (() -> Unit)? = null,
-    val cardColors: CardColors? = null
+    val cardColors: CardColors? = null,
+    val trailingContent: (@Composable () -> Unit)? = null
 )

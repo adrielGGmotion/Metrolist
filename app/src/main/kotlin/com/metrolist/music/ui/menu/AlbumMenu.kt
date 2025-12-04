@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -421,13 +422,14 @@ fun AlbumMenu(
                                 title = {
                                     Text(
                                         text = stringResource(R.string.remove_download),
-                                        color = MaterialTheme.colorScheme.error
+                                        color = MaterialTheme.colorScheme.surface
                                     )
                                 },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.offline),
-                                        contentDescription = null
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.surface
                                     )
                                 },
                                 onClick = {
@@ -439,7 +441,10 @@ fun AlbumMenu(
                                             false,
                                         )
                                     }
-                                }
+                                },
+                                cardColors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.onSurface
+                                )
                             )
                         }
                         STATE_QUEUED, STATE_DOWNLOADING -> {

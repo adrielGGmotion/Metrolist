@@ -38,6 +38,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
+import androidx.compose.material3.CardDefaults
 import com.metrolist.innertube.YouTube
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
@@ -379,18 +380,22 @@ fun SelectionSongMenu(
                                 title = {
                                     Text(
                                         text = stringResource(R.string.remove_download),
-                                        color = MaterialTheme.colorScheme.error
+                                        color = MaterialTheme.colorScheme.surface
                                     )
                                 },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.offline),
                                         contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.surface
                                     )
                                 },
                                 onClick = {
                                     showRemoveDownloadDialog = true
-                                }
+                                },
+                                cardColors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.onSurface
+                                )
                             )
                         }
                         Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
@@ -752,18 +757,22 @@ fun SelectionMediaMetadataMenu(
                                     title = {
                                         Text(
                                             text = stringResource(R.string.remove_download),
-                                            color = MaterialTheme.colorScheme.error
+                                            color = MaterialTheme.colorScheme.surface
                                         )
                                     },
                                     icon = {
                                         Icon(
                                             painter = painterResource(R.drawable.offline),
                                             contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.surface
                                         )
                                     },
                                     onClick = {
                                         showRemoveDownloadDialog = true
-                                    }
+                                    },
+                                    cardColors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.onSurface
+                                    )
                                 )
                             }
                             Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {

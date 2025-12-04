@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -449,18 +450,22 @@ fun PlaylistMenu(
                                         title = {
                                             Text(
                                                 text = stringResource(R.string.remove_download),
-                                                color = MaterialTheme.colorScheme.error
+                                                color = MaterialTheme.colorScheme.surface
                                             )
                                         },
                                         icon = {
                                             Icon(
                                                 painter = painterResource(R.drawable.offline),
                                                 contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.surface
                                             )
                                         },
                                         onClick = {
                                             showRemoveDownloadDialog = true
-                                        }
+                                        },
+                                        cardColors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.onSurface
+                                        )
                                     )
                                 }
                                 Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
