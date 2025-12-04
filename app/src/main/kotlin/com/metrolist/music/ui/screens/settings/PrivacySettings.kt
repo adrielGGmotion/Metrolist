@@ -13,7 +13,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -157,7 +159,16 @@ fun PrivacySettings(
                     trailingContent = {
                         Switch(
                             checked = pauseListenHistory,
-                            onCheckedChange = onPauseListenHistoryChange
+                            onCheckedChange = onPauseListenHistoryChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (pauseListenHistory) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(androidx.compose.material3.SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onPauseListenHistoryChange(!pauseListenHistory) }
@@ -181,7 +192,16 @@ fun PrivacySettings(
                     trailingContent = {
                         Switch(
                             checked = pauseSearchHistory,
-                            onCheckedChange = onPauseSearchHistoryChange
+                            onCheckedChange = onPauseSearchHistoryChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (pauseSearchHistory) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(androidx.compose.material3.SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onPauseSearchHistoryChange(!pauseSearchHistory) }
@@ -206,7 +226,16 @@ fun PrivacySettings(
                     trailingContent = {
                         Switch(
                             checked = disableScreenshot,
-                            onCheckedChange = onDisableScreenshotChange
+                            onCheckedChange = onDisableScreenshotChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (disableScreenshot) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(androidx.compose.material3.SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onDisableScreenshotChange(!disableScreenshot) }

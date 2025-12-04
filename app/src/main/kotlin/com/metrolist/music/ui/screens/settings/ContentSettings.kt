@@ -31,7 +31,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -401,7 +403,16 @@ fun ContentSettings(
                     trailingContent = {
                         Switch(
                             checked = hideExplicit,
-                            onCheckedChange = onHideExplicitChange
+                            onCheckedChange = onHideExplicitChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (hideExplicit) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onHideExplicitChange(!hideExplicit) }
@@ -454,7 +465,16 @@ fun ContentSettings(
                         trailingContent = {
                             Switch(
                                 checked = proxyEnabled,
-                                onCheckedChange = onProxyEnabledChange
+                                onCheckedChange = onProxyEnabledChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (proxyEnabled) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
                             )
                         },
                         onClick = { onProxyEnabledChange(!proxyEnabled) }
@@ -483,7 +503,16 @@ fun ContentSettings(
                     trailingContent = {
                         Switch(
                             checked = enableLrclib,
-                            onCheckedChange = onEnableLrclibChange
+                            onCheckedChange = onEnableLrclibChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (enableLrclib) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onEnableLrclibChange(!enableLrclib) }
@@ -494,7 +523,16 @@ fun ContentSettings(
                     trailingContent = {
                         Switch(
                             checked = enableKugou,
-                            onCheckedChange = onEnableKugouChange
+                            onCheckedChange = onEnableKugouChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (enableKugou) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
                         )
                     },
                     onClick = { onEnableKugouChange(!enableKugou) }
