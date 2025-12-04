@@ -367,30 +367,43 @@ fun Queue(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(buttonSize)
-                            .border(1.5.dp, borderColor, repeatShape)
-                            .clip(repeatShape)
-                            .clickable {
-                                playerConnection.player.toggleRepeatMode()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(
-                                id = when (repeatMode) {
-                                    Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL -> R.drawable.repeat
-                                    Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
-                                    else -> R.drawable.repeat
-                                }
+                    if (repeatMode == Player.REPEAT_MODE_OFF) {
+                        OutlinedIconButton(
+                            onClick = { playerConnection.player.toggleRepeatMode() },
+                            shape = repeatShape,
+                            modifier = Modifier.size(buttonSize)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.repeat),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(iconSize)
+                                    .alpha(0.5f),
+                                tint = TextBackgroundColor
+                            )
+                        }
+                    } else {
+                        FilledIconButton(
+                            onClick = { playerConnection.player.toggleRepeatMode() },
+                            shape = repeatShape,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = textButtonColor,
+                                contentColor = iconButtonColor
                             ),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
-                            tint = TextBackgroundColor
-                        )
+                            modifier = Modifier.size(buttonSize)
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    id = when (repeatMode) {
+                                        Player.REPEAT_MODE_ALL -> R.drawable.repeat
+                                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
+                                        else -> R.drawable.repeat
+                                    }
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.size(iconSize)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.weight(1f))

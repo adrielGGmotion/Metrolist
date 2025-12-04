@@ -143,6 +143,11 @@ import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
+import com.metrolist.music.lyrics.LyricsEntry
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
+import com.metrolist.music.lyrics.LyricsUtils.parseLyrics
 import com.metrolist.music.ui.theme.PlayerColorExtractor
 import com.metrolist.music.ui.theme.PlayerSliderColors
 import com.metrolist.music.ui.utils.ShowMediaInfo
@@ -297,10 +302,12 @@ fun BottomSheetPlayer(
     )
 
     val (textButtonColor, iconButtonColor) = when (playerButtonsStyle) {
-        PlayerButtonsStyle.DEFAULT -> Pair(TextBackgroundColor, icBackgroundColor)
-        PlayerButtonsStyle.SECONDARY -> Pair(
-            MaterialTheme.colorScheme.secondary,
-            MaterialTheme.colorScheme.onSecondary
+        PlayerButtonsStyle.DEFAULT ->
+            if (useDarkTheme) Pair(Color.White, Color.Black)
+            else Pair(Color.Black, Color.White)
+        PlayerButtonsStyle.PRIMARY -> Pair(
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.onPrimary
         )
     }
 
@@ -718,6 +725,10 @@ fun BottomSheetPlayer(
                                 context.startActivity(Intent.createChooser(intent, null))
                             },
                             shape = shareShape,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = textButtonColor,
+                                contentColor = iconButtonColor,
+                            ),
                             modifier = Modifier.size(42.dp),
                         ) {
                             Icon(
@@ -730,6 +741,10 @@ fun BottomSheetPlayer(
                         FilledIconButton(
                             onClick = playerConnection::toggleLike,
                             shape = favShape,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = textButtonColor,
+                                contentColor = iconButtonColor,
+                            ),
                             modifier = Modifier.size(42.dp),
                         ) {
                             Icon(
@@ -918,6 +933,20 @@ fun BottomSheetPlayer(
                         enabled = canSkipPrevious,
                         shape = RoundedCornerShape(50),
                         interactionSource = backInteractionSource,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor =
+                            if (playerButtonsStyle == PlayerButtonsStyle.DEFAULT) {
+                                if (useDarkTheme) Color.Black else Color.White
+                            } else {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            },
+                            contentColor =
+                            if (playerButtonsStyle == PlayerButtonsStyle.DEFAULT) {
+                                Color.Gray
+                            } else {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            },
+                        ),
                         modifier = Modifier
                             .height(64.dp)
                             .weight(sideButtonWeight)
@@ -943,6 +972,10 @@ fun BottomSheetPlayer(
                         },
                         shape = RoundedCornerShape(50),
                         interactionSource = playPauseInteractionSource,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = textButtonColor,
+                            contentColor = iconButtonColor,
+                        ),
                         modifier = Modifier
                             .height(64.dp)
                             .weight(playPauseWeight)
@@ -973,6 +1006,20 @@ fun BottomSheetPlayer(
                         enabled = canSkipNext,
                         shape = RoundedCornerShape(50),
                         interactionSource = nextInteractionSource,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor =
+                            if (playerButtonsStyle == PlayerButtonsStyle.DEFAULT) {
+                                if (useDarkTheme) Color.Black else Color.White
+                            } else {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            },
+                            contentColor =
+                            if (playerButtonsStyle == PlayerButtonsStyle.DEFAULT) {
+                                Color.Gray
+                            } else {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            },
+                        ),
                         modifier = Modifier
                             .height(64.dp)
                             .weight(sideButtonWeight)
@@ -1115,7 +1162,7 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
-                                InlineLyricsView(mediaMetadata = mediaMetadata)
+                                InlineLyricsView(mediaMetadata = mediaMetadata, showLyrics = showLyrics && !lyricsSheetState.isExpanded)
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = { sliderPosition },
@@ -1124,21 +1171,23 @@ fun BottomSheetPlayer(
                                 )
                             }
                         }
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier =
-                        Modifier
-                            .weight(1f)
-                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
-                    ) {
-                        Spacer(Modifier.weight(1f))
-
-                        mediaMetadata?.let {
-                            controlsContent(it)
+                        if (showInlineLyrics) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp)
+                            ) {
+                                mediaMetadata?.let {
+                                    MoreActionsButton(
+                                        mediaMetadata = it,
+                                        navController = navController,
+                                        state = state,
+                                        textButtonColor = textButtonColor,
+                                        iconButtonColor = iconButtonColor,
+                                    )
+                                }
+                            }
                         }
-
-                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
@@ -1161,7 +1210,7 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
-                                InlineLyricsView(mediaMetadata = mediaMetadata)
+                                InlineLyricsView(mediaMetadata = mediaMetadata, showLyrics = showLyrics)
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = { sliderPosition },
@@ -1238,7 +1287,7 @@ fun BottomSheetPlayer(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun InlineLyricsView(mediaMetadata: MediaMetadata?) {
+fun InlineLyricsView(mediaMetadata: MediaMetadata?, showLyrics: Boolean) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
     val lyrics = remember(currentLyrics) { currentLyrics?.lyrics?.trim() }
@@ -1289,7 +1338,8 @@ fun InlineLyricsView(mediaMetadata: MediaMetadata?) {
                 val lyricsContent: @Composable () -> Unit = {
                     Lyrics(
                         sliderPositionProvider = { playerConnection.player.currentPosition },
-                        modifier = Modifier.padding(horizontal = 24.dp)
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        showLyrics = showLyrics
                     )
                 }
                 ProvideTextStyle(
@@ -1316,6 +1366,48 @@ private fun Modifier.bouncy(interactionSource: InteractionSource) = composed {
     graphicsLayer {
         scaleX = scale
         scaleY = scale
+    }
+}
+
+@Composable
+fun MoreActionsButton(
+    mediaMetadata: MediaMetadata,
+    navController: NavController,
+    state: BottomSheetState,
+    textButtonColor: Color,
+    iconButtonColor: Color
+) {
+    val menuState = LocalMenuState.current
+    val bottomSheetPageState = LocalBottomSheetPageState.current
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(textButtonColor)
+            .clickable {
+                menuState.show {
+                    PlayerMenu(
+                        mediaMetadata = mediaMetadata,
+                        navController = navController,
+                        playerBottomSheetState = state,
+                        onShowDetailsDialog = {
+                            mediaMetadata.id.let {
+                                bottomSheetPageState.show {
+                                    ShowMediaInfo(it)
+                                }
+                            }
+                        },
+                        onDismiss = menuState::dismiss
+                    )
+                }
+            }
+    ) {
+        Image(
+            painter = painterResource(R.drawable.more_horiz),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(iconButtonColor)
+        )
     }
 }
 
