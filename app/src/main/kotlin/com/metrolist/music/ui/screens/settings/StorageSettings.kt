@@ -220,14 +220,6 @@ fun StorageSettings(
                 .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
                 .verticalScroll(rememberScrollState()),
         ) {
-            Spacer(
-                Modifier.windowInsetsPadding(
-                    LocalPlayerAwareWindowInsets.current.only(
-                        WindowInsetsSides.Top
-                    )
-                )
-            )
-
             Material3SettingsGroup(
                 title = stringResource(R.string.downloaded_songs),
                 items = listOf(
@@ -244,6 +236,36 @@ fun StorageSettings(
                     )
                 )
             )
+
+            var showSongCacheDialog by remember { mutableStateOf(false) }
+            if (showSongCacheDialog) {
+                ListPreference(
+                    title = { Text(stringResource(R.string.max_cache_size)) },
+                    selectedValue = maxSongCacheSize,
+                    values = listOf(
+                        0,
+                        128,
+                        256,
+                        512,
+                        1024,
+                        2048,
+                        4096,
+                        8192,
+                        -1
+                    ),
+                    valueText = {
+                        when (it) {
+                            0 -> stringResource(R.string.disable)
+                            -1 -> stringResource(R.string.unlimited)
+                            else -> formatFileSize(it * 1024 * 1024L)
+                        }
+                    },
+                    onValueSelected = {
+                        onMaxSongCacheSizeChange(it)
+                        showSongCacheDialog = false
+                    }
+                )
+            }
 
             Material3SettingsGroup(
                 title = stringResource(R.string.song_cache),
@@ -296,36 +318,7 @@ fun StorageSettings(
                                 }
                             }
                         },
-                        trailingContent = {
-                            var showDialog by remember { mutableStateOf(false) }
-                            if (showDialog) {
-                                ListPreference(
-                                    title = { Text(stringResource(R.string.max_cache_size)) },
-                                    selectedValue = maxSongCacheSize,
-                                    values = listOf(
-                                        0,
-                                        128,
-                                        256,
-                                        512,
-                                        1024,
-                                        2048,
-                                        4096,
-                                        8192,
-                                        -1
-                                    ),
-                                    valueText = {
-                                        when (it) {
-                                            0 -> stringResource(R.string.disable)
-                                            -1 -> stringResource(R.string.unlimited)
-                                            else -> formatFileSize(it * 1024 * 1024L)
-                                        }
-                                    },
-                                    onValueSelected = onMaxSongCacheSizeChange,
-                                )
-                            }
-                        },
-                        onClick = {
-                        }
+                        onClick = { showSongCacheDialog = true }
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.clear_all),
@@ -336,6 +329,25 @@ fun StorageSettings(
                     )
                 )
             )
+
+            var showImageCacheDialog by remember { mutableStateOf(false) }
+            if (showImageCacheDialog) {
+                ListPreference(
+                    title = { Text(stringResource(R.string.max_cache_size)) },
+                    selectedValue = maxImageCacheSize,
+                    values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
+                    valueText = {
+                        when (it) {
+                            0 -> stringResource(R.string.disable)
+                            else -> formatFileSize(it * 1024 * 1024L)
+                        }
+                    },
+                    onValueSelected = {
+                        onMaxImageCacheSizeChange(it)
+                        showImageCacheDialog = false
+                    }
+                )
+            }
 
             Material3SettingsGroup(
                 title = stringResource(R.string.image_cache),
@@ -369,25 +381,7 @@ fun StorageSettings(
                                 }
                             }
                         },
-                        trailingContent = {
-                            var showDialog by remember { mutableStateOf(false) }
-                            if (showDialog) {
-                                ListPreference(
-                                    title = { Text(stringResource(R.string.max_cache_size)) },
-                                    selectedValue = maxImageCacheSize,
-                                    values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
-                                    valueText = {
-                                        when (it) {
-                                            0 -> stringResource(R.string.disable)
-                                            else -> formatFileSize(it * 1024 * 1024L)
-                                        }
-                                    },
-                                    onValueSelected = onMaxImageCacheSizeChange,
-                                )
-                            }
-                        },
-                        onClick = {
-                        }
+                        onClick = { showImageCacheDialog = true }
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.clear_all),
