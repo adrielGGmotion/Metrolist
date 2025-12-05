@@ -264,6 +264,7 @@ fun SelectionSongMenu(
                 items = listOf(
                     Material3MenuItemData(
                         title = { Text(text = stringResource(R.string.play)) },
+                        description = { Text(text = stringResource(R.string.play_next_desc)) },
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.play),
@@ -283,6 +284,7 @@ fun SelectionSongMenu(
                     ),
                     Material3MenuItemData(
                         title = { Text(text = stringResource(R.string.shuffle)) },
+                        description = { Text(text = stringResource(R.string.add_to_queue_desc)) },
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.shuffle),
@@ -302,6 +304,7 @@ fun SelectionSongMenu(
                     ),
                     Material3MenuItemData(
                         title = { Text(text = stringResource(R.string.add_to_queue)) },
+                        description = { Text(text = stringResource(R.string.add_to_queue_desc)) },
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.queue_music),
@@ -316,6 +319,7 @@ fun SelectionSongMenu(
                     ),
                     Material3MenuItemData(
                         title = { Text(text = stringResource(R.string.add_to_playlist)) },
+                        description = { Text(text = stringResource(R.string.add_to_playlist_desc)) },
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.playlist_add),
@@ -379,23 +383,18 @@ fun SelectionSongMenu(
                             Material3MenuItemData(
                                 title = {
                                     Text(
-                                        text = stringResource(R.string.remove_download),
-                                        color = MaterialTheme.colorScheme.surface
+                                        text = stringResource(R.string.remove_download)
                                     )
                                 },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.offline),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.surface
+                                        contentDescription = null
                                     )
                                 },
                                 onClick = {
                                     showRemoveDownloadDialog = true
-                                },
-                                cardColors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.onSurface
-                                )
+                                }
                             )
                         }
                         Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {

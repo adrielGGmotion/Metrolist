@@ -364,6 +364,7 @@ fun PlaylistMenu(
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.start_radio)) },
+                                description = { Text(text = stringResource(R.string.start_radio_desc)) },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.radio),
@@ -388,6 +389,7 @@ fun PlaylistMenu(
                     add(
                         Material3MenuItemData(
                             title = { Text(text = stringResource(R.string.play_next)) },
+                            description = { Text(text = stringResource(R.string.play_next_desc)) },
                             icon = {
                                 Icon(
                                     painter = painterResource(R.drawable.playlist_play),
@@ -405,6 +407,7 @@ fun PlaylistMenu(
                     add(
                         Material3MenuItemData(
                             title = { Text(text = stringResource(R.string.add_to_queue)) },
+                            description = { Text(text = stringResource(R.string.add_to_queue_desc)) },
                             icon = {
                                 Icon(
                                     painter = painterResource(R.drawable.queue_music),
@@ -430,6 +433,7 @@ fun PlaylistMenu(
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.edit)) },
+                                description = { Text(text = stringResource(R.string.edit_desc)) },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.edit),
@@ -449,23 +453,18 @@ fun PlaylistMenu(
                                     Material3MenuItemData(
                                         title = {
                                             Text(
-                                                text = stringResource(R.string.remove_download),
-                                                color = MaterialTheme.colorScheme.surface
+                                                text = stringResource(R.string.remove_download)
                                             )
                                         },
                                         icon = {
                                             Icon(
                                                 painter = painterResource(R.drawable.offline),
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.surface
+                                                contentDescription = null
                                             )
                                         },
                                         onClick = {
                                             showRemoveDownloadDialog = true
-                                        },
-                                        cardColors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.onSurface
-                                        )
+                                        }
                                     )
                                 }
                                 Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
@@ -485,6 +484,7 @@ fun PlaylistMenu(
                                 else -> {
                                     Material3MenuItemData(
                                         title = { Text(text = stringResource(R.string.action_download)) },
+                                        description = { Text(text = stringResource(R.string.download_desc)) },
                                         icon = {
                                             Icon(
                                                 painter = painterResource(R.drawable.download),
@@ -516,6 +516,7 @@ fun PlaylistMenu(
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.delete)) },
+                                description = { Text(text = stringResource(R.string.delete_desc)) },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.delete),
@@ -532,6 +533,7 @@ fun PlaylistMenu(
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.share)) },
+                                description = { Text(text = stringResource(R.string.share_desc)) },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.share),

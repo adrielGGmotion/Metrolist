@@ -183,27 +183,30 @@ fun PlayerMenu(
     }
 
     if (isQueueTrigger != true) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 24.dp, bottom = 6.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.volume_up),
-                contentDescription = null,
-                modifier = Modifier.size(28.dp),
-            )
+        Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.volume_up),
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                )
 
-            Slider(
-                value = playerVolume.value,
-                onValueChange = { playerConnection.service.playerVolume.value = it },
-                modifier = Modifier
-                    .weight(1f)
-            )
+                Slider(
+                    value = playerVolume.value,
+                    onValueChange = { playerConnection.service.playerVolume.value = it },
+                    modifier = Modifier
+                        .weight(1f)
+                )
+            }
         }
     }
 
@@ -352,16 +355,14 @@ fun PlayerMenu(
                             Material3MenuItemData(
                                 title = {
                                     Text(
-                                        text = stringResource(R.string.remove_download),
-                                        color = MaterialTheme.colorScheme.surface
+                                        text = stringResource(R.string.remove_download)
                                     )
                                 },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.offline),
                                         contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.surface
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 },
                                 onClick = {
@@ -371,10 +372,7 @@ fun PlayerMenu(
                                         mediaMetadata.id,
                                         false,
                                     )
-                                },
-                                cardColors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.onSurface
-                                )
+                                }
                             )
                         }
 
