@@ -40,7 +40,9 @@ fun Material3SettingsGroup(
     items: List<Material3SettingsItem>
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
         // Section title
         title?.let {
@@ -48,7 +50,7 @@ fun Material3SettingsGroup(
                 text = it,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
+                modifier = Modifier.padding(bottom = 8.dp, top = 8.dp)
             )
         }
 

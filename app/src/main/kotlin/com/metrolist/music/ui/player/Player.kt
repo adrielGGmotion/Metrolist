@@ -1145,6 +1145,7 @@ fun BottomSheetPlayer(
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
@@ -1187,6 +1188,16 @@ fun BottomSheetPlayer(
                                     )
                                 }
                             }
+                        }
+                    }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        mediaMetadata?.let {
+                            controlsContent(it)
                         }
                     }
                 }

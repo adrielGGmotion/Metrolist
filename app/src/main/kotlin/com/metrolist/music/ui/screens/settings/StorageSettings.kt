@@ -15,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -44,7 +45,6 @@ import com.metrolist.music.constants.MaxSongCacheSizeKey
 import com.metrolist.music.extensions.tryOrNull
 import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.IconButton
-import com.metrolist.music.ui.component.ListPreference
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
@@ -54,6 +54,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -221,174 +222,128 @@ fun StorageSettings(
                 .verticalScroll(rememberScrollState()),
         ) {
             Material3SettingsGroup(
-                title = stringResource(R.string.downloaded_songs),
+                title = stringResource(R.string.storage),
                 items = listOf(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.storage),
-                        title = { Text(text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize))) },
+                        title = { Text(stringResource(R.string.downloaded_songs)) },
+                        description = {
+                            Text(text = formatFileSize(downloadCacheSize))
+                        }
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.clear_all),
                         title = { Text(stringResource(R.string.clear_all_downloads)) },
                         onClick = {
                             clearDownloads = true
-                        },
+                        }
                     )
                 )
             )
-
-            var showSongCacheDialog by remember { mutableStateOf(false) }
-            if (showSongCacheDialog) {
-                ListPreference(
-                    title = { Text(stringResource(R.string.max_cache_size)) },
-                    selectedValue = maxSongCacheSize,
-                    values = listOf(
-                        0,
-                        128,
-                        256,
-                        512,
-                        1024,
-                        2048,
-                        4096,
-                        8192,
-                        -1
-                    ),
-                    valueText = {
-                        when (it) {
-                            0 -> stringResource(R.string.disable)
-                            -1 -> stringResource(R.string.unlimited)
-                            else -> formatFileSize(it * 1024 * 1024L)
-                        }
-                    },
-                    onValueSelected = {
-                        onMaxSongCacheSizeChange(it)
-                        showSongCacheDialog = false
-                    }
-                )
-            }
 
             Material3SettingsGroup(
                 title = stringResource(R.string.song_cache),
                 items = listOf(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.cached),
-                        title = { Text(stringResource(R.string.max_cache_size)) },
+                        title = { Text(stringResource(R.string.max_song_cache_size)) },
                         description = {
+                            val songCacheValues =
+                                remember { listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192, -1) }
                             Column {
-                                if (maxSongCacheSize != 0) {
-                                    if (maxSongCacheSize == -1) {
-                                        Text(
-                                            text = stringResource(
-                                                R.string.size_used,
-                                                formatFileSize(playerCacheSize)
-                                            ),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.padding(
-                                                horizontal = 16.dp,
-                                                vertical = 6.dp
-                                            ),
-                                        )
-                                    } else {
-                                        LinearProgressIndicator(
-                                            progress = { playerCacheProgress },
-                                            modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                                            strokeCap = StrokeCap.Round
-                                        )
-
-                                        Text(
-                                            text =
-                                            stringResource(
-                                                R.string.size_used,
-                                                "${formatFileSize(playerCacheSize)} / ${
-                                                    formatFileSize(
-                                                        maxSongCacheSize * 1024 * 1024L,
-                                                    )
-                                                }",
-                                            ),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.padding(
-                                                horizontal = 16.dp,
-                                                vertical = 6.dp
-                                            ),
-                                        )
+                                Text(
+                                    text = when (maxSongCacheSize) {
+                                        0 -> stringResource(R.string.disable)
+                                        -1 -> stringResource(R.string.unlimited)
+                                        else -> formatFileSize(maxSongCacheSize * 1024 * 1024L)
                                     }
-                                }
+                                )
+                                Slider(
+                                    value = songCacheValues.indexOf(maxSongCacheSize).toFloat(),
+                                    onValueChange = {
+                                        onMaxSongCacheSizeChange(songCacheValues[it.roundToInt()])
+                                    },
+                                    steps = songCacheValues.size - 2,
+                                    valueRange = 0f..(songCacheValues.size - 1).toFloat()
+                                )
+                                LinearProgressIndicator(
+                                    progress = { playerCacheProgress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    strokeCap = StrokeCap.Round
+                                )
+                                Spacer(modifier = Modifier.padding(2.dp))
+                                Text(
+                                    text = if (maxSongCacheSize == -1) {
+                                        formatFileSize(playerCacheSize)
+                                    } else {
+                                        "${formatFileSize(playerCacheSize)} / ${
+                                            formatFileSize(
+                                                maxSongCacheSize * 1024 * 1024L
+                                            )
+                                        }"
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
                             }
-                        },
-                        onClick = { showSongCacheDialog = true }
+                        }
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.clear_all),
                         title = { Text(stringResource(R.string.clear_song_cache)) },
                         onClick = {
                             clearCacheDialog = true
-                        },
+                        }
                     )
                 )
             )
-
-            var showImageCacheDialog by remember { mutableStateOf(false) }
-            if (showImageCacheDialog) {
-                ListPreference(
-                    title = { Text(stringResource(R.string.max_cache_size)) },
-                    selectedValue = maxImageCacheSize,
-                    values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
-                    valueText = {
-                        when (it) {
-                            0 -> stringResource(R.string.disable)
-                            else -> formatFileSize(it * 1024 * 1024L)
-                        }
-                    },
-                    onValueSelected = {
-                        onMaxImageCacheSizeChange(it)
-                        showImageCacheDialog = false
-                    }
-                )
-            }
 
             Material3SettingsGroup(
                 title = stringResource(R.string.image_cache),
                 items = listOf(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.manage_search),
-                        title = { Text(stringResource(R.string.max_cache_size)) },
+                        title = { Text(stringResource(R.string.max_image_cache_size)) },
                         description = {
+                            val imageCacheValues =
+                                remember { listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192) }
                             Column {
-                                if (maxImageCacheSize > 0) {
-                                    LinearProgressIndicator(
-                                        progress = { imageCacheProgress },
-                                        modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                                        strokeCap = StrokeCap.Round
-                                    )
-
-                                    Text(
-                                        text = stringResource(
-                                            R.string.size_used,
-                                            "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
-                                        ),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(
-                                            horizontal = 16.dp,
-                                            vertical = 6.dp
-                                        ),
-                                    )
-                                }
+                                Text(
+                                    text = when (maxImageCacheSize) {
+                                        0 -> stringResource(R.string.disable)
+                                        else -> formatFileSize(maxImageCacheSize * 1024 * 1024L)
+                                    }
+                                )
+                                Slider(
+                                    value = imageCacheValues.indexOf(maxImageCacheSize).toFloat(),
+                                    onValueChange = {
+                                        onMaxImageCacheSizeChange(imageCacheValues[it.roundToInt()])
+                                    },
+                                    steps = imageCacheValues.size - 2,
+                                    valueRange = 0f..(imageCacheValues.size - 1).toFloat()
+                                )
+                                LinearProgressIndicator(
+                                    progress = { imageCacheProgress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    strokeCap = StrokeCap.Round
+                                )
+                                Spacer(modifier = Modifier.padding(2.dp))
+                                Text(
+                                    text = "${formatFileSize(imageCacheSize)} / ${
+                                        formatFileSize(
+                                            imageDiskCache.maxSize
+                                        )
+                                    }",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
                             }
-                        },
-                        onClick = { showImageCacheDialog = true }
+                        }
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.clear_all),
                         title = { Text(stringResource(R.string.clear_image_cache)) },
                         onClick = {
                             clearImageCacheDialog = true
-                        },
+                        }
                     )
                 )
             )
