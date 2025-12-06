@@ -149,10 +149,9 @@ fun Queue(
     TextBackgroundColor: Color,
     textButtonColor: Color,
     iconButtonColor: Color,
-    onShowLyrics: () -> Unit = {},
     pureBlack: Boolean,
     showInlineLyrics: Boolean,
-    onToggleLyrics: (Boolean) -> Unit = {},
+    onToggleLyrics: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -235,7 +234,6 @@ fun Queue(
                 ) {
                     val buttonSize = 42.dp
                     val iconSize = 24.dp
-                    val borderColor = TextBackgroundColor.copy(alpha = 0.35f)
                     val queueShape = RoundedCornerShape(
                         topStart = 50.dp, bottomStart = 50.dp,
                         topEnd = 5.dp, bottomEnd = 5.dp
@@ -246,21 +244,17 @@ fun Queue(
                         topEnd = 50.dp, bottomEnd = 50.dp
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .size(buttonSize)
-                            .border(1.5.dp, borderColor, queueShape)
-                            .clip(queueShape)
-                            .clickable { state.expandSoft() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.queue_music),
-                            contentDescription = null,
-                            modifier = Modifier.size(iconSize),
-                            tint = TextBackgroundColor
-                        )
-                    }
+                    PlayerQueueButton(
+                        icon = R.drawable.queue_music,
+                        onClick = { state.expandSoft() },
+                        isActive = false,
+                        shape = queueShape,
+                        modifier = Modifier.size(buttonSize),
+                        textButtonColor = textButtonColor,
+                        iconButtonColor = iconButtonColor,
+                        iconSize = iconSize,
+                        textBackgroundColor = TextBackgroundColor
+                    )
 
                     PlayerQueueButton(
                         icon = R.drawable.bedtime,
@@ -296,7 +290,7 @@ fun Queue(
 
                     PlayerQueueButton(
                         icon = R.drawable.lyrics,
-                        onClick = { onToggleLyrics(false) },
+                        onClick = { onToggleLyrics() },
                         isActive = showInlineLyrics,
                         shape = middleShape,
                         modifier = Modifier.size(buttonSize),
@@ -442,33 +436,6 @@ fun Queue(
                                     )
                                 }
                             }
-                        }
-                    }
-
-                    TextButton(
-                        onClick = { onToggleLyrics(false) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.lyrics),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = TextBackgroundColor
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(id = R.string.lyrics),
-                                color = TextBackgroundColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.basicMarquee()
-                            )
                         }
                     }
                 }
