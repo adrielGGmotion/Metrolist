@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -808,45 +809,94 @@ fun BottomSheetPlayer(
                         }
                     }
                 } else {
-                    Box(
-                        modifier =
-                        Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(textButtonColor)
-                            .clickable {
-                                val intent =
-                                    Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.youtube.com/watch?v=${mediaMetadata.id}"
-                                        )
-                                    }
-                                context.startActivity(Intent.createChooser(intent, null))
-                            },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.share),
-                            contentDescription = null,
-                            tint = iconButtonColor,
-                            modifier =
-                            Modifier
-                                .align(Alignment.Center)
-                                .size(24.dp),
-                        )
+                    AnimatedContent(targetState = showInlineLyrics, label = "ShareButton") { showLyrics ->
+                        if (showLyrics) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(textButtonColor)
+                                    .clickable { isFullScreen = !isFullScreen },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.fullscreen),
+                                    contentDescription = null,
+                                    tint = iconButtonColor,
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(24.dp),
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(textButtonColor)
+                                    .clickable {
+                                        val intent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            type = "text/plain"
+                                            putExtra(
+                                                Intent.EXTRA_TEXT,
+                                                "https://music.youtube.com/watch?v=${mediaMetadata.id}"
+                                            )
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, null))
+                                    },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.share),
+                                    contentDescription = null,
+                                    tint = iconButtonColor,
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(24.dp),
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.size(12.dp))
 
-                    PlayerMoreMenuButton(
-                        mediaMetadata = mediaMetadata,
-                        navController = navController,
-                        state = state,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                    )
+                    AnimatedContent(targetState = showInlineLyrics, label = "LikeButton") { showLyrics ->
+                        if (showLyrics) {
+                            val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(textButtonColor)
+                                    .clickable {
+                                        menuState.show {
+                                            com.metrolist.music.ui.menu.LyricsMenu(
+                                                lyricsProvider = { currentLyrics },
+                                                songProvider = { currentSong?.song },
+                                                mediaMetadataProvider = { mediaMetadata },
+                                                onDismiss = menuState::dismiss
+                                            )
+                                        }
+                                    },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.more_horiz),
+                                    contentDescription = null,
+                                    tint = iconButtonColor,
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(24.dp),
+                                )
+                            }
+                        } else {
+                            PlayerMoreMenuButton(
+                                mediaMetadata = mediaMetadata,
+                                navController = navController,
+                                state = state,
+                                textButtonColor = textButtonColor,
+                                iconButtonColor = iconButtonColor,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1210,7 +1260,8 @@ fun BottomSheetPlayer(
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = bottomPadding),
+                        .padding(bottom = bottomPadding)
+                        .animateContentSize(),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
