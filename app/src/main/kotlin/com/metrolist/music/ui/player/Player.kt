@@ -1325,7 +1325,8 @@ fun BottomSheetPlayer(
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = bottomPadding),
+                        .padding(bottom = bottomPadding)
+                        .animateContentSize(),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
