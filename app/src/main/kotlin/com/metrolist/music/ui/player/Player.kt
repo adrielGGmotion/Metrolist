@@ -1006,7 +1006,7 @@ fun BottomSheetPlayer(
             AnimatedVisibility(
                 visible = !isFullScreen,
                 enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(animationSpec = tween(150))
             ) {
                 Column {
                     if (useNewPlayerDesign) {
@@ -1363,7 +1363,7 @@ fun BottomSheetPlayer(
         AnimatedVisibility(
             visible = !isFullScreen,
             enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(animationSpec = tween(150))
         ) {
             Queue(
                 state = queueSheetState,
