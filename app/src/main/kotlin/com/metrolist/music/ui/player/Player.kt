@@ -712,50 +712,100 @@ fun BottomSheetPlayer(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        FilledIconButton(
-                            onClick = {
-                                val intent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    type = "text/plain"
-                                    putExtra(
-                                        Intent.EXTRA_TEXT,
-                                        "https://music.youtube.com/watch?v=${mediaMetadata.id}"
+                        AnimatedContent(targetState = showInlineLyrics, label = "ShareButton") { showLyrics ->
+                            if (showLyrics) {
+                                FilledIconButton(
+                                    onClick = { lyricsSheetState.expandSoft() },
+                                    shape = shareShape,
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = textButtonColor,
+                                        contentColor = iconButtonColor,
+                                    ),
+                                    modifier = Modifier.size(42.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.fullscreen),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
-                                context.startActivity(Intent.createChooser(intent, null))
-                            },
-                            shape = shareShape,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = textButtonColor,
-                                contentColor = iconButtonColor,
-                            ),
-                            modifier = Modifier.size(42.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.share),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            } else {
+                                FilledIconButton(
+                                    onClick = {
+                                        val intent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            type = "text/plain"
+                                            putExtra(
+                                                Intent.EXTRA_TEXT,
+                                                "https://music.youtube.com/watch?v=${mediaMetadata.id}"
+                                            )
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, null))
+                                    },
+                                    shape = shareShape,
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = textButtonColor,
+                                        contentColor = iconButtonColor,
+                                    ),
+                                    modifier = Modifier.size(42.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.share),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
                         }
 
-                        FilledIconButton(
-                            onClick = playerConnection::toggleLike,
-                            shape = favShape,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = textButtonColor,
-                                contentColor = iconButtonColor,
-                            ),
-                            modifier = Modifier.size(42.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    if (currentSong?.song?.liked == true)
-                                        R.drawable.favorite
-                                    else R.drawable.favorite_border
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp)
-                            )
+                        AnimatedContent(targetState = showInlineLyrics, label = "LikeButton") { showLyrics ->
+                            if (showLyrics) {
+                                val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+                                FilledIconButton(
+                                    onClick = {
+                                        menuState.show {
+                                            com.metrolist.music.ui.menu.LyricsMenu(
+                                                lyricsProvider = { currentLyrics },
+                                                songProvider = { currentSong?.song },
+                                                mediaMetadataProvider = { mediaMetadata },
+                                                onDismiss = menuState::dismiss
+                                            )
+                                        }
+                                    },
+                                    shape = favShape,
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = textButtonColor,
+                                        contentColor = iconButtonColor,
+                                    ),
+                                    modifier = Modifier.size(42.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.more_horiz),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            } else {
+                                FilledIconButton(
+                                    onClick = playerConnection::toggleLike,
+                                    shape = favShape,
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = textButtonColor,
+                                        contentColor = iconButtonColor,
+                                    ),
+                                    modifier = Modifier.size(42.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(
+                                            if (currentSong?.song?.liked == true)
+                                                R.drawable.favorite
+                                            else R.drawable.favorite_border
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 } else {
