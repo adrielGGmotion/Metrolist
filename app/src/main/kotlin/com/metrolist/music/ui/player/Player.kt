@@ -10,6 +10,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -949,7 +951,11 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-            AnimatedVisibility(visible = !isFullScreen) {
+            AnimatedVisibility(
+                visible = !isFullScreen,
+                enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
+            ) {
                 Column {
                     if (useNewPlayerDesign) {
                         Row(
@@ -1195,12 +1201,16 @@ fun BottomSheetPlayer(
 
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
+                val bottomPadding by animateDpAsState(
+                    targetValue = if (isFullScreen) 0.dp else queueSheetState.collapsedBound + 48.dp,
+                    label = "bottomPadding"
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = queueSheetState.collapsedBound + 48.dp),
+                        .padding(bottom = bottomPadding),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1255,12 +1265,16 @@ fun BottomSheetPlayer(
             }
 
             else -> {
+                val bottomPadding by animateDpAsState(
+                    targetValue = if (isFullScreen) 0.dp else queueSheetState.collapsedBound,
+                    label = "bottomPadding"
+                )
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = queueSheetState.collapsedBound),
+                        .padding(bottom = bottomPadding),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1292,7 +1306,11 @@ fun BottomSheetPlayer(
             }
         }
 
-        AnimatedVisibility(visible = !isFullScreen) {
+        AnimatedVisibility(
+            visible = !isFullScreen,
+            enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
+        ) {
             Queue(
                 state = queueSheetState,
                 playerBottomSheetState = state,
