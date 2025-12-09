@@ -42,7 +42,6 @@ fun Material3SettingsGroup(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
     ) {
         // Section title
         title?.let {

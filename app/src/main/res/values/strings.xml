@@ -318,6 +318,9 @@
     <string name="max_song_cache_size">Max song cache size</string>
     <string name="clear_song_cache">Clear song cache</string>
     <string name="size_used">%s used</string>
+    <string name="cache_size_warning_title">Hold on!</string>
+    <string name="cache_size_warning_message">You\'ve chosen a cache size limit smaller than what the app is currently using (%1$s). If you continue, the app may remove some cached %2$s to match the new limit. Proceed anyway?</string>
+    <string name="cache_size_warning_confirm">Continue</string>
 
     <string name="privacy">Privacy</string>
     <string name="listen_history">Listen history</string>

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -17,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -68,6 +70,8 @@ fun StorageSettings(
     val downloadCache = LocalPlayerConnection.current?.service?.downloadCache ?: return
 
     val coroutineScope = rememberCoroutineScope()
+    val songCacheString = stringResource(R.string.song_cache).lowercase()
+    val imageCacheString = stringResource(R.string.image_cache).lowercase()
     val (maxImageCacheSize, onMaxImageCacheSizeChange) = rememberPreference(
         key = MaxImageCacheSizeKey,
         defaultValue = 512
@@ -80,6 +84,13 @@ fun StorageSettings(
     var clearDownloads by remember { mutableStateOf(false) }
     var clearCacheDialog by remember { mutableStateOf(false) }
     var clearImageCacheDialog by remember { mutableStateOf(false) }
+
+    // State for the confirmation dialog
+    var showCacheWarningDialog by remember { mutableStateOf(false) }
+    var cacheType by remember { mutableStateOf("") }
+    var cacheUsage by remember { mutableStateOf(0L) }
+    var onConfirmAction by remember { mutableStateOf<() -> Unit>({}) }
+
 
     var imageCacheSize by remember {
         mutableStateOf(imageDiskCache.size)
@@ -191,6 +202,41 @@ fun StorageSettings(
         )
     }
 
+    // Confirmation Dialog
+    if (showCacheWarningDialog) {
+        AlertDialog(
+            onDismissRequest = { showCacheWarningDialog = false },
+            title = { Text(stringResource(R.string.cache_size_warning_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.cache_size_warning_message,
+                        formatFileSize(cacheUsage),
+                        cacheType
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onConfirmAction()
+                        showCacheWarningDialog = false
+                    }
+                ) {
+                    Text(
+                        stringResource(R.string.cache_size_warning_confirm),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCacheWarningDialog = false }) {
+                    Text(stringResource(id = android.R.string.cancel))
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
@@ -219,7 +265,8 @@ fun StorageSettings(
             Modifier
                 .padding(padding)
                 .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
         ) {
             Material3SettingsGroup(
                 title = stringResource(R.string.storage),
@@ -261,7 +308,17 @@ fun StorageSettings(
                                 Slider(
                                     value = songCacheValues.indexOf(maxSongCacheSize).toFloat(),
                                     onValueChange = {
-                                        onMaxSongCacheSizeChange(songCacheValues[it.roundToInt()])
+                                        val newValue = songCacheValues[it.roundToInt()]
+                                        val newLimitInBytes = newValue * 1024 * 1024L
+
+                                        if (newValue > 0 && newLimitInBytes < playerCacheSize) {
+                                            cacheUsage = playerCacheSize
+                                            cacheType = songCacheString
+                                            onConfirmAction = { onMaxSongCacheSizeChange(newValue) }
+                                            showCacheWarningDialog = true
+                                        } else {
+                                            onMaxSongCacheSizeChange(newValue)
+                                        }
                                     },
                                     steps = songCacheValues.size - 2,
                                     valueRange = 0f..(songCacheValues.size - 1).toFloat()
@@ -316,7 +373,17 @@ fun StorageSettings(
                                 Slider(
                                     value = imageCacheValues.indexOf(maxImageCacheSize).toFloat(),
                                     onValueChange = {
-                                        onMaxImageCacheSizeChange(imageCacheValues[it.roundToInt()])
+                                        val newValue = imageCacheValues[it.roundToInt()]
+                                        val newLimitInBytes = newValue * 1024 * 1024L
+
+                                        if (newValue != 0 && newLimitInBytes < imageCacheSize) {
+                                            cacheUsage = imageCacheSize
+                                            cacheType = imageCacheString
+                                            onConfirmAction = { onMaxImageCacheSizeChange(newValue) }
+                                            showCacheWarningDialog = true
+                                        } else {
+                                            onMaxImageCacheSizeChange(newValue)
+                                        }
                                     },
                                     steps = imageCacheValues.size - 2,
                                     valueRange = 0f..(imageCacheValues.size - 1).toFloat()
