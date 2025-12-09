@@ -309,9 +309,13 @@ fun StorageSettings(
                                     value = songCacheValues.indexOf(maxSongCacheSize).toFloat(),
                                     onValueChange = {
                                         val newValue = songCacheValues[it.roundToInt()]
-                                        val newLimitInBytes = newValue * 1024 * 1024L
+                                        val newLimitInBytes = if (newValue == -1) {
+                                            Long.MAX_VALUE
+                                        } else {
+                                            newValue * 1024 * 1024L
+                                        }
 
-                                        if (newValue > 0 && newLimitInBytes < playerCacheSize) {
+                                        if (newLimitInBytes < playerCacheSize) {
                                             cacheUsage = playerCacheSize
                                             cacheType = songCacheString
                                             onConfirmAction = { onMaxSongCacheSizeChange(newValue) }
@@ -376,7 +380,7 @@ fun StorageSettings(
                                         val newValue = imageCacheValues[it.roundToInt()]
                                         val newLimitInBytes = newValue * 1024 * 1024L
 
-                                        if (newValue > 0 && newLimitInBytes < imageCacheSize) {
+                                        if (newLimitInBytes < imageCacheSize) {
                                             cacheUsage = imageCacheSize
                                             cacheType = imageCacheString
                                             onConfirmAction = { onMaxImageCacheSizeChange(newValue) }

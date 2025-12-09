@@ -1363,7 +1363,7 @@ fun BottomSheetPlayer(
         AnimatedVisibility(
             visible = !isFullScreen,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = shrinkVertically() + slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            exit = shrinkVertically(shrinkDirection = Alignment.Top) + slideOutVertically(targetOffsetY = { it }) + fadeOut()
         ) {
             Queue(
                 state = queueSheetState,
