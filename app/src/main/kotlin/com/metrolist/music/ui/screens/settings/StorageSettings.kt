@@ -376,7 +376,7 @@ fun StorageSettings(
                                         val newValue = imageCacheValues[it.roundToInt()]
                                         val newLimitInBytes = newValue * 1024 * 1024L
 
-                                        if (newValue != 0 && newLimitInBytes < imageCacheSize) {
+                                        if (newValue > 0 && newLimitInBytes < imageCacheSize) {
                                             cacheUsage = imageCacheSize
                                             cacheType = imageCacheString
                                             onConfirmAction = { onMaxImageCacheSizeChange(newValue) }

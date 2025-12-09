@@ -1006,7 +1006,7 @@ fun BottomSheetPlayer(
             AnimatedVisibility(
                 visible = !isFullScreen,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                exit = shrinkVertically() + slideOutVertically(targetOffsetY = { it }) + fadeOut()
             ) {
                 Column {
                     if (useNewPlayerDesign) {
@@ -1262,7 +1262,8 @@ fun BottomSheetPlayer(
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = bottomPadding),
+                        .padding(bottom = bottomPadding)
+                        .animateContentSize(),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1326,7 +1327,8 @@ fun BottomSheetPlayer(
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = bottomPadding),
+                        .padding(bottom = bottomPadding)
+                        .animateContentSize(),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1360,8 +1362,8 @@ fun BottomSheetPlayer(
 
         AnimatedVisibility(
             visible = !isFullScreen,
-            enter = expandVertically() + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(animationSpec = tween(150))
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = shrinkVertically() + slideOutVertically(targetOffsetY = { it }) + fadeOut()
         ) {
             Queue(
                 state = queueSheetState,

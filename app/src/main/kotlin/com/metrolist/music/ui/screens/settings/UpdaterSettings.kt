@@ -56,7 +56,8 @@ fun UpdaterScreen(
                     WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
                 )
             )
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(
