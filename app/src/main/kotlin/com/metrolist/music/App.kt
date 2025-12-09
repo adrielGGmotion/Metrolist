@@ -64,7 +64,7 @@ class App : Application(), SingletonImageLoader.Factory {
     private suspend fun initializeSettings() {
         val settings = dataStore.data.first()
         val locale = Locale.getDefault()
-        val languageTag = locale.toLanguageTag().replace("-Hant", "")
+        val languageTag = locale.language
 
         YouTube.locale = YouTubeLocale(
             gl = settings[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
