@@ -567,13 +567,21 @@ fun BottomSheetPlayer(
                     if (showLyrics) {
                         Row {
                             if (hidePlayerThumbnail) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_launcher_monochrome),
-                                    contentDescription = null,
+                                Box(
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                )
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.small_icon),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(32.dp),
+                                        tint = textButtonColor.copy(alpha = 0.7f)
+                                    )
+                                }
                             } else {
                                 AsyncImage(
                                     model = mediaMetadata.thumbnailUrl,
