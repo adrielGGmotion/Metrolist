@@ -37,6 +37,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil3.SingletonImageLoader
+import coil3.annotation.DelicateCoilApi
 import coil3.annotation.ExperimentalCoilApi
 import coil3.imageLoader
 import com.metrolist.music.LocalPlayerAwareWindowInsets
@@ -58,7 +60,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class, DelicateCoilApi::class)
 @Composable
 fun StorageSettings(
     navController: NavController,
@@ -102,7 +104,10 @@ fun StorageSettings(
         mutableStateOf(tryOrNull { downloadCache.cacheSpace } ?: 0)
     }
     val imageCacheProgress by animateFloatAsState(
-        targetValue = (imageCacheSize.toFloat() / imageDiskCache.maxSize).coerceIn(0f, 1f),
+        targetValue = (imageCacheSize.toFloat() / (maxImageCacheSize * 1024 * 1024L)).coerceIn(
+            0f,
+            1f
+        ),
         label = "imageCacheProgress",
     )
     val playerCacheProgress by animateFloatAsState(
@@ -114,6 +119,7 @@ fun StorageSettings(
     )
 
     LaunchedEffect(maxImageCacheSize) {
+        SingletonImageLoader.reset()
         if (maxImageCacheSize == 0) {
             coroutineScope.launch(Dispatchers.IO) {
                 imageDiskCache.clear()
@@ -401,7 +407,7 @@ fun StorageSettings(
                                 Text(
                                     text = "${formatFileSize(imageCacheSize)} / ${
                                         formatFileSize(
-                                            imageDiskCache.maxSize
+                                            maxImageCacheSize * 1024 * 1024L
                                         )
                                     }",
                                     style = MaterialTheme.typography.bodyMedium,
