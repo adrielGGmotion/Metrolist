@@ -63,6 +63,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.LocalSyncUtils
 import com.metrolist.music.R
+import com.metrolist.music.constants.HighResThumbnailSize
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.ThumbnailCornerRadius
@@ -268,7 +269,7 @@ fun YouTubeSongMenu(
                         },
                         text = stringResource(R.string.play_next),
                         onClick = {
-                            playerConnection.playNext(song.copy(thumbnail = song.thumbnail?.resize(544,544) ?: "").toMediaItem())
+                            playerConnection.playNext(song.copy(thumbnail = song.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: "").toMediaItem())
                             onDismiss()
                         }
                     ),

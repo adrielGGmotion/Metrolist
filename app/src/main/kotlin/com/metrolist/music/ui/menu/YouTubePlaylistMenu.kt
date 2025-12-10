@@ -60,6 +60,7 @@ import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.HighResThumbnailSize
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.PlaylistEntity
@@ -421,7 +422,7 @@ fun YouTubePlaylistMenu(
                                         }
                                     }.let { songs ->
                                         playerConnection.playNext(songs.map {
-                                            it.copy(thumbnail = it.thumbnail?.resize(544, 544) ?: "")
+                                            it.copy(thumbnail = it.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: "")
                                                 .toMediaItem()
                                         })
                                     }

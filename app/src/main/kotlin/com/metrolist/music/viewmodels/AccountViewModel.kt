@@ -7,6 +7,7 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.utils.completed
+import com.metrolist.music.constants.HighResThumbnailSize
 import com.metrolist.music.utils.reportException
 import com.metrolist.music.ui.utils.resize
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,7 +34,7 @@ class AccountViewModel @Inject constructor() : ViewModel() {
                 playlists.value = it.items.filterIsInstance<PlaylistItem>()
                     .filterNot { it.id == "SE" }.map { playlist ->
                         playlist.copy(
-                            thumbnail = playlist.thumbnail?.resize(544, 544) ?: ""
+                            thumbnail = playlist.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: ""
                         )
                     }
             }.onFailure {
@@ -42,7 +43,7 @@ class AccountViewModel @Inject constructor() : ViewModel() {
             YouTube.library("FEmusic_liked_albums").completed().onSuccess {
                 albums.value = it.items.filterIsInstance<AlbumItem>().map { album ->
                     album.copy(
-                        thumbnail = album.thumbnail?.resize(544, 544) ?: ""
+                        thumbnail = album.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: ""
                     )
                 }
             }.onFailure {
@@ -51,7 +52,7 @@ class AccountViewModel @Inject constructor() : ViewModel() {
             YouTube.library("FEmusic_library_corpus_artists").completed().onSuccess {
                 artists.value = it.items.filterIsInstance<ArtistItem>().map { artist ->
                     artist.copy(
-                        thumbnail = artist.thumbnail?.resize(544, 544) ?: ""
+                        thumbnail = artist.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: ""
                     )
                 }
             }.onFailure {

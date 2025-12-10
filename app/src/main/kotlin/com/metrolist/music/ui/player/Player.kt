@@ -126,6 +126,7 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
+import com.metrolist.music.constants.HighResThumbnailSize
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerButtonsStyle
 import com.metrolist.music.constants.PlayerButtonsStyleKey
@@ -149,6 +150,7 @@ import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
+import com.metrolist.music.ui.utils.resize
 import com.metrolist.music.lyrics.LyricsEntry
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
@@ -576,7 +578,7 @@ fun BottomSheetPlayer(
                                 )
                             } else {
                                 AsyncImage(
-                                    model = mediaMetadata.thumbnailUrl,
+                                    model = mediaMetadata.thumbnailUrl?.resize(HighResThumbnailSize, HighResThumbnailSize),
                                     contentDescription = null,
                                     modifier = Modifier
                                         .size(56.dp)

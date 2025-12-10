@@ -94,6 +94,7 @@ import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.HighResThumbnailSize
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.GridThumbnailHeight
@@ -848,7 +849,7 @@ fun YouTubeListItem(
 
     if (item is SongItem && isSwipeable && swipeEnabled) {
         SwipeToSongBox(
-            mediaItem = item.copy(thumbnail = item.thumbnail?.resize(544,544) ?: "").toMediaItem(),
+            mediaItem = item.copy(thumbnail = item.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: "").toMediaItem(),
             modifier = Modifier.fillMaxWidth()
         ) {
             content()
