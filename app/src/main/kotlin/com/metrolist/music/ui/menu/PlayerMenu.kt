@@ -83,6 +83,8 @@ import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.Material3MenuItemData
 import com.metrolist.music.ui.component.Material3MenuGroup
 import com.metrolist.music.ui.component.NewAction
+import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.NewActionGrid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -183,30 +185,20 @@ fun PlayerMenu(
     }
 
     if (isQueueTrigger != true) {
-        Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.volume_up),
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
+        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+            Material3SettingsGroup(
+                items = listOf(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.volume_up),
+                        title = {
+                            Slider(
+                                value = playerVolume.value,
+                                onValueChange = { playerConnection.service.playerVolume.value = it }
+                            )
+                        }
+                    )
                 )
-
-                Slider(
-                    value = playerVolume.value,
-                    onValueChange = { playerConnection.service.playerVolume.value = it },
-                    modifier = Modifier
-                        .weight(1f)
-                )
-            }
+            )
         }
     }
 
