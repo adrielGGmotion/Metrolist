@@ -1,9 +1,10 @@
 package com.metrolist.music.ui.utils
 
-fun String.resize(
+fun String?.resize(
     width: Int? = null,
     height: Int? = null,
-): String {
+): String? {
+    if (this == null) return null
     if (width == null && height == null) return this
     "https://lh3\\.googleusercontent\\.com/.*=w(\\d+)-h(\\d+).*".toRegex()
         .matchEntire(this)?.groupValues?.let { group ->
