@@ -134,6 +134,7 @@ import com.metrolist.music.constants.QueuePeekHeight
 import com.metrolist.music.constants.SliderStyle
 import com.metrolist.music.constants.SliderStyleKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.constants.HidePlayerThumbnailKey
 import com.metrolist.music.db.entities.LyricsEntity
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.toggleRepeatMode
@@ -563,14 +564,32 @@ fun BottomSheetPlayer(
                     label = "ThumbnailAnimation"
                 ) { showLyrics ->
                     if (showLyrics) {
+                        val (hidePlayerThumbnail, _) = rememberPreference(HidePlayerThumbnailKey, false)
                         Row {
-                            AsyncImage(
-                                model = mediaMetadata.thumbnailUrl,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                            )
+                            if (hidePlayerThumbnail) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.small_icon),
+                                        contentDescription = stringResource(R.string.hide_player_thumbnail),
+                                        tint = TextBackgroundColor.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            } else {
+                                AsyncImage(
+                                    model = mediaMetadata.thumbnailUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                )
+                            }
                             Spacer(modifier = Modifier.width(12.dp))
                         }
                     } else {

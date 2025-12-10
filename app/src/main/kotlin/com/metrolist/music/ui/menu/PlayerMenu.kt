@@ -186,19 +186,19 @@ fun PlayerMenu(
 
     if (isQueueTrigger != true) {
         Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-            Material3SettingsGroup(
-                items = listOf(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.volume_up),
-                        title = {
-                            Slider(
-                                value = playerVolume.value,
-                                onValueChange = { playerConnection.service.playerVolume.value = it }
-                            )
-                        }
-                    )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.volume_up),
+                    contentDescription = null
                 )
-            )
+                Slider(
+                    value = playerVolume.value,
+                    onValueChange = { playerConnection.service.playerVolume.value = it }
+                )
+            }
         }
     }
 
