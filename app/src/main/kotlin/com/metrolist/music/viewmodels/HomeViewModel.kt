@@ -11,6 +11,7 @@ import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.ExplorePage
 import com.metrolist.innertube.pages.HomePage
 import com.metrolist.innertube.utils.completed
+import com.metrolist.music.constants.HighResThumbnailSize
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.QuickPicks
@@ -100,7 +101,7 @@ class HomeViewModel @Inject constructor(
             YouTube.library("FEmusic_liked_playlists").completed().onSuccess {
                 accountPlaylists.value = it.items.filterIsInstance<PlaylistItem>().filterNot { it.id == "SE" }.map { playlist ->
                     playlist.copy(
-                        thumbnail = playlist.thumbnail?.resize(544, 544) ?: ""
+                        thumbnail = playlist.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: ""
                     )
                 }
             }.onFailure {
