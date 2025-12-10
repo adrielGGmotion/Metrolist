@@ -600,12 +600,7 @@ private fun LegacyMiniPlayer(
             // This ensures that the background is applied to the clipped, rounded shape,
             // preventing sharp edges when the width is reduced.
             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            .background(
-                if (pureBlack)
-                    Color.Black
-                else
-                    MaterialTheme.colorScheme.surfaceContainer // Fixed background independent of player background
-            )
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .let { baseModifier ->
                 if (swipeThumbnail) {
                     baseModifier.pointerInput(Unit) {
