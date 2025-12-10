@@ -31,27 +31,19 @@ class AccountViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             YouTube.library("FEmusic_liked_playlists").completed().onSuccess {
                 playlists.value = it.items.filterIsInstance<PlaylistItem>()
-                    .filterNot { it.id == "SE" }.map { playlist ->
-                        playlist.copy(
-                            thumbnail = playlist.thumbnail?.resize(544, 544) ?: ""
-                        )
-                    }
+                    .filterNot { it.id == "SE" }
             }.onFailure {
                 reportException(it)
             }
             YouTube.library("FEmusic_liked_albums").completed().onSuccess {
-                albums.value = it.items.filterIsInstance<AlbumItem>().map { album ->
-                    album.copy(
-                        thumbnail = album.thumbnail?.resize(544, 544) ?: ""
-                    )
-                }
+                albums.value = it.items.filterIsInstance<AlbumItem>()
             }.onFailure {
                 reportException(it)
             }
             YouTube.library("FEmusic_library_corpus_artists").completed().onSuccess {
                 artists.value = it.items.filterIsInstance<ArtistItem>().map { artist ->
                     artist.copy(
-                        thumbnail = artist.thumbnail?.resize(544, 544) ?: ""
+                        thumbnail = artist.thumbnail?.resize(544, 544)
                     )
                 }
             }.onFailure {

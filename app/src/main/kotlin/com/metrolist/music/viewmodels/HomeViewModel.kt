@@ -24,6 +24,7 @@ import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.SimilarRecommendation
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
+import com.metrolist.music.ui.utils.resize
 import com.metrolist.music.utils.reportException
 import com.metrolist.music.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -97,7 +98,11 @@ class HomeViewModel @Inject constructor(
 
         if (YouTube.cookie != null) {
             YouTube.library("FEmusic_liked_playlists").completed().onSuccess {
-                accountPlaylists.value = it.items.filterIsInstance<PlaylistItem>().filterNot { it.id == "SE" }
+                accountPlaylists.value = it.items.filterIsInstance<PlaylistItem>().filterNot { it.id == "SE" }.map { playlist ->
+                    playlist.copy(
+                        thumbnail = playlist.thumbnail?.resize(544, 544) ?: ""
+                    )
+                }
             }.onFailure {
                 reportException(it)
             }
