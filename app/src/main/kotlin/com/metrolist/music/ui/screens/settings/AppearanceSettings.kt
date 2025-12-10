@@ -649,71 +649,62 @@ fun AppearanceSettings(
             }
         )
 
-        AnimatedVisibility(useNewMiniPlayerDesign && pureBlack) {
-            val (pureBlackMiniPlayer, onPureBlackMiniPlayerChange) = rememberPreference(
-                PureBlackMiniPlayerKey,
-                defaultValue = false
-            )
-            val (miniPlayerOutline, onMiniPlayerOutlineChange) = rememberPreference(
-                MiniPlayerOutlineKey,
-                defaultValue = true
-            )
+        Spacer(modifier = Modifier.height(27.dp))
 
-            Column {
-                Spacer(modifier = Modifier.height(27.dp))
-                Material3SettingsGroup(
-                    title = stringResource(id = R.string.mini_player),
-                    items = buildList {
-                        add(
-                            Material3SettingsItem(
-                                icon = painterResource(R.drawable.contrast),
-                                title = { Text(stringResource(R.string.pure_black_mini_player)) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = pureBlackMiniPlayer,
-                                        onCheckedChange = onPureBlackMiniPlayerChange,
-                                        thumbContent = {
-                                            Icon(
-                                                painter = painterResource(
-                                                    id = if (pureBlackMiniPlayer) R.drawable.check else R.drawable.close
-                                                ),
-                                                contentDescription = null,
-                                                modifier = Modifier.size(SwitchDefaults.IconSize)
-                                            )
-                                        }
+        val (pureBlackMiniPlayer, onPureBlackMiniPlayerChange) = rememberPreference(
+            PureBlackMiniPlayerKey,
+            defaultValue = false
+        )
+
+        Material3SettingsGroup(
+            title = stringResource(id = R.string.mini_player),
+            items = buildList {
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.nav_bar),
+                        title = { Text(stringResource(R.string.new_mini_player_design)) },
+                        trailingContent = {
+                            Switch(
+                                checked = useNewMiniPlayerDesign,
+                                onCheckedChange = onUseNewMiniPlayerDesignChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (useNewMiniPlayerDesign) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
                                     )
-                                },
-                                onClick = { onPureBlackMiniPlayerChange(!pureBlackMiniPlayer) }
+                                }
                             )
-                        )
-                        if (pureBlackMiniPlayer) {
-                            add(
-                                Material3SettingsItem(
-                                    icon = painterResource(R.drawable.palette),
-                                    title = { Text(stringResource(R.string.mini_player_outline)) },
-                                    trailingContent = {
-                                        Switch(
-                                            checked = miniPlayerOutline,
-                                            onCheckedChange = onMiniPlayerOutlineChange,
-                                            thumbContent = {
-                                                Icon(
-                                                    painter = painterResource(
-                                                        id = if (miniPlayerOutline) R.drawable.check else R.drawable.close
-                                                    ),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                                )
-                                            }
-                                        )
-                                    },
-                                    onClick = { onMiniPlayerOutlineChange(!miniPlayerOutline) }
-                                )
+                        },
+                        onClick = { onUseNewMiniPlayerDesignChange(!useNewMiniPlayerDesign) }
+                    )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.contrast),
+                        title = { Text(stringResource(R.string.pure_black_mini_player)) },
+                        trailingContent = {
+                            Switch(
+                                checked = pureBlackMiniPlayer,
+                                onCheckedChange = onPureBlackMiniPlayerChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (pureBlackMiniPlayer) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
                             )
-                        }
-                    }
+                        },
+                        onClick = { onPureBlackMiniPlayerChange(!pureBlackMiniPlayer) }
+                    )
                 )
             }
-        }
+        )
 
         Spacer(modifier = Modifier.height(27.dp))
 
@@ -739,26 +730,6 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onUseNewPlayerDesignChange(!useNewPlayerDesign) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.nav_bar),
-                    title = { Text(stringResource(R.string.new_mini_player_design)) },
-                    trailingContent = {
-                        Switch(
-                            checked = useNewMiniPlayerDesign,
-                            onCheckedChange = onUseNewMiniPlayerDesignChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (useNewMiniPlayerDesign) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onUseNewMiniPlayerDesignChange(!useNewMiniPlayerDesign) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.gradient),

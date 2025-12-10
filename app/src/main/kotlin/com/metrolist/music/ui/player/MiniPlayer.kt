@@ -148,7 +148,6 @@ private fun NewMiniPlayer(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
-    val miniPlayerOutline by rememberPreference(MiniPlayerOutlineKey, defaultValue = true)
 
     val currentView = LocalView.current
     val layoutDirection = LocalLayoutDirection.current
@@ -284,7 +283,7 @@ private fun NewMiniPlayer(
                     color = if (pureBlack && useDarkTheme) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 )
                 .border(
-                    width = if (miniPlayerOutline) 1.dp else 0.dp,
+                    width = 1.dp,
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                     shape = RoundedCornerShape(32.dp)
                 )
@@ -600,7 +599,12 @@ private fun LegacyMiniPlayer(
             // This ensures that the background is applied to the clipped, rounded shape,
             // preventing sharp edges when the width is reduced.
             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .background(
+                if (pureBlack && isSystemInDarkTheme())
+                    Color.Black
+                else
+                    MaterialTheme.colorScheme.surfaceContainer // Fixed background independent of player background
+            )
             .let { baseModifier ->
                 if (swipeThumbnail) {
                     baseModifier.pointerInput(Unit) {
