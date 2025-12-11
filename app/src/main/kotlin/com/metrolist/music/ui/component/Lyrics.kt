@@ -578,7 +578,7 @@ fun Lyrics(
                             available: Offset,
                             source: NestedScrollSource
                         ): Offset {
-                            if (source == NestedScrollSource.Drag) {
+                            if (source == NestedScrollSource.UserInput) {
                                 isAutoScrollEnabled = false
                             }
                             if (!isSelectionModeActive) { // Only update preview time if not selecting
@@ -879,7 +879,7 @@ fun Lyrics(
             isAutoScrollEnabled = true
         }) {
             Icon(
-                painter = painterResource(id = R.drawable.lyrics),
+                painter = painterResource(id = R.drawable.sync),
                 contentDescription = stringResource(R.string.auto_scroll),
                 modifier = Modifier.size(20.dp)
             )
