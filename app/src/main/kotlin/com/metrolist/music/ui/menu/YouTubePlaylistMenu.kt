@@ -422,7 +422,7 @@ fun YouTubePlaylistMenu(
                                         }
                                     }.let { songs ->
                                         playerConnection.playNext(songs.map {
-                                            it.copy(thumbnail = it.thumbnail?.resize(HighResThumbnailSize, HighResThumbnailSize) ?: "")
+                                            it.copy(thumbnail = it.thumbnail.resize(544, 544))
                                                 .toMediaItem()
                                         })
                                     }
