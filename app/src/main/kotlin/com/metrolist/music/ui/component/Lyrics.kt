@@ -49,10 +49,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -408,7 +408,6 @@ fun Lyrics(
     
     // Professional animation states for smooth Metrolist-style transitions
     var isAnimating by remember { mutableStateOf(false) }
-
     var isAutoScrollEnabled by rememberSaveable { mutableStateOf(true) }
 
     // Handle back button press - close selection mode instead of exiting screen
@@ -484,52 +483,33 @@ fun Lyrics(
         }
     }
 
-    LaunchedEffect(currentLineIndex, lastPreviewTime, initialScrollDone) {
-
-        /**
-         * Calculate the lyric offset Based on how many lines (\n chars)
-         */
-        fun calculateOffset() = with(density) {
-            if (currentLineIndex < 0 || currentLineIndex >= lines.size) return@with 0
-            val currentItem = lines[currentLineIndex]
-            val totalNewLines = currentItem.text.count { it == '\n' }
-
-            val dpValue = if (landscapeOffset) 16.dp else 20.dp
-            dpValue.toPx().toInt() * totalNewLines
-        }
-
-        if (!isSynced) return@LaunchedEffect
-        
-        // Smooth page animation without sudden jumps - direct animation to center
-        suspend fun performSmoothPageScroll(targetIndex: Int, duration: Int = 1500) {
-            if (isAnimating) return // Prevent multiple animations
-            
-            isAnimating = true
-            
-            try {
-                val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-                if (itemInfo != null) {
-                    // Item is visible, animate directly to center without sudden jumps
-                    val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
-                    val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight / 2)
-                    val itemCenter = itemInfo.offset + itemInfo.size / 2
-                    val offset = itemCenter - center
-
-                    if (kotlin.math.abs(offset) > 10) {
-                        lazyListState.animateScrollBy(
-                            value = offset.toFloat(),
-                            animationSpec = tween(durationMillis = duration)
-                        )
-                    }
-                } else {
-                    // Item is not visible, scroll to it first without animation, then it will be handled in next cycle
-                    lazyListState.scrollToItem(targetIndex)
+    suspend fun performSmoothPageScroll(targetIndex: Int, duration: Int = 1500) {
+        if (isAnimating) return // Prevent multiple animations
+        isAnimating = true
+        try {
+            val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+            if (itemInfo != null) {
+                // Item is visible, animate directly to center without sudden jumps
+                val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
+                val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight / 2)
+                val itemCenter = itemInfo.offset + itemInfo.size / 2
+                val offset = itemCenter - center
+                if (kotlin.math.abs(offset) > 10) {
+                    lazyListState.animateScrollBy(
+                        value = offset.toFloat(),
+                        animationSpec = tween(durationMillis = duration)
+                    )
                 }
-            } finally {
-                isAnimating = false
+            } else {
+                // Item is not visible, scroll to it first without animation, then it will be handled in next cycle
+                lazyListState.scrollToItem(targetIndex)
             }
+        } finally {
+            isAnimating = false
         }
-        
+    }
+    LaunchedEffect(currentLineIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
+        if (!isSynced) return@LaunchedEffect
         if (isAutoScrollEnabled) {
         if((currentLineIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
             shouldScrollToFirstLine = false
@@ -620,8 +600,11 @@ fun Lyrics(
                     }
                 })
         ) {
-            val displayedCurrentLineIndex =
+            val displayedCurrentLineIndex = if (!isAutoScrollEnabled) {
+                currentLineIndex
+            } else {
                 if (isSeeking || isSelectionModeActive) deferredCurrentLineIndex else currentLineIndex
+            }
 
             if (lyrics == null) {
                 item {
@@ -891,12 +874,12 @@ fun Lyrics(
     ) {
         FilledTonalButton(onClick = {
             scope.launch {
-                lazyListState.animateScrollToItem(currentLineIndex)
+                performSmoothPageScroll(currentLineIndex, 1500)
             }
             isAutoScrollEnabled = true
         }) {
             Icon(
-                painter = painterResource(id = R.drawable.arrow_downward),
+                painter = painterResource(id = R.drawable.lyrics),
                 contentDescription = stringResource(R.string.auto_scroll),
                 modifier = Modifier.size(20.dp)
             )
