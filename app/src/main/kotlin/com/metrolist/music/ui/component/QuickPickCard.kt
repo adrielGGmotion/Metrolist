@@ -19,9 +19,9 @@ fun QuickPickCard(
     content: @Composable (shape: RoundedCornerShape) -> Unit
 ) {
     val shape = when (position) {
-        CardPosition.TOP -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
-        CardPosition.MIDDLE -> RoundedCornerShape(6.dp)
-        CardPosition.BOTTOM -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+        CardPosition.TOP -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 2.dp, bottomEnd = 2.dp)
+        CardPosition.MIDDLE -> RoundedCornerShape(2.dp)
+        CardPosition.BOTTOM -> RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
         CardPosition.ALONE -> RoundedCornerShape(24.dp)
     }
 

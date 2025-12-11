@@ -364,7 +364,7 @@ fun HomeScreen(
             ),
         contentAlignment = Alignment.TopStart
     ) {
-        val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
+        val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.46f >= 320.dp) 0.46f else 0.9f
         val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor
         val quickPicksSnapLayoutInfoProvider = remember(quickPicksLazyGridState) {
             SnapLayoutInfoProvider(
@@ -413,11 +413,11 @@ fun HomeScreen(
                             flingBehavior = rememberSnapFlingBehavior(quickPicksSnapLayoutInfoProvider),
                             contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
                             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height((ListItemHeight * 4) + (8.dp * 3))
+                                .height((ListItemHeight * 4) + (4.dp * 3))
                                 .animateItem()
                         ) {
                             val items = quickPicks.distinctBy { it.id }

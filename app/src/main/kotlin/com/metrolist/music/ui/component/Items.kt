@@ -140,18 +140,19 @@ inline fun ListItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .height(ListItemHeight)
-            .padding(horizontal = 8.dp)
             .then(if (isActive) Modifier.clip(shape).background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
     ) {
         Box(Modifier.padding(6.dp), contentAlignment = Alignment.Center) { thumbnailContent() }
-        Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
+        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
             Text(
                 text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             if (subtitle != null) Row(verticalAlignment = Alignment.CenterVertically) { subtitle() }
         }
-        trailingContent()
+        Row(modifier = Modifier.padding(end = 8.dp)) {
+            trailingContent()
+        }
     }
 }
 
