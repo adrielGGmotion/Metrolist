@@ -133,14 +133,15 @@ inline fun ListItem(
     noinline subtitle: (@Composable RowScope.() -> Unit)? = null,
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    shape: Shape = RoundedCornerShape(8.dp)
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .height(ListItemHeight)
             .padding(horizontal = 8.dp)
-            .then(if (isActive) Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
+            .then(if (isActive) Modifier.clip(shape).background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
     ) {
         Box(Modifier.padding(6.dp), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
@@ -162,11 +163,13 @@ fun ListItem(
     badges: @Composable RowScope.() -> Unit = {},
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    shape: Shape = RoundedCornerShape(8.dp)
 ) = ListItem(
     title = title,
     modifier = modifier,
     isActive = isActive,
+    shape = shape,
     subtitle = {
         badges()
         if (!subtitle.isNullOrEmpty()) {
@@ -287,6 +290,7 @@ fun SongListItem(
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
     trailingContent: @Composable RowScope.() -> Unit = {},
+    shape: Shape = RoundedCornerShape(8.dp),
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
 
@@ -311,7 +315,8 @@ fun SongListItem(
             },
             trailingContent = trailingContent,
             modifier = modifier,
-            isActive = isActive
+            isActive = isActive,
+            shape = shape
         )
     }
 

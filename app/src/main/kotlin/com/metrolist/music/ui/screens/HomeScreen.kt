@@ -413,9 +413,11 @@ fun HomeScreen(
                             flingBehavior = rememberSnapFlingBehavior(quickPicksSnapLayoutInfoProvider),
                             contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
+                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(ListItemHeight * 4)
+                                .height((ListItemHeight * 4) + (8.dp * 3))
                                 .animateItem()
                         ) {
                             val items = quickPicks.distinctBy { it.id }
@@ -436,9 +438,10 @@ fun HomeScreen(
                                     else -> CardPosition.MIDDLE
                                 }
 
-                                QuickPickCard(position = position) {
+                                QuickPickCard(position = position) { shape ->
                                     SongListItem(
                                         song = song!!,
+                                        shape = shape,
                                         showInLibraryIcon = true,
                                         isActive = song!!.id == mediaMetadata?.id,
                                         isPlaying = isPlaying,

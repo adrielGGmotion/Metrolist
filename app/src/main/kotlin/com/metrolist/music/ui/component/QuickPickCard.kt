@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 fun QuickPickCard(
     position: CardPosition,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
+    content: @Composable (shape: RoundedCornerShape) -> Unit
 ) {
     val shape = when (position) {
         CardPosition.TOP -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
@@ -35,7 +35,7 @@ fun QuickPickCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        content()
+        content(shape)
     }
 }
 
