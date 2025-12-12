@@ -1,6 +1,7 @@
 package com.metrolist.music.wrapped
 
 import com.metrolist.music.db.MusicDatabase
+import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -19,22 +20,41 @@ suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
         val fromTimeStamp = System.currentTimeMillis() - 86400000L * 365
         val fromLocalDateTime = Instant.ofEpochMilli(fromTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
-        val topSongs = database.mostPlayedSongs(fromTimeStamp, limit = 5).first().map {
+        val localTopSongs = database.mostPlayedSongs(fromTimeStamp, limit = 5).first()
+        val localTopArtists = database.mostPlayedArtists(fromTimeStamp, limit = 5).first()
+        val localTopAlbum = database.mostPlayedAlbums(fromTimeStamp, limit = 1).first().firstOrNull()
+        val localTotalPlayTimeMillis = database.getTotalPlayTime(fromLocalDateTime)
+
+        val history = YouTube.musicHistory().getOrNull()
+        val remoteSongs = history?.sections?.flatMap { it.songs } ?: emptyList()
+
+        val allSongs = (localTopSongs.map { song ->
             WrappedSong(
-                id = it.song.id,
-                title = it.song.title,
-                artists = it.artists.map { artist -> WrappedArtist(id = artist.id, name = artist.name) },
-                totalPlayTime = it.song.totalPlayTime
+                id = song.song.id,
+                title = song.song.title,
+                artists = song.artists.map { artist -> WrappedArtist(id = artist.id, name = artist.name) },
+                totalPlayTime = song.song.totalPlayTime
             )
-        }
-        val topArtists = database.mostPlayedArtists(fromTimeStamp, limit = 5).first().map {
-            WrappedArtist(
-                id = it.artist.id,
-                name = it.artist.name
+        } + remoteSongs.map { song ->
+            WrappedSong(
+                id = song.id,
+                title = song.title,
+                artists = song.artists?.map { artist -> WrappedArtist(id = artist.id, name = artist.name) } ?: emptyList(),
+                totalPlayTime = (song.duration ?: 0) * 1000L
             )
-        }
-        val topAlbum = database.mostPlayedAlbums(fromTimeStamp, limit = 1).first().firstOrNull()
-        val totalPlayTimeMillis = database.getTotalPlayTime(fromLocalDateTime)
+        }).groupBy { it.id }.map { it.value.maxByOrNull { song -> song.totalPlayTime }!! }
+        val topSongs = allSongs.sortedByDescending { it.totalPlayTime }.take(5)
+
+        val allArtists = (localTopArtists.map { artist ->
+            WrappedArtist(id = artist.artist.id, name = artist.artist.name)
+        } + remoteSongs.flatMap { it.artists ?: emptyList() }.map { artist ->
+            WrappedArtist(id = artist.id, name = artist.name)
+        }).groupBy { it.id }.map { it.value.first() }
+        val topArtists = allArtists.take(5)
+
+        val topAlbum = localTopAlbum
+
+        val totalPlayTimeMillis = localTotalPlayTimeMillis + (remoteSongs.sumOf { it.duration ?: 0 } * 1000)
         val totalMinutes = (totalPlayTimeMillis / 60000).toInt()
 
         WrappedData(

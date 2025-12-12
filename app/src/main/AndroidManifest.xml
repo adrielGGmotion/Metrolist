@@ -168,6 +168,11 @@
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
+        <activity
+            android:name=".wrapped.WrappedActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Metrolist" />
+
         <service
             android:name=".playback.MusicService"
             android:exported="true"
