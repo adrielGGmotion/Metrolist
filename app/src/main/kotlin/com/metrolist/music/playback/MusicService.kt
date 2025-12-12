@@ -315,6 +315,11 @@ class MusicService :
                         player.play()
                     }
                 }
+                if (isConnected && discordRpc != null && player.isPlaying) {
+                    currentSong.value?.let { song ->
+                        discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                    }
+                }
             }
         }
 
@@ -1199,7 +1204,7 @@ class MusicService :
             // Send empty activity to the Discord RPC if the player is not playing
             else if (!events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)){
                 scope.launch {
-                    discordRpc?.stopActivity()
+                    discordRpc?.close()
                 }
             }
         }
