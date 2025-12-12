@@ -1,0 +1,78 @@
+name: Build Snapshot APKs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  discussions: write
+
+jobs:
+  build_snapshot:
+    name: Build Snapshot
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        abi: [ 'arm64', 'armeabi', 'x86', 'x86_64', 'universal' ]
+
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-disabled: true
+          cache-cleanup: on-success
+          
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Change Package Name to Snapshot
+        run: |
+          # Try to replace Groovy DSL format
+          if [ -f app/build.gradle ]; then
+            sed -i -E 's/applicationId\s+["'\''][^"'\'']+["'\'']/applicationId "com.metrolist.music.snapshot"/' app/build.gradle
+            echo "Updated app/build.gradle"
+          fi
+          # Try to replace Kotlin DSL format
+          if [ -f app/build.gradle.kts ]; then
+            sed -i -E 's/applicationId\s*=\s*["'\''][^"'\'']+["'\'']/applicationId = "com.metrolist.music.snapshot"/' app/build.gradle.kts
+            echo "Updated app/build.gradle.kts"
+          fi
+
+      - name: Build Release APK and Run Lint
+        run: ./gradlew --no-configuration-cache --console=plain clean assemble${{ matrix.abi }}Release :app:lint${{ matrix.abi }}Release --warning-mode summary
+        env:
+          PULL_REQUEST: 'false'
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+
+      - name: Sign APK
+        uses: ilharp/sign-android-release@v2.0.0
+        with:
+          releaseDir: app/build/outputs/apk/${{ matrix.abi }}/release/
+          signingKey: ${{ secrets.KEYSTORE }}
+          keyAlias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          buildToolsVersion: 35.0.0
+
+      - name: Move and Rename Snapshot APK
+        run: |
+          mkdir -p app/build/outputs/apk/${{ matrix.abi }}/release/out
+          # Renaming to include 'snapshot' in the filename
+          find app/build/outputs/apk/${{ matrix.abi }}/release/ -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} app/build/outputs/apk/${{ matrix.abi }}/release/out/app-snapshot-${{ matrix.abi }}-release.apk
+  
+      - name: Upload Snapshot APK
+        uses: actions/upload-artifact@v5
+        with:
+          name: app-snapshot-${{ matrix.abi }}-release
+          path: app/build/outputs/apk/${{ matrix.abi }}/release/out/*
