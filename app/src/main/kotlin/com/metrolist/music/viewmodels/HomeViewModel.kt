@@ -22,6 +22,8 @@ import com.metrolist.music.db.entities.LocalItem
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.SimilarRecommendation
+import com.metrolist.music.wrapped.WrappedData
+import com.metrolist.music.wrapped.calculateWrappedData
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
@@ -50,6 +52,8 @@ class HomeViewModel @Inject constructor(
     }.distinctUntilChanged()
 
     val quickPicks = MutableStateFlow<List<Song>?>(null)
+    val wrappedData = MutableStateFlow<WrappedData?>(null)
+    val isWrappedLoading = MutableStateFlow(false)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
     val keepListening = MutableStateFlow<List<LocalItem>?>(null)
     val similarRecommendations = MutableStateFlow<List<SimilarRecommendation>?>(null)
@@ -85,6 +89,12 @@ class HomeViewModel @Inject constructor(
     private suspend fun load() {
         isLoading.value = true
         val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+
+        viewModelScope.launch {
+            isWrappedLoading.value = true
+            wrappedData.value = calculateWrappedData(database)
+            isWrappedLoading.value = false
+        }
 
         getQuickPicks()
         forgottenFavorites.value = database.forgottenFavorites().first().shuffled().take(20)

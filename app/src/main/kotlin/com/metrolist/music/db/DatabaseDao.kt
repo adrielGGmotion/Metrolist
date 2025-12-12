@@ -1073,6 +1073,9 @@ interface DatabaseDao {
     @Query("DELETE FROM event")
     fun clearListenHistory()
 
+    @Query("SELECT SUM(playTime) FROM event WHERE timestamp > :fromTimeStamp")
+    fun getTotalPlayTime(fromTimeStamp: LocalDateTime): Long
+
     @Transaction
     @Query("SELECT * FROM search_history WHERE `query` LIKE :query || '%' ORDER BY id DESC")
     fun searchHistory(query: String = ""): Flow<List<SearchHistory>>

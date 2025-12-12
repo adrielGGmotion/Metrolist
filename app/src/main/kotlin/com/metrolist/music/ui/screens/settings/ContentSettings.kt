@@ -65,6 +65,7 @@ import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
+import com.metrolist.music.utils.isWrappedVisible
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.setAppLocale
@@ -100,6 +101,7 @@ fun ContentSettings(
         )
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
+    val (showWrapped, onShowWrappedChange) = rememberPreference(key = ShowWrappedKey, defaultValue = true)
 
     var showProxyConfigurationDialog by rememberSaveable {
         mutableStateOf(false)
@@ -581,6 +583,27 @@ fun ContentSettings(
                         )
                     },
                     onClick = { showQuickPicksDialog = true }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.discover_tune),
+                    title = { Text(stringResource(R.string.show_wrapped)) },
+                    trailingContent = {
+                        Switch(
+                            enabled = isWrappedVisible(),
+                            checked = showWrapped && isWrappedVisible(),
+                            onCheckedChange = onShowWrappedChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showWrapped) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onShowWrappedChange(!showWrapped) }
                 )
             )
         )
