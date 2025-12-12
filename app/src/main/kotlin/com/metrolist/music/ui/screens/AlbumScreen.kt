@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -191,7 +193,7 @@ fun AlbumScreen(
                         contentDescription = null,
                         modifier =
                         Modifier
-                            .size(AlbumThumbnailSize)
+                            .size(AlbumThumbnailSize * 1.5f)
                             .clip(RoundedCornerShape(ThumbnailCornerRadius)),
                     )
 
@@ -202,7 +204,7 @@ fun AlbumScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                painter = painterResource(R.drawable.music_note),
+                                imageVector = Icons.Rounded.Album,
                                 contentDescription = null,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -216,26 +218,36 @@ fun AlbumScreen(
                             )
                         }
 
-                        Text(buildAnnotatedString {
-                            withStyle(
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Normal,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                ).toSpanStyle()
-                            ) {
-                                albumWithSongs.artists.fastForEachIndexed { index, artist ->
-                                    val link = LinkAnnotation.Clickable(artist.id) {
-                                        navController.navigate("artist/${artist.id}")
-                                    }
-                                    withLink(link) {
-                                        append(artist.name)
-                                    }
-                                    if (index != albumWithSongs.artists.lastIndex) {
-                                        append(", ")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(
+                                model = albumWithSongs.artists.firstOrNull()?.thumbnailUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(50))
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(buildAnnotatedString {
+                                withStyle(
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Normal,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    ).toSpanStyle()
+                                ) {
+                                    albumWithSongs.artists.fastForEachIndexed { index, artist ->
+                                        val link = LinkAnnotation.Clickable(artist.id) {
+                                            navController.navigate("artist/${artist.id}")
+                                        }
+                                        withLink(link) {
+                                            append(artist.name)
+                                        }
+                                        if (index != albumWithSongs.artists.lastIndex) {
+                                            append(", ")
+                                        }
                                     }
                                 }
-                            }
-                        })
+                            })
+                        }
 
                         if (albumWithSongs.songs.any { it.song.explicit }) {
                             Box(
@@ -308,8 +320,6 @@ fun AlbumScreen(
                                         LocalContentColor.current
                                     }
                                 )
-                                Spacer(Modifier.width(4.dp))
-                                Text(text = stringResource(id = R.string.save))
                             }
 
                             Button(
@@ -329,8 +339,8 @@ fun AlbumScreen(
                                 )
                             }
 
-                            IconButton(
-                                onClick = { /* TODO: Implement Share action */ }
+                            TextButton(
+                                onClick = { /* TODO: Implement Share action */ },
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.share),
@@ -343,10 +353,10 @@ fun AlbumScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(
+                            IconButton(
                                 onClick = {
                                     when (downloadState) {
                                         Download.STATE_COMPLETED, Download.STATE_DOWNLOADING -> {
@@ -382,11 +392,9 @@ fun AlbumScreen(
                                     painter = painterResource(R.drawable.download),
                                     contentDescription = null
                                 )
-                                Spacer(Modifier.width(4.dp))
-                                Text(text = stringResource(id = R.string.download))
                             }
 
-                            OutlinedButton(
+                            IconButton(
                                 onClick = {
                                     playerConnection.service.getAutomix(playlistId)
                                     playerConnection.playQueue(
@@ -398,11 +406,9 @@ fun AlbumScreen(
                                     painter = painterResource(R.drawable.shuffle),
                                     contentDescription = null
                                 )
-                                Spacer(Modifier.width(4.dp))
-                                Text(text = stringResource(id = R.string.shuffle))
                             }
 
-                            OutlinedButton(
+                            IconButton(
                                 onClick = {
                                     menuState.show {
                                         AlbumMenu(
@@ -420,8 +426,6 @@ fun AlbumScreen(
                                     painter = painterResource(R.drawable.more_vert),
                                     contentDescription = null
                                 )
-                                Spacer(Modifier.width(4.dp))
-                                Text(text = stringResource(id = R.string.more))
                             }
                         }
                     }
@@ -436,14 +440,6 @@ fun AlbumScreen(
                     items = wrappedSongs,
                     key = { _, song -> song.item.id },
                 ) { index, songWrapper ->
-                    val shape = when (index) {
-                        0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                        wrappedSongs.lastIndex -> RoundedCornerShape(
-                            bottomStart = 24.dp,
-                            bottomEnd = 24.dp
-                        )
-                        else -> RoundedCornerShape(0.dp)
-                    }
                     SongListItem(
                         song = songWrapper.item,
                         albumIndex = index + 1,
@@ -451,11 +447,15 @@ fun AlbumScreen(
                         isPlaying = isPlaying,
                         showInLibraryIcon = true,
                         modifier = Modifier
+                            .padding(bottom = 8.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                shape = shape
+                                color = if (songWrapper.item.id == mediaMetadata?.id) {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                                }
                             )
-                            .clip(shape)
                             .combinedClickable(
                                 onClick = {
                                     if (!selection) {
