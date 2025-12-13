@@ -24,6 +24,7 @@ class WrappedAudioManager(
     private val _volume = MutableStateFlow(0f)
     val volume: StateFlow<Float> = _volume
     private var playJob: Job? = null
+    private val logTag = "[WrappedAudio]"
 
     init {
         exoPlayer.volume = 1f
@@ -36,11 +37,11 @@ class WrappedAudioManager(
                     Player.STATE_ENDED -> "ENDED"
                     else -> "UNKNOWN"
                 }
-                Log.d("WrappedAudioManager", "Playback state changed: $stateString")
+                Log.d(logTag, "Player State: $stateString")
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                Log.e("WrappedAudioManager", "Player error: ", error)
+                Log.e(logTag, "Player error: ", error)
             }
         })
     }
@@ -48,9 +49,16 @@ class WrappedAudioManager(
     fun play(songId: String) {
         playJob?.cancel()
         playJob = coroutineScope.launch(Dispatchers.Main) {
+            Log.d(logTag, "Loading track: $songId")
+            Log.d(logTag, "Fetching fresh URL...")
             val playerResponse = YouTube.player(songId, client = YouTubeClient.WEB_REMIX).getOrNull()
             val audioFormat = playerResponse?.streamingData?.adaptiveFormats?.firstOrNull { it.isAudio }
-            val streamUrl = audioFormat?.url ?: return@launch
+            val streamUrl = audioFormat?.url
+
+            if (streamUrl == null) {
+                Log.e(logTag, "Failed to get stream URL for $songId")
+                return@launch
+            }
 
             val duration = playerResponse.videoDetails?.lengthSeconds?.toLongOrNull()?.times(1000) ?: 0
             val previewStartTime = playerResponse.videoDetails?.previewStartTime?.toLongOrNull()
@@ -62,7 +70,7 @@ class WrappedAudioManager(
             exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl), startTime)
             exoPlayer.prepare()
             exoPlayer.playWhenReady = true
-            exoPlayer.volume = 1f
+            Log.d(logTag, "Volume: ${exoPlayer.volume}")
 
             fadeIn()
         }
