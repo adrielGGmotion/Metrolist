@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.YouTubeClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,7 +29,7 @@ class WrappedAudioManager(
     fun play(songId: String) {
         playJob?.cancel()
         playJob = coroutineScope.launch(Dispatchers.Main) {
-            val playerResponse = YouTube.player(songId).getOrNull()
+            val playerResponse = YouTube.player(songId, client = YouTubeClient.WEB_REMIX).getOrNull()
             val audioFormat = playerResponse?.streamingData?.adaptiveFormats?.firstOrNull { it.isAudio }
             val streamUrl = audioFormat?.url ?: return@launch
 

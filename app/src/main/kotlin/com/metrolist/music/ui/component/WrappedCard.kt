@@ -18,11 +18,12 @@ import com.metrolist.music.wrapped.WrappedData
 fun WrappedCard(
     wrappedData: WrappedData?,
     isLoading: Boolean,
-    userName: String
+    userName: String,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         ) {

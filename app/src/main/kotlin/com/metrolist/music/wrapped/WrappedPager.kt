@@ -2,14 +2,18 @@ package com.metrolist.music.wrapped
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Text
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -88,12 +92,30 @@ fun WrappedPager(
         val pageOffset = pagerState.currentPageOffsetFraction
 
         when (page) {
-            0 -> PlaceholderSlide(color = Color(0xFF6A1B9A), text = "Intro: $userName", pagerState = pagerState, pageOffset = pageOffset)
+            0 -> IntroSlide(pagerState = pagerState)
             1 -> PlaceholderSlide(color = Color(0xFF4A148C), text = "Minutes", pagerState = pagerState, pageOffset = pageOffset)
             2 -> PlaceholderSlide(color = Color(0xFF311B92), text = "Genres", pagerState = pagerState, pageOffset = pageOffset)
             3 -> PlaceholderSlide(color = Color(0xFF1A237E), text = "Artists", pagerState = pagerState, pageOffset = pageOffset)
             4 -> PlaceholderSlide(color = Color(0xFF0D47A1), text = "Album", pagerState = pagerState, pageOffset = pageOffset)
             5 -> PlaceholderSlide(color = Color(0xFF01579B), text = "Top Song", pagerState = pagerState, pageOffset = pageOffset)
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun IntroSlide(pagerState: PagerState) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedVisibility(
+            visible = pagerState.currentPage == 0,
+            enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+        ) {
+            Text(text = "The stage is set...", color = Color.White)
         }
     }
 }
