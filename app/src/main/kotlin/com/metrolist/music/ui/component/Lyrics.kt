@@ -54,7 +54,9 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -167,7 +169,7 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 
 @RequiresApi(Build.VERSION_CODES.M)
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @SuppressLint("UnusedBoxWithConstraintsScope", "StringFormatInvalid")
 @Composable
 fun Lyrics(
@@ -662,6 +664,24 @@ fun Lyrics(
                     items = lines,
                     key = { index, item -> "$index-${item.time}" } // Add stable key
                 ) { index, item ->
+                    if (isSynced && index > 0 && lines.size > index) {
+                        val prevLine = lines[index - 1]
+                        val timeDifference = item.time - prevLine.time
+                        if (timeDifference > 2000) {
+                            val showIndicator = playerConnection.player.currentPosition > prevLine.time &&
+                                    playerConnection.player.currentPosition < item.time - 200
+                            AnimatedVisibility(visible = showIndicator) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp)
+                                ) {
+                                    ContainedLoadingIndicator()
+                                }
+                            }
+                        }
+                    }
                     val isSelected = selectedIndices.contains(index)
                     val itemModifier = Modifier
                         .fillMaxWidth()

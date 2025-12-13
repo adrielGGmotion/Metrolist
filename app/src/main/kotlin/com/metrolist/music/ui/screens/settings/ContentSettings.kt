@@ -302,6 +302,8 @@ fun ContentSettings(
             values = PreferredLyricsProvider.values().toList(),
             valueText = {
                 when (it) {
+                    PreferredLyricsProvider.APPLE_MUSIC -> "Apple Music"
+                    PreferredLyricsProvider.BETTER_LYRICS -> "BetterLyrics"
                     PreferredLyricsProvider.LRCLIB -> "LrcLib"
                     PreferredLyricsProvider.KUGOU -> "KuGou"
                 }
@@ -565,6 +567,8 @@ fun ContentSettings(
                     description = {
                         Text(
                             when (preferredProvider) {
+                                PreferredLyricsProvider.APPLE_MUSIC -> "Apple Music"
+                                PreferredLyricsProvider.BETTER_LYRICS -> "BetterLyrics"
                                 PreferredLyricsProvider.LRCLIB -> "LrcLib"
                                 PreferredLyricsProvider.KUGOU -> "KuGou"
                             }

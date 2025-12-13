@@ -32,6 +32,8 @@ constructor(
 ) {
     private var lyricsProviders =
         listOf(
+            AppleMusicLyricsProvider,
+            BetterLyricsLyricsProvider,
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
             YouTubeSubtitleLyricsProvider,
@@ -41,25 +43,26 @@ constructor(
     val preferred =
         context.dataStore.data
             .map {
-                it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.LRCLIB)
+                it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.APPLE_MUSIC)
             }.distinctUntilChanged()
-            .map {
-                lyricsProviders =
-                    if (it == PreferredLyricsProvider.LRCLIB) {
-                        listOf(
-                            LrcLibLyricsProvider,
-                            KuGouLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-                    } else {
-                        listOf(
-                            KuGouLyricsProvider,
-                            LrcLibLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-                    }
+            .map { preferredProvider ->
+                val providers = mutableListOf(
+                    AppleMusicLyricsProvider,
+                    BetterLyricsLyricsProvider,
+                    LrcLibLyricsProvider,
+                    KuGouLyricsProvider,
+                    YouTubeSubtitleLyricsProvider,
+                    YouTubeLyricsProvider
+                )
+                val preferred = when (preferredProvider) {
+                    PreferredLyricsProvider.APPLE_MUSIC -> AppleMusicLyricsProvider
+                    PreferredLyricsProvider.BETTER_LYRICS -> BetterLyricsLyricsProvider
+                    PreferredLyricsProvider.LRCLIB -> LrcLibLyricsProvider
+                    PreferredLyricsProvider.KUGOU -> KuGouLyricsProvider
+                }
+                providers.remove(preferred)
+                providers.add(0, preferred)
+                lyricsProviders = providers
             }
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)

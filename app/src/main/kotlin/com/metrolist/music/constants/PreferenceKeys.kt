@@ -280,6 +280,8 @@ enum class QuickPicks {
 }
 
 enum class PreferredLyricsProvider {
+    APPLE_MUSIC,
+    BETTER_LYRICS,
     LRCLIB,
     KUGOU,
 }
