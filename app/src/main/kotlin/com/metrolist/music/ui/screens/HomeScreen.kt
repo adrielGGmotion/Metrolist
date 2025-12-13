@@ -106,10 +106,12 @@ import com.metrolist.music.ui.component.SongGridItem
 import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.YouTubeGridItem
 import com.metrolist.music.ui.component.YouTubeListItem
+import android.content.Intent
 import com.metrolist.music.ui.component.WrappedCard
 import com.metrolist.music.ui.component.shimmer.GridItemPlaceHolder
 import com.metrolist.music.ui.component.shimmer.ShimmerHost
 import com.metrolist.music.constants.ShowWrappedKey
+import com.metrolist.music.wrapped.WrappedActivity
 import com.metrolist.music.ui.component.shimmer.TextPlaceholder
 import com.metrolist.music.ui.menu.AlbumMenu
 import com.metrolist.music.ui.menu.ArtistMenu
@@ -402,12 +404,21 @@ fun HomeScreen(
 
             if (selectedChip == null) {
                 item {
+                    val context = LocalContext.current
                     val (showWrapped, _) = rememberPreference(key = ShowWrappedKey, defaultValue = true)
                     if (showWrapped && isWrappedVisible()) {
                         WrappedCard(
                             wrappedData = wrappedData,
                             isLoading = isWrappedLoading,
-                            userName = accountName
+                            userName = accountName,
+                            modifier = Modifier.combinedClickable(
+                                onClick = {
+                                    val intent = Intent(context, WrappedActivity::class.java).apply {
+                                        putExtra("USER_NAME", accountName)
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            )
                         )
                     }
                 }

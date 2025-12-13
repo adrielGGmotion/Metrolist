@@ -12,7 +12,8 @@ data class WrappedData(
     val totalMinutes: Int,
     val topSongs: List<WrappedSong>,
     val topArtists: List<WrappedArtist>,
-    val topAlbum: com.metrolist.music.db.entities.Album?
+    val topAlbum: com.metrolist.music.db.entities.Album?,
+    val topAlbumSongs: List<com.metrolist.music.db.entities.Song>
 )
 
 suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
@@ -20,7 +21,7 @@ suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
         val fromTimeStamp = System.currentTimeMillis() - 86400000L * 365
         val fromLocalDateTime = Instant.ofEpochMilli(fromTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
-        val localTopSongs = database.mostPlayedSongs(fromTimeStamp, limit = 5).first()
+        val localTopSongs = database.mostPlayedSongs(fromTimeStamp, limit = 20).first()
         val localTopArtists = database.mostPlayedArtists(fromTimeStamp, limit = 5).first()
         val localTopAlbum = database.mostPlayedAlbums(fromTimeStamp, limit = 1).first().firstOrNull()
         val localTotalPlayTimeMillis = database.getTotalPlayTime(fromLocalDateTime)
@@ -43,7 +44,7 @@ suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
                 totalPlayTime = (song.duration ?: 0) * 1000L
             )
         }).groupBy { it.id }.map { it.value.maxByOrNull { song -> song.totalPlayTime }!! }
-        val topSongs = allSongs.sortedByDescending { it.totalPlayTime }.take(5)
+        val topSongs = allSongs.sortedByDescending { it.totalPlayTime }.take(20)
 
         val allArtists = (localTopArtists.map { artist ->
             WrappedArtist(id = artist.artist.id, name = artist.artist.name)
@@ -53,6 +54,7 @@ suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
         val topArtists = allArtists.take(5)
 
         val topAlbum = localTopAlbum
+        val topAlbumSongs = topAlbum?.let { database.albumWithSongs(it.id).first()?.songs } ?: emptyList()
 
         val totalPlayTimeMillis = localTotalPlayTimeMillis + (remoteSongs.sumOf { it.duration ?: 0 } * 1000)
         val totalMinutes = (totalPlayTimeMillis / 60000).toInt()
@@ -61,7 +63,8 @@ suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
             totalMinutes = totalMinutes,
             topSongs = topSongs,
             topArtists = topArtists,
-            topAlbum = topAlbum
+            topAlbum = topAlbum,
+            topAlbumSongs = topAlbumSongs
         )
     }
 }
