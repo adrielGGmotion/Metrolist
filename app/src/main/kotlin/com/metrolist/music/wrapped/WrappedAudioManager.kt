@@ -1,7 +1,10 @@
 package com.metrolist.music.wrapped
 
 import android.content.Context
+import android.util.Log
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeClient
@@ -23,7 +26,23 @@ class WrappedAudioManager(
     private var playJob: Job? = null
 
     init {
-        exoPlayer.volume = 0f
+        exoPlayer.volume = 1f
+        exoPlayer.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                val stateString = when (playbackState) {
+                    Player.STATE_IDLE -> "IDLE"
+                    Player.STATE_BUFFERING -> "BUFFERING"
+                    Player.STATE_READY -> "READY"
+                    Player.STATE_ENDED -> "ENDED"
+                    else -> "UNKNOWN"
+                }
+                Log.d("WrappedAudioManager", "Playback state changed: $stateString")
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                Log.e("WrappedAudioManager", "Player error: ", error)
+            }
+        })
     }
 
     fun play(songId: String) {
@@ -43,6 +62,7 @@ class WrappedAudioManager(
             exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl), startTime)
             exoPlayer.prepare()
             exoPlayer.playWhenReady = true
+            exoPlayer.volume = 1f
 
             fadeIn()
         }
