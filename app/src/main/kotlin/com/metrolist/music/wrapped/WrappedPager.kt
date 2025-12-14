@@ -1,9 +1,14 @@
 package com.metrolist.music.wrapped
 
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -13,12 +18,16 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -54,20 +63,7 @@ fun WrappedPager(
         snapshotFlow { pagerState.currentPage }
             .distinctUntilChanged()
             .collect { page ->
-                val songId = when (page) {
-                    0 -> wrappedData?.topSongs?.randomOrNull()?.id
-                    1 -> null // Continue playing current song
-                    2 -> wrappedData?.topSongs?.getOrNull(1)?.id
-                    3 -> wrappedData?.topArtists?.firstOrNull()?.let {
-                        wrappedData?.topSongs?.firstOrNull { song ->
-                            song.artists.any { artist -> artist.id == it.id }
-                        }?.id
-                    }
-                    4 -> wrappedData?.topAlbumSongs?.firstOrNull()?.id
-                    5 -> wrappedData?.topSongs?.firstOrNull()?.id
-                    else -> null
-                }
-                songId?.let { viewModel.playSong(it) }
+                viewModel.playSongForPage(page)
             }
     }
 
@@ -76,7 +72,10 @@ fun WrappedPager(
 
         when (page) {
             0 -> IntroSlide(isVisible = pagerState.currentPage == 0 && pageOffset == 0f)
-            1 -> PlaceholderSlide(color = Color(0xFF4A148C), text = "Minutes", pagerState = pagerState, pageOffset = pageOffset)
+            1 -> MinutesSlide(
+                isVisible = pagerState.currentPage == 1 && pageOffset == 0f,
+                totalMinutes = wrappedData?.totalMinutes ?: 0
+            )
             2 -> PlaceholderSlide(color = Color(0xFF311B92), text = "Genres", pagerState = pagerState, pageOffset = pageOffset)
             3 -> PlaceholderSlide(color = Color(0xFF1A237E), text = "Artists", pagerState = pagerState, pageOffset = pageOffset)
             4 -> PlaceholderSlide(color = Color(0xFF0D47A1), text = "Album", pagerState = pagerState, pageOffset = pageOffset)
@@ -103,6 +102,62 @@ fun IntroSlide(isVisible: Boolean) {
                 color = Color.White
             )
         )
+    }
+}
+
+@Composable
+fun MinutesSlide(isVisible: Boolean, totalMinutes: Int) {
+    var animatedMinutes by remember { mutableStateOf(0) }
+    val animatedMinutesState by animateIntAsState(
+        targetValue = animatedMinutes,
+        animationSpec = tween(durationMillis = 1000)
+    )
+
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            animatedMinutes = totalMinutes
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF4A148C)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            KineticText(
+                text = "You've listened to",
+                isVisible = isVisible,
+                style = androidx.compose.ui.text.TextStyle(
+                    fontFamily = BartleFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = Color.White
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "$animatedMinutesState",
+                style = androidx.compose.ui.text.TextStyle(
+                    fontFamily = BartleFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 48.sp,
+                    color = Color.White
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            KineticText(
+                text = "minutes of music",
+                isVisible = isVisible,
+                style = androidx.compose.ui.text.TextStyle(
+                    fontFamily = BartleFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = Color.White
+                )
+            )
+        }
     }
 }
 

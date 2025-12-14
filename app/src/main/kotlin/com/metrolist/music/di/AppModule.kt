@@ -75,4 +75,10 @@ object AppModule {
             databaseProvider
         )
     }
+
+    @Singleton
+    @Provides
+    fun provideDataStore(
+        @ApplicationContext context: Context,
+    ) = context.dataStore
 }
