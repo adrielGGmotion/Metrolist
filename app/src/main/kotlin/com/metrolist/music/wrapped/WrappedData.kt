@@ -13,8 +13,7 @@ data class WrappedData(
     val topSongs: List<WrappedSong>,
     val topArtists: List<WrappedArtist>,
     val topAlbum: com.metrolist.music.db.entities.Album?,
-    val topAlbumSongs: List<com.metrolist.music.db.entities.Song>,
-    val topGenre: String
+    val topAlbumSongs: List<com.metrolist.music.db.entities.Song>
 )
 
 suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
@@ -60,15 +59,12 @@ suspend fun calculateWrappedData(database: MusicDatabase): WrappedData {
         val totalPlayTimeMillis = localTotalPlayTimeMillis + (remoteSongs.sumOf { it.duration ?: 0 } * 1000)
         val totalMinutes = (totalPlayTimeMillis / 60000).toInt()
 
-        val topGenre = topArtists.firstOrNull()?.name ?: "N/A"
-
         WrappedData(
             totalMinutes = totalMinutes,
             topSongs = topSongs,
             topArtists = topArtists,
             topAlbum = topAlbum,
-            topAlbumSongs = topAlbumSongs,
-            topGenre = topGenre
+            topAlbumSongs = topAlbumSongs
         )
     }
 }

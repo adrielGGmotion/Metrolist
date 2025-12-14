@@ -26,7 +26,7 @@ fun WrappedCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        ) {
+    ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
