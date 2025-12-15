@@ -33,6 +33,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import android.content.Intent
 import androidx.core.content.FileProvider
 import com.metrolist.innertube.models.SongItem
+import com.metrolist.music.wrapped.slides.WelcomeSlide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -69,15 +70,16 @@ fun WrappedPager(
     userName: String,
     viewModel: WrappedViewModel = hiltViewModel()
 ) {
+    val pagerState = rememberPagerState(pageCount = { slides.size })
+    val coroutineScope = rememberCoroutineScope()
     val slides = listOf<@Composable () -> Unit>(
-        { IntroSlide(userName = userName) },
+        { WelcomeSlide { coroutineScope.launch { pagerState.animateScrollToPage(1) } } },
         { MinutesSlide(viewModel.wrappedStats.collectAsState().value) },
         { TopArtistsSlide(viewModel.wrappedStats.collectAsState().value) },
         { TopAlbumsSlide(viewModel.wrappedStats.collectAsState().value) },
         { TopSongsSlide(viewModel.wrappedStats.collectAsState().value) },
         { SummarySlide(viewModel.wrappedStats.collectAsState().value) { viewModel.savePlaylist() } }
     )
-    val pagerState = rememberPagerState(pageCount = { slides.size })
     val wrappedStats by viewModel.wrappedStats.collectAsState()
     val context = LocalContext.current
     val exoPlayer1 = remember { ExoPlayer.Builder(context).build() }
@@ -137,32 +139,6 @@ fun WrappedPager(
         modifier = Modifier.fillMaxSize()
     ) { page ->
         slides[page]()
-    }
-}
-
-import com.airbnb.lottie.compose.LottieAnimation
-import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.LottieConstants
-import com.airbnb.lottie.compose.rememberLottieComposition
-
-@Composable
-fun IntroSlide(userName: String) {
-    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(com.metrolist.music.R.raw.spinning_cube))
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            LottieAnimation(
-                composition = composition,
-                iterations = LottieConstants.IterateForever,
-            )
-            KineticTypography(
-                text = "The stage is set, $userName.",
-                animationStyle = AnimationStyle.SLIDE_IN_FROM_LEFT
-            )
-            KineticTypography(
-                text = "Come on in.",
-                animationStyle = AnimationStyle.SLIDE_IN_FROM_RIGHT
-            )
-        }
     }
 }
 

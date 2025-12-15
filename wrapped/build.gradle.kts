@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.viewmodel.compose)
 
     implementation(libs.material3)
+    implementation("androidx.graphics:graphics-shapes:1.1.0")
 
     implementation(libs.media3)
     implementation(libs.media3.session)
