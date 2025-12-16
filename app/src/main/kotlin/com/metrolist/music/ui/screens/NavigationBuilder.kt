@@ -71,6 +71,7 @@ import com.metrolist.music.ui.screens.settings.RomanizationSettings
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.screens.settings.StorageSettings
 import com.metrolist.music.ui.screens.settings.UpdaterScreen
+import com.metrolist.music.ui.screens.wrapped.WrappedScreen
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
@@ -335,5 +336,8 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("login") {
         LoginScreen(navController)
+    }
+    composable("wrapped") {
+        WrappedScreen(navController)
     }
 }

@@ -39,6 +39,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.metrolist.music.constants.ShowWrappedCardKey
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
@@ -166,6 +172,7 @@ fun HomeScreen(
     val accountName by viewModel.accountName.collectAsState()
     val accountImageUrl by viewModel.accountImageUrl.collectAsState()
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
+    val showWrappedCard by rememberPreference(ShowWrappedCardKey, true)
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
@@ -394,6 +401,39 @@ fun HomeScreen(
             }
 
             if (selectedChip == null) {
+                item(key = "wrapped_card") {
+                    AnimatedVisibility(visible = showWrappedCard) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "YOUR WRAPPED IS READY!",
+                                    style = MaterialTheme.typography.headlineLarge
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Time to see what you loved this year.",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(onClick = { navController.navigate("wrapped") }) {
+                                    Text("Let's go!")
+                                }
+                            }
+                        }
+                    }
+                }
                 quickPicks?.takeIf { it.isNotEmpty() }?.let { quickPicks ->
                     item(key = "quick_picks_title") {
                         NavigationTitle(
