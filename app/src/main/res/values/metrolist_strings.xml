@@ -295,4 +295,6 @@
     <string name="cache_size_warning_title">Hold on!</string>
     <string name="cache_size_warning_message">You\'ve chosen a cache size limit smaller than what the app is currently using (%1$s). If you continue, the app may remove some cached %2$s to match the new limit. Proceed anyway?</string>
     <string name="cache_size_warning_confirm">Continue</string>
+    <string name="share_album">Share Album</string>
+    <string name="download">Download</string>
 </resources>
