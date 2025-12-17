@@ -1003,8 +1003,9 @@ fun BottomSheetPlayer(
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                         squigglesSpec =
                         SquigglySlider.SquigglesSpec(
-                            amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
+                            amplitude = if (isPlaying) (4.dp).coerceAtLeast(2.dp) else 0.dp,
                             strokeWidth = 3.dp,
+                            wavelength = 36.dp,
                         ),
                     )
                 }
@@ -1121,7 +1122,7 @@ fun BottomSheetPlayer(
                                     },
                                 ),
                                 modifier = Modifier
-                                    .height(64.dp)
+                                    .height(72.dp)
                                     .weight(sideButtonWeight)
                                     .bouncy(backInteractionSource)
                             ) {
@@ -1156,7 +1157,7 @@ fun BottomSheetPlayer(
                                     contentColor = iconButtonColor,
                                 ),
                                 modifier = Modifier
-                                    .height(64.dp)
+                                    .height(72.dp)
                                     .weight(playPauseWeight)
                             ) {
                                 Row(
@@ -1200,7 +1201,7 @@ fun BottomSheetPlayer(
                                     },
                                 ),
                                 modifier = Modifier
-                                    .height(64.dp)
+                                    .height(72.dp)
                                     .weight(sideButtonWeight)
                                     .bouncy(nextInteractionSource)
                             ) {
