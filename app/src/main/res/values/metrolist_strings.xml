@@ -211,6 +211,8 @@
     <!-- Player Settings -->
     <string name="disable_load_more_when_repeat_all">Disable load more when repeat all</string>
     <string name="disable_load_more_when_repeat_all_desc">Don\'t auto load more songs and similar content when repeat all mode is enabled</string>
+    <string name="autoplay">Autoplay</string>
+    <string name="autoplay_description">Keep the music going when your queue ends</string>
 
     <!-- Romanization Settings -->
     <string name="lyrics_romanization_cyrillic">Cyrillic</string>

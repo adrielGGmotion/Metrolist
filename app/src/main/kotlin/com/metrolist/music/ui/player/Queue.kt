@@ -64,6 +64,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -116,11 +117,14 @@ import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.move
 import com.metrolist.music.extensions.toggleRepeatMode
 import com.metrolist.music.models.MediaMetadata
+import com.metrolist.music.constants.AutoLoadMoreKey
 import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetState
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
+import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.MediaMetadataListItem
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.menu.SelectionMediaMetadataMenu
@@ -882,6 +886,30 @@ fun Queue(
                             )
                         }
                     }
+                }
+
+                item {
+                    val (autoplay, onAutoplayChange) = rememberPreference(
+                        key = AutoLoadMoreKey,
+                        defaultValue = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Material3SettingsGroup(
+                        items = listOf(
+                            Material3SettingsItem(
+                                title = { Text(stringResource(R.string.autoplay)) },
+                                description = { Text(stringResource(R.string.autoplay_description)) },
+                                trailingContent = {
+                                    Switch(
+                                        checked = autoplay,
+                                        onCheckedChange = {
+                                            onAutoplayChange(it)
+                                        }
+                                    )
+                                }
+                            )
+                        )
+                    )
                 }
             }
         }
