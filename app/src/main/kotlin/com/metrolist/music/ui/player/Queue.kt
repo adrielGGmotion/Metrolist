@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Card
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -45,11 +46,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -108,23 +109,21 @@ import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.AutoLoadMoreKey
 import com.metrolist.music.constants.ListItemHeight
-import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.constants.PlayerButtonsStyle
 import com.metrolist.music.constants.PlayerButtonsStyleKey
 import com.metrolist.music.constants.QueueEditLockKey
+import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.move
 import com.metrolist.music.extensions.toggleRepeatMode
 import com.metrolist.music.models.MediaMetadata
-import com.metrolist.music.constants.AutoLoadMoreKey
 import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetState
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
-import com.metrolist.music.ui.component.Material3SettingsGroup
-import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.MediaMetadataListItem
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.menu.SelectionMediaMetadataMenu
@@ -193,6 +192,7 @@ fun Queue(
         defaultValue = true
     )
 
+    val (autoLoadMore, onAutoLoadMoreChange) = rememberPreference(AutoLoadMoreKey, true)
     val snackbarHostState = remember { SnackbarHostState() }
     var dismissJob: Job? by remember { mutableStateOf(null) }
 
@@ -807,26 +807,48 @@ fun Queue(
                     }
                 }
 
-                if (automix.isNotEmpty()) {
-                    item(key = "automix_divider") {
-                        HorizontalDivider(
-                            modifier = Modifier
-                                .padding(vertical = 8.dp, horizontal = 4.dp)
-                                .animateItem(),
-                        )
-
-                        Text(
-                            text = stringResource(R.string.similar_content),
-                            modifier = Modifier.padding(start = 16.dp),
-                        )
+                item(key = "autoplay_card_header") {
+                    HorizontalDivider(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp, horizontal = 4.dp)
+                            .animateItem(),
+                    )
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp).fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.autoplay),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = stringResource(R.string.autoplay_subtitle),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = autoLoadMore,
+                                onCheckedChange = onAutoLoadMoreChange
+                            )
+                        }
                     }
+                }
 
+                if (autoLoadMore && automix.isNotEmpty()) {
                     itemsIndexed(
                         items = automix,
-                        key = { _, it -> it.mediaId },
+                        key = { _, it -> "autoplay_${it.mediaId}" },
                     ) { index, item ->
                         Row(
                             horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp) // Match card padding
                         ) {
                             MediaMetadataListItem(
                                 mediaMetadata = item.metadata!!,
@@ -861,6 +883,7 @@ fun Queue(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .animateItem()
                                     .combinedClickable(
                                         onClick = {},
                                         onLongClick = {
@@ -882,34 +905,9 @@ fun Queue(
                                             }
                                         },
                                     )
-                                    .animateItem(),
                             )
                         }
                     }
-                }
-
-                item {
-                    val (autoplay, onAutoplayChange) = rememberPreference(
-                        key = AutoLoadMoreKey,
-                        defaultValue = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Material3SettingsGroup(
-                        items = listOf(
-                            Material3SettingsItem(
-                                title = { Text(stringResource(R.string.autoplay)) },
-                                description = { Text(stringResource(R.string.autoplay_description)) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = autoplay,
-                                        onCheckedChange = {
-                                            onAutoplayChange(it)
-                                        }
-                                    )
-                                }
-                            )
-                        )
-                    )
                 }
             }
         }

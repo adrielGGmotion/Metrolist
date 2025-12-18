@@ -87,6 +87,7 @@ class PlayerConnection(
 
     val error = MutableStateFlow<PlaybackException?>(null)
     val waitingForNetworkConnection = service.waitingForNetworkConnection
+    val automixItems = service.automixItems
 
     init {
         player.addListener(this)
