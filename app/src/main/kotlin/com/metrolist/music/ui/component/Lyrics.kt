@@ -106,6 +106,7 @@ import coil3.toBitmap
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.DarkModeKey
+import com.metrolist.music.constants.LyricLinePadding
 import com.metrolist.music.constants.LyricsClickKey
 import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
@@ -211,9 +212,12 @@ fun Lyrics(
     var lines by remember { mutableStateOf<List<LyricsEntry>>(emptyList()) }
 
     LaunchedEffect(lyrics, scope) {
+        // This is the key fix: Reset both states whenever the source lyrics string changes.
+        lines = emptyList()
+        appleMusicLines = null
+
         if (lyrics == null || lyrics == LYRICS_NOT_FOUND) {
-            lines = emptyList()
-            appleMusicLines = null
+            // States are already cleared, do nothing.
         } else if (lyrics.startsWith("[")) {
             val parsedAppleMusic = AppleMusicLyricsParser.parse(lyrics)
             if (parsedAppleMusic != null) {
@@ -463,6 +467,7 @@ fun Lyrics(
         selectedIndices.clear()
     }
 
+    var currentPosition by remember { mutableLongStateOf(0L) }
     LaunchedEffect(lyrics, appleMusicLines) {
         if (appleMusicLines == null) {
             if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
@@ -472,19 +477,17 @@ fun Lyrics(
             while (isActive) {
                 delay(50)
                 val sliderPosition = sliderPositionProvider()
+                currentPosition = sliderPosition ?: playerConnection.player.currentPosition
                 isSeeking = sliderPosition != null
-                currentLineIndex = findCurrentLineIndex(
-                    lines,
-                    sliderPosition ?: playerConnection.player.currentPosition
-                )
+                currentLineIndex = findCurrentLineIndex(lines, currentPosition)
             }
         } else {
             // Apple Music logic
             while (isActive) {
                 delay(50)
-                val currentPosition = sliderPositionProvider() ?: playerConnection.player.currentPosition
-                isSeeking = sliderPositionProvider() != null
-
+                val sliderPosition = sliderPositionProvider()
+                currentPosition = sliderPosition ?: playerConnection.player.currentPosition
+                isSeeking = sliderPosition != null
                 activeAppleMusicIndices = appleMusicLines!!.mapIndexedNotNull { index, line ->
                     if (currentPosition in line.startTime..line.endTime) index else null
                 }
@@ -681,22 +684,24 @@ fun Lyrics(
                     key = { index, item -> "$index-${item.startTime}" }
                 ) { index, item ->
                     val isActive = index in activeAppleMusicIndices
-                    AppleMusicLyricLine(
-                        line = item,
-                        currentPosition = sliderPositionProvider() ?: playerConnection.player.currentPosition,
-                        isActive = isActive,
-                        style = TextStyle(
-                            fontSize = 24.sp,
-                            textAlign = when (lyricsTextPosition) {
-                                LyricsPosition.LEFT -> TextAlign.Left
-                                LyricsPosition.CENTER -> TextAlign.Center
-                                LyricsPosition.RIGHT -> TextAlign.Right
-                            },
-                            fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Bold
-                        ),
-                        activeColor = textColor,
-                        inactiveColor = textColor.copy(alpha = 0.5f)
-                    )
+                    Box(modifier = Modifier.padding(vertical = LyricLinePadding)) {
+                        AppleMusicLyricLine(
+                            line = item,
+                            currentPosition = currentPosition,
+                            isActive = isActive,
+                            style = TextStyle(
+                                fontSize = 24.sp,
+                                textAlign = when (lyricsTextPosition) {
+                                    LyricsPosition.LEFT -> TextAlign.Left
+                                    LyricsPosition.CENTER -> TextAlign.Center
+                                    LyricsPosition.RIGHT -> TextAlign.Right
+                                },
+                                fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Bold
+                            ),
+                            activeColor = textColor,
+                            inactiveColor = textColor.copy(alpha = 0.5f)
+                        )
+                    }
                 }
             } else {
                 itemsIndexed(
@@ -873,7 +878,13 @@ fun Lyrics(
             ) {
                 FilledTonalButton(onClick = {
                     scope.launch {
-                        performSmoothPageScroll(currentLineIndex, 1500)
+                        val targetIndex = if (appleMusicLines != null) {
+                            val currentPosition = playerConnection.player.currentPosition
+                            appleMusicLines!!.indexOfFirst { it.startTime >= currentPosition }.coerceAtLeast(0)
+                        } else {
+                            currentLineIndex
+                        }
+                        performSmoothPageScroll(targetIndex, 1500)
                     }
                     isAutoScrollEnabled = true
                 }) {

@@ -4,6 +4,7 @@ import android.text.format.DateUtils
 
 object AppleMusicLyricsParser {
 
+    private const val FALLBACK_WORD_DURATION_MS = 1000L
     private val LINE_REGEX = "^\\[(\\d{2}:\\d{2}\\.\\d{3})](v\\d:)?\\s*(.*)$".toRegex()
     private val WORD_REGEX = "<(\\d{2}:\\d{2}\\.\\d{3})>([^<]+)".toRegex()
     private val END_TIME_REGEX = "<(\\d{2}:\\d{2}\\.\\d{3})>$".toRegex()
@@ -32,7 +33,7 @@ object AppleMusicLyricsParser {
                         val endTime = if (i + 1 < wordMatches.size) {
                             timestampToMillis(wordMatches[i + 1].groupValues[1])
                         } else {
-                            endTimeMatch?.groupValues?.get(1)?.let { timestampToMillis(it) } ?: (startTime + 1000L) // Fallback
+                            endTimeMatch?.groupValues?.get(1)?.let { timestampToMillis(it) } ?: (startTime + FALLBACK_WORD_DURATION_MS) // Fallback
                         }
                         words.add(AppleMusicWord(text, startTime, endTime))
                     }
