@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -191,14 +193,12 @@ fun SyncedLyricWord(
                 start = Offset.Zero,
                 end = Offset(x = textLayoutResult.size.width.toFloat(), y = 0f)
             )
-        ),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
+        )
     )
 }
 
 @RequiresApi(Build.VERSION_CODES.M)
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("UnusedBoxWithConstraintsScope", "StringFormatInvalid")
 @Composable
 fun Lyrics(
@@ -341,6 +341,7 @@ fun Lyrics(
     }
 
     var currentLineIndex by remember { mutableIntStateOf(-1) }
+    val activeLineIndices = remember { mutableStateListOf<Int>() }
     var deferredCurrentLineIndex by rememberSaveable { mutableIntStateOf(0) }
     var previousLineIndex by rememberSaveable { mutableIntStateOf(0) }
     var lastPreviewTime by rememberSaveable { mutableLongStateOf(0L) }
@@ -406,6 +407,7 @@ fun Lyrics(
     LaunchedEffect(lyrics) {
         if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
             currentLineIndex = -1
+            activeLineIndices.clear()
         } else {
             while (isActive) {
                 delay(50)
@@ -413,10 +415,29 @@ fun Lyrics(
                 isSeeking = sliderPosition != null
                 val position = sliderPosition ?: playerConnection.player.currentPosition
                 currentPosition = position
-                currentLineIndex = when (parsedLyrics) {
-                    is ParsedLyrics.Standard -> findCurrentLineIndex(parsedLyrics.lines, position)
-                    is ParsedLyrics.AppleMusic -> parsedLyrics.lines.indexOfLast { it.time <= position }.coerceAtLeast(0)
-                    else -> -1
+                when (parsedLyrics) {
+                    is ParsedLyrics.Standard -> {
+                        currentLineIndex = findCurrentLineIndex(parsedLyrics.lines, position)
+                        activeLineIndices.clear()
+                        if (currentLineIndex != -1) {
+                            activeLineIndices.add(currentLineIndex)
+                        }
+                    }
+                    is ParsedLyrics.AppleMusic -> {
+                        val newActiveIndices = parsedLyrics.lines.mapIndexedNotNull { index, line ->
+                            val lineEndTime = line.words.lastOrNull()?.endTime ?: (line.time + 1)
+                            if (position in line.time..lineEndTime) index else null
+                        }
+                        if (activeLineIndices != newActiveIndices) {
+                            activeLineIndices.clear()
+                            activeLineIndices.addAll(newActiveIndices)
+                        }
+                        currentLineIndex = newActiveIndices.lastOrNull() ?: parsedLyrics.lines.indexOfLast { it.time <= position }.coerceAtLeast(0)
+                    }
+                    else -> {
+                        currentLineIndex = -1
+                        activeLineIndices.clear()
+                    }
                 }
             }
         }
@@ -615,8 +636,9 @@ fun Lyrics(
                                 )
                                 .background(if (isSelected && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
                                 .padding(horizontal = 24.dp, vertical = 8.dp)
-                            val alpha by animateFloatAsState(targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (index == displayedCurrentLineIndex) 1f else 0.5f, animationSpec = tween(durationMillis = 400))
-                            val scale by animateFloatAsState(targetValue = if (index == displayedCurrentLineIndex) 1.05f else 1f, animationSpec = tween(durationMillis = 400))
+                            val isActivelySinging = activeLineIndices.contains(index)
+                            val alpha by animateFloatAsState(targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.3f, animationSpec = tween(durationMillis = 400))
+                            val scale by animateFloatAsState(targetValue = if (isActivelySinging) 1.05f else 1f, animationSpec = tween(durationMillis = 400))
                             Column(
                                 modifier = itemModifier.graphicsLayer {
                                     this.alpha = alpha
@@ -632,13 +654,13 @@ fun Lyrics(
                                 Text(
                                     text = item.text,
                                     fontSize = 24.sp,
-                                    color = if (index == displayedCurrentLineIndex && isSynced) textColor else textColor.copy(alpha = 0.8f),
+                                    color = if (isActivelySinging && isSynced) textColor else textColor.copy(alpha = 0.5f),
                                     textAlign = when (lyricsTextPosition) {
                                         LyricsPosition.LEFT -> TextAlign.Left
                                         LyricsPosition.CENTER -> TextAlign.Center
                                         LyricsPosition.RIGHT -> TextAlign.Right
                                     },
-                                    fontWeight = if (index == displayedCurrentLineIndex && isSynced) FontWeight.ExtraBold else FontWeight.Bold
+                                    fontWeight = if (isActivelySinging && isSynced) FontWeight.ExtraBold else FontWeight.Bold
                                 )
                                 if (currentSong?.romanizeLyrics == true && (romanizeJapaneseLyrics || romanizeKoreanLyrics || romanizeRussianLyrics || romanizeUkrainianLyrics || romanizeSerbianLyrics || romanizeBulgarianLyrics || romanizeBelarusianLyrics || romanizeKyrgyzLyrics || romanizeMacedonianLyrics || romanizeChineseLyrics)) {
                                     val romanizedText by item.romanizedTextFlow.collectAsState()
@@ -646,7 +668,7 @@ fun Lyrics(
                                         Text(
                                             text = romanized,
                                             fontSize = 18.sp,
-                                            color = textColor.copy(alpha = 0.8f),
+                                            color = textColor.copy(alpha = 0.5f),
                                             textAlign = when (lyricsTextPosition) {
                                                 LyricsPosition.LEFT -> TextAlign.Left
                                                 LyricsPosition.CENTER -> TextAlign.Center
@@ -713,8 +735,9 @@ fun Lyrics(
                                 )
                                 .background(if (isSelected && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
                                 .padding(horizontal = 24.dp, vertical = 8.dp)
-                            val alpha = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (index == displayedCurrentLineIndex) 1f else 0.5f
-                            val scale = if (index == displayedCurrentLineIndex) 1.05f else 1f
+                            val isActivelySinging = activeLineIndices.contains(index)
+                            val alpha = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.3f
+                            val scale = if (isActivelySinging) 1.05f else 1f
                             val horizontalAlignment = when (item.speaker) {
                                 "v1" -> Alignment.End
                                 "v2" -> Alignment.Start
@@ -732,21 +755,21 @@ fun Lyrics(
                                 },
                                 horizontalAlignment = horizontalAlignment
                             ) {
-                                Row {
+                                FlowRow {
                                     item.words.forEach { word ->
                                         SyncedLyricWord(
                                             word = word,
                                             position = currentPosition,
                                             style = TextStyle(
                                                 fontSize = 24.sp,
-                                                fontWeight = if (index == displayedCurrentLineIndex && isSynced) FontWeight.ExtraBold else FontWeight.Bold,
+                                                fontWeight = if (isActivelySinging && isSynced) FontWeight.ExtraBold else FontWeight.Bold,
                                                 textAlign = when (lyricsTextPosition) {
                                                     LyricsPosition.LEFT -> TextAlign.Left
                                                     LyricsPosition.CENTER -> TextAlign.Center
                                                     LyricsPosition.RIGHT -> TextAlign.Right
                                                 }
                                             ),
-                                            inactiveColor = textColor.copy(alpha = 0.8f),
+                                            inactiveColor = textColor.copy(alpha = 0.5f),
                                             activeColor = textColor
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
