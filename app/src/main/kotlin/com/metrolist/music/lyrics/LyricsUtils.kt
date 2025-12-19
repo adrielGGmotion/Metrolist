@@ -724,7 +724,7 @@ object LyricsUtils {
         }
 
         val romajiBuilder = StringBuilder(text.length)
-        val words = text.split("((?<=\\s|[.,!?;])|(?=\\s|[.,!?;]))".toRegex())
+        val words = text.split("((?<=\\s|[.,!?;])|(?=\s|[.,!?;]))".toRegex())
             .filter { it.isNotEmpty() }
 
         words.forEachIndexed { _, word ->
@@ -855,5 +855,61 @@ object LyricsUtils {
 
     private fun isCyrillicVowel(char: Char): Boolean {
         return "АаЕеЄєИиІіЇїОоУуЮюЯяЫыЭэ".contains(char)
+    }
+
+    private val APPLE_MUSIC_LINE_REGEX = "\\[(\\d{2}):(\\d{2})\\.(\\d{3})\\](v\\d:)?(.*)".toRegex()
+    private val APPLE_MUSIC_WORD_REGEX = "<(\\d{2}):(\\d{2})\\.(\\d{3})>([^<]*)".toRegex()
+
+    fun parseAppleMusicLyrics(lyrics: String): List<AppleMusicLyricsLine> {
+        val lines = lyrics.lines()
+        return lines.mapIndexedNotNull { lineIndex, line ->
+            APPLE_MUSIC_LINE_REGEX.matchEntire(line.trim())?.let { matchResult ->
+                val lineTime = parseTimestamp(
+                    matchResult.groupValues[1],
+                    matchResult.groupValues[2],
+                    matchResult.groupValues[3]
+                )
+                val speaker = matchResult.groupValues[4].takeIf { it.isNotEmpty() }?.trim()?.removeSuffix(":")
+                val wordsContent = matchResult.groupValues[5]
+
+                val wordMatches = APPLE_MUSIC_WORD_REGEX.findAll(wordsContent).toList()
+                if (wordMatches.isEmpty()) return@let null
+
+                val words = wordMatches.mapIndexedNotNull { index, wordMatch ->
+                    if (wordMatch.groupValues[4].isBlank() && index == wordMatches.lastIndex) {
+                        null
+                    } else {
+                        val startTime = parseTimestamp(
+                            wordMatch.groupValues[1],
+                            wordMatch.groupValues[2],
+                            wordMatch.groupValues[3]
+                        )
+                        val endTime = if (index + 1 < wordMatches.size) {
+                            parseTimestamp(
+                                wordMatches[index + 1].groupValues[1],
+                                wordMatches[index + 1].groupValues[2],
+                                wordMatches[index + 1].groupValues[3]
+                            )
+                        } else {
+                            val nextLineStartTime = if (lineIndex + 1 < lines.size) {
+                                APPLE_MUSIC_LINE_REGEX.matchEntire(lines[lineIndex + 1].trim())?.let { nextMatch ->
+                                    parseTimestamp(nextMatch.groupValues[1], nextMatch.groupValues[2], nextMatch.groupValues[3])
+                                }
+                            } else {
+                                null
+                            }
+                            nextLineStartTime ?: (startTime + 2000L) // Default duration
+                        }
+                        AppleMusicWord(startTime, endTime, wordMatch.groupValues[4].trim())
+                    }
+                }
+
+                AppleMusicLyricsLine(lineTime, words, speaker)
+            }
+        }
+    }
+
+    private fun parseTimestamp(min: String, sec: String, mil: String): Long {
+        return min.toLong() * 60000 + sec.toLong() * 1000 + mil.toLong()
     }
 }
