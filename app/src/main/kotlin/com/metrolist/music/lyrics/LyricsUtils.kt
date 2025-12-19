@@ -857,7 +857,7 @@ object LyricsUtils {
         return "АаЕеЄєИиІіЇїОоУуЮюЯяЫыЭэ".contains(char)
     }
 
-    private val APPLE_MUSIC_LINE_REGEX = "\\[(\\d{2}):(\\d{2})\\.(\\d{3})\\](v\\d:)?(.*)".toRegex()
+    private val APPLE_MUSIC_LINE_REGEX = "\\[(\\d{2}):(\\d{2})\\.(\\d{3})\\](v\\d:|bg:)?(.*)".toRegex()
     private val APPLE_MUSIC_WORD_REGEX = "<(\\d{2}):(\\d{2})\\.(\\d{3})>([^<]*)".toRegex()
 
     fun parseAppleMusicLyrics(lyrics: String): List<AppleMusicLyricsLine> {

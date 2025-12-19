@@ -179,7 +179,12 @@ fun SyncedLyricWord(
     val textLayoutResult = remember(word.word, style) {
         textMeasurer.measure(word.word, style)
     }
-    val progress = ((position - word.startTime).toFloat() / (word.endTime - word.startTime)).coerceIn(0f, 1f)
+    val targetProgress = ((position - word.startTime).toFloat() / (word.endTime - word.startTime)).coerceIn(0f, 1f)
+    val progress by animateFloatAsState(
+        targetValue = targetProgress,
+        animationSpec = tween(durationMillis = if (targetProgress > 0f && targetProgress < 1f) 80 else 0)
+    )
+
     Text(
         text = word.word,
         style = style.copy(
@@ -736,8 +741,15 @@ fun Lyrics(
                                 .background(if (isSelected && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
                                 .padding(horizontal = 24.dp, vertical = 8.dp)
                             val isActivelySinging = activeLineIndices.contains(index)
-                            val alpha = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.3f
-                            val scale = if (isActivelySinging) 1.05f else 1f
+                            val isBackground = item.speaker == "bg"
+                            val alpha by animateFloatAsState(
+                                targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else if (isBackground) 0.2f else 0.3f,
+                                animationSpec = tween(durationMillis = 400)
+                            )
+                            val scale by animateFloatAsState(
+                                targetValue = if (isActivelySinging) (if (isBackground) 1.02f else 1.05f) else 1f,
+                                animationSpec = tween(durationMillis = 400)
+                            )
                             val horizontalAlignment = when (item.speaker) {
                                 "v1" -> Alignment.End
                                 "v2" -> Alignment.Start
@@ -761,15 +773,16 @@ fun Lyrics(
                                             word = word,
                                             position = currentPosition,
                                             style = TextStyle(
-                                                fontSize = 24.sp,
+                                                fontSize = if (isBackground) 18.sp else 24.sp,
                                                 fontWeight = if (isActivelySinging && isSynced) FontWeight.ExtraBold else FontWeight.Bold,
                                                 textAlign = when (lyricsTextPosition) {
                                                     LyricsPosition.LEFT -> TextAlign.Left
                                                     LyricsPosition.CENTER -> TextAlign.Center
                                                     LyricsPosition.RIGHT -> TextAlign.Right
-                                                }
+                                                },
+                                                fontStyle = if (isBackground) androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal
                                             ),
-                                            inactiveColor = textColor.copy(alpha = 0.5f),
+                                            inactiveColor = textColor.copy(alpha = if (isBackground) 0.4f else 0.5f),
                                             activeColor = textColor
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
