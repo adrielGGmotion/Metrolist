@@ -77,6 +77,8 @@ data class ArtistPage(
                         id = it.navigationEndpoint?.browseEndpoint?.browseId ?: return@let null
                     )
                 },
+                viewCount = renderer.flexColumns.getOrNull(2)
+                    ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text,
                 duration = null,
                 musicVideoType = renderer.musicVideoType,
                 thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
