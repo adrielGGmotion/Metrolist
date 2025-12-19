@@ -857,13 +857,33 @@ object LyricsUtils {
         return "АаЕеЄєИиІіЇїОоУуЮюЯяЫыЭэ".contains(char)
     }
 
-    private val APPLE_MUSIC_LINE_REGEX = "\\[(\\d{2}):(\\d{2})\\.(\\d{3})\\](v\\d:|bg:)?(.*)".toRegex()
+    private val APPLE_MUSIC_LINE_REGEX = "\\[(\\d{2}):(\\d{2})\\.(\\d{3})\\](v\\d:)?(.*)".toRegex()
+    private val APPLE_MUSIC_BG_LINE_REGEX = "\\[bg:([^\\]]*)\\]".toRegex()
     private val APPLE_MUSIC_WORD_REGEX = "<(\\d{2}):(\\d{2})\\.(\\d{3})>([^<]*)".toRegex()
 
     fun parseAppleMusicLyrics(lyrics: String): List<AppleMusicLyricsLine> {
         val lines = lyrics.lines()
         return lines.mapIndexedNotNull { lineIndex, line ->
-            APPLE_MUSIC_LINE_REGEX.matchEntire(line.trim())?.let { matchResult ->
+            val trimmedLine = line.trim()
+            val bgMatchResult = APPLE_MUSIC_BG_LINE_REGEX.find(trimmedLine)
+            if (bgMatchResult != null) {
+                val wordsContent = bgMatchResult.groupValues[1]
+                val wordMatches = APPLE_MUSIC_WORD_REGEX.findAll(wordsContent).toList()
+                if (wordMatches.isEmpty()) return@mapIndexedNotNull null
+
+                val words = wordMatches.mapIndexedNotNull { index, wordMatch ->
+                    val startTime = parseTimestamp(wordMatch.groupValues[1], wordMatch.groupValues[2], wordMatch.groupValues[3])
+                    val endTime = if (index + 1 < wordMatches.size) {
+                        parseTimestamp(wordMatches[index + 1].groupValues[1], wordMatches[index + 1].groupValues[2], wordMatches[index + 1].groupValues[3])
+                    } else {
+                        startTime + 2000L // Default duration for the last word
+                    }
+                    AppleMusicWord(startTime, endTime, wordMatch.groupValues[4].trim())
+                }
+                return@mapIndexedNotNull AppleMusicLyricsLine(words.first().startTime, words, "bg")
+            }
+
+            APPLE_MUSIC_LINE_REGEX.matchEntire(trimmedLine)?.let { matchResult ->
                 val lineTime = parseTimestamp(
                     matchResult.groupValues[1],
                     matchResult.groupValues[2],

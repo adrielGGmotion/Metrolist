@@ -8,7 +8,9 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -179,12 +181,11 @@ fun SyncedLyricWord(
     val textLayoutResult = remember(word.word, style) {
         textMeasurer.measure(word.word, style)
     }
-    val targetProgress = ((position - word.startTime).toFloat() / (word.endTime - word.startTime)).coerceIn(0f, 1f)
     val progress by animateFloatAsState(
-        targetValue = targetProgress,
-        animationSpec = tween(durationMillis = if (targetProgress > 0f && targetProgress < 1f) 80 else 0)
+        targetValue = ((position - word.startTime).toFloat() / (word.endTime - word.startTime)).coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 150),
+        label = "word progress"
     )
-
     Text(
         text = word.word,
         style = style.copy(
@@ -642,8 +643,19 @@ fun Lyrics(
                                 .background(if (isSelected && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
                                 .padding(horizontal = 24.dp, vertical = 8.dp)
                             val isActivelySinging = activeLineIndices.contains(index)
-                            val alpha by animateFloatAsState(targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.3f, animationSpec = tween(durationMillis = 400))
-                            val scale by animateFloatAsState(targetValue = if (isActivelySinging) 1.05f else 1f, animationSpec = tween(durationMillis = 400))
+                            val alpha by animateFloatAsState(
+                                targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.4f,
+                                animationSpec = tween(durationMillis = 600),
+                                label = "line alpha std"
+                            )
+                            val scale by animateFloatAsState(
+                                targetValue = if (isActivelySinging) 1.05f else 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                ),
+                                label = "line scale std"
+                            )
                             Column(
                                 modifier = itemModifier.graphicsLayer {
                                     this.alpha = alpha
@@ -741,24 +753,33 @@ fun Lyrics(
                                 .background(if (isSelected && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
                                 .padding(horizontal = 24.dp, vertical = 8.dp)
                             val isActivelySinging = activeLineIndices.contains(index)
-                            val isBackground = item.speaker == "bg"
+                            val isBgLine = item.speaker == "bg"
+
                             val alpha by animateFloatAsState(
-                                targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else if (isBackground) 0.2f else 0.3f,
-                                animationSpec = tween(durationMillis = 400)
+                                targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.4f,
+                                animationSpec = tween(durationMillis = 600),
+                                label = "line alpha"
                             )
                             val scale by animateFloatAsState(
-                                targetValue = if (isActivelySinging) (if (isBackground) 1.02f else 1.05f) else 1f,
-                                animationSpec = tween(durationMillis = 400)
+                                targetValue = if (isActivelySinging) if (isBgLine) 1.05f else 1.1f else 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                ),
+                                label = "line scale"
                             )
-                            val horizontalAlignment = when (item.speaker) {
-                                "v1" -> Alignment.End
-                                "v2" -> Alignment.Start
+
+                            val horizontalAlignment = when {
+                                isBgLine -> Alignment.CenterHorizontally
+                                item.speaker == "v1" -> Alignment.End
+                                item.speaker == "v2" -> Alignment.Start
                                 else -> when (lyricsTextPosition) {
                                     LyricsPosition.LEFT -> Alignment.Start
                                     LyricsPosition.CENTER -> Alignment.CenterHorizontally
                                     LyricsPosition.RIGHT -> Alignment.End
                                 }
                             }
+
                             Column(
                                 modifier = itemModifier.graphicsLayer {
                                     this.alpha = alpha
@@ -773,19 +794,18 @@ fun Lyrics(
                                             word = word,
                                             position = currentPosition,
                                             style = TextStyle(
-                                                fontSize = if (isBackground) 18.sp else 24.sp,
+                                                fontSize = if (isBgLine) 16.sp else 24.sp,
                                                 fontWeight = if (isActivelySinging && isSynced) FontWeight.ExtraBold else FontWeight.Bold,
                                                 textAlign = when (lyricsTextPosition) {
                                                     LyricsPosition.LEFT -> TextAlign.Left
                                                     LyricsPosition.CENTER -> TextAlign.Center
                                                     LyricsPosition.RIGHT -> TextAlign.Right
-                                                },
-                                                fontStyle = if (isBackground) androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal
+                                                }
                                             ),
-                                            inactiveColor = textColor.copy(alpha = if (isBackground) 0.4f else 0.5f),
+                                            inactiveColor = textColor.copy(alpha = 0.5f),
                                             activeColor = textColor
                                         )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(if (isBgLine) 2.dp else 4.dp))
                                     }
                                 }
                             }
