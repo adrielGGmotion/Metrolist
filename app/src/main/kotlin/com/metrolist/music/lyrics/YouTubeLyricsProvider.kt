@@ -13,6 +13,7 @@ object YouTubeLyricsProvider : LyricsProvider {
         id: String,
         title: String,
         artist: String,
+        albumName: String?,
         duration: Int,
     ): Result<String> =
         runCatching {

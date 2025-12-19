@@ -42,35 +42,10 @@ constructor(
     val preferred =
         context.dataStore.data
             .map {
-                it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.LRCLIB)
+                it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.APPLE_MUSIC)
             }.distinctUntilChanged()
-            .map {
-                lyricsProviders =
-                    when (it) {
-                        PreferredLyricsProvider.LRCLIB -> listOf(
-                            LrcLibLyricsProvider,
-                            KuGouLyricsProvider,
-                            AppleMusicLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-
-                        PreferredLyricsProvider.KUGOU -> listOf(
-                            KuGouLyricsProvider,
-                            LrcLibLyricsProvider,
-                            AppleMusicLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-
-                        PreferredLyricsProvider.APPLE_MUSIC -> listOf(
-                            AppleMusicLyricsProvider,
-                            LrcLibLyricsProvider,
-                            KuGouLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-                    }
+            .map { preferred ->
+                lyricsProviders = lyricsProviders.sortedBy { it.name.replace(" ", "_") != preferred.name }
             }
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
@@ -84,17 +59,13 @@ constructor(
             return cached.lyrics
         }
 
-        // Check network connectivity before making network requests
-        // Use synchronous check as fallback if flow doesn't emit
         val isNetworkAvailable = try {
             networkConnectivity.isCurrentlyConnected()
         } catch (e: Exception) {
-            // If network check fails, try to proceed anyway
             true
         }
-        
+
         if (!isNetworkAvailable) {
-            // Still proceed but return not found to avoid hanging
             return LYRICS_NOT_FOUND
         }
 
@@ -107,7 +78,7 @@ constructor(
                             mediaMetadata.id,
                             mediaMetadata.title,
                             mediaMetadata.artists.joinToString { it.name },
-                            mediaMetadata.album?.title,
+                            mediaMetadata.album?.title ?: "",
                             mediaMetadata.duration,
                         )
                         result.onSuccess { lyrics ->
@@ -116,7 +87,6 @@ constructor(
                             reportException(it)
                         }
                     } catch (e: Exception) {
-                        // Catch network-related exceptions like UnresolvedAddressException
                         reportException(e)
                     }
                 }
@@ -130,16 +100,12 @@ constructor(
     }
 
     suspend fun getAllLyrics(
-        mediaId: String,
-        songTitle: String,
-        songArtists: String,
-        albumName: String?,
-        duration: Int,
+        mediaMetadata: MediaMetadata,
         callback: (LyricsResult) -> Unit,
     ) {
         currentLyricsJob?.cancel()
 
-        val cacheKey = "$songArtists-$songTitle".replace(" ", "")
+        val cacheKey = "${mediaMetadata.artists.joinToString()}-${mediaMetadata.title}".replace(" ", "")
         cache.get(cacheKey)?.let { results ->
             results.forEach {
                 callback(it)
@@ -147,17 +113,13 @@ constructor(
             return
         }
 
-        // Check network connectivity before making network requests
-        // Use synchronous check as fallback if flow doesn't emit
         val isNetworkAvailable = try {
             networkConnectivity.isCurrentlyConnected()
         } catch (e: Exception) {
-            // If network check fails, try to proceed anyway
             true
         }
-        
+
         if (!isNetworkAvailable) {
-            // Still try to proceed in case of false negative
             return
         }
 
@@ -167,18 +129,17 @@ constructor(
                 if (provider.isEnabled(context)) {
                     try {
                         provider.getAllLyrics(
-                            mediaId,
-                            songTitle,
-                            songArtists,
-                            albumName,
-                            duration
+                            mediaMetadata.id,
+                            mediaMetadata.title,
+                            mediaMetadata.artists.joinToString { it.name },
+                            mediaMetadata.album?.title ?: "",
+                            mediaMetadata.duration
                         ) { lyrics ->
                             val result = LyricsResult(provider.name, lyrics)
                             allResult += result
                             callback(result)
                         }
                     } catch (e: Exception) {
-                        // Catch network-related exceptions like UnresolvedAddressException
                         reportException(e)
                     }
                 }

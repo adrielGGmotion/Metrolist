@@ -304,7 +304,7 @@ fun ContentSettings(
                 when (it) {
                     PreferredLyricsProvider.LRCLIB -> "LrcLib"
                     PreferredLyricsProvider.KUGOU -> "KuGou"
-                    PreferredLyricsProvider.APPLEMUSIC -> "Apple Music"
+                    PreferredLyricsProvider.APPLE_MUSIC -> "Apple Music"
                 }
             }
         )
@@ -588,7 +588,7 @@ fun ContentSettings(
                             when (preferredProvider) {
                                 PreferredLyricsProvider.LRCLIB -> "LrcLib"
                                 PreferredLyricsProvider.KUGOU -> "KuGou"
-                                PreferredLyricsProvider.APPLEMUSIC -> "Apple Music"
+                                PreferredLyricsProvider.APPLE_MUSIC -> "Apple Music"
                             }
                         )
                     },

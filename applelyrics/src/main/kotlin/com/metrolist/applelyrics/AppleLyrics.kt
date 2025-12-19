@@ -17,24 +17,27 @@ object AppleLyrics {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
+                isLenient = true
             })
-        }
-        defaultRequest {
-            header("User-Agent", "Metrolist/1.0")
         }
     }
 
     private const val baseUrl = "https://lyrics.paxsenix.org/"
 
-    suspend fun getLyrics(title: String, artist: String): Result<String> {
+    suspend fun getLyrics(
+        title: String,
+        artist: String,
+        albumName: String,
+        version: String
+    ): Result<String> {
         Timber.d("Searching for lyrics for '$title' by '$artist'")
-        val searchResult = searchSong(title, artist)
+        val searchResult = searchSong(title, artist, albumName, version)
 
         return searchResult.fold(
             onSuccess = { song ->
                 if (song != null) {
                     Timber.d("Found song: ${song.songName}, id: ${song.id}")
-                    fetchLyrics(song.id)
+                    fetchLyrics(song.id, version)
                 } else {
                     Timber.d("No song found for '$title' by '$artist'")
                     Result.failure(Exception("No song found"))
@@ -47,38 +50,77 @@ object AppleLyrics {
         )
     }
 
-    private suspend fun searchSong(title: String, artist: String): Result<Song?> {
-        val query = "$title $artist"
+    private suspend fun searchSong(
+        title: String,
+        artist: String,
+        albumName: String,
+        version: String
+    ): Result<Song?> {
+        val query = "$title $artist $albumName"
         return try {
             Timber.d("Making search request to: $baseUrl")
             val response: List<Song> = client.get(baseUrl) {
                 url {
-                    appendPathSegments("searchAppleMusic.php")
+                    appendPathSegments("apple-music/search")
                     parameters.append("q", query)
                 }
+                header("User-Agent", "metrolist/$version")
             }.body()
             Timber.d("Search successful, found ${response.size} results.")
-            // The user mentioned that the first result is not always the correct one.
-            // For now, we will just take the first one, but this might need to be improved later.
-            Result.success(response.firstOrNull())
+            Result.success(findBestMatch(response, title, artist, albumName))
         } catch (e: Exception) {
             Timber.e(e, "Failed to search song")
             Result.failure(e)
         }
     }
 
-    private suspend fun fetchLyrics(id: String): Result<String> {
+    private fun findBestMatch(
+        results: List<Song>,
+        songName: String,
+        artistName: String,
+        albumName: String?
+    ): Song? {
+        if (results.isEmpty()) return null
+
+        val songLower = songName.lowercase().trim()
+        val artistLower = artistName.lowercase().trim()
+        val albumLower = albumName?.lowercase()?.trim()
+
+        for (track in results) {
+            val trackSong = track.songName.lowercase().trim()
+            val trackArtist = track.artistName.lowercase().trim()
+            val trackAlbum = track.albumName.lowercase().trim()
+
+            if (trackSong == songLower && trackArtist == artistLower) {
+                if (albumLower != null && trackAlbum == albumLower) {
+                    return track
+                } else if (albumLower == null) {
+                    return track
+                }
+            }
+        }
+        return results.firstOrNull()
+    }
+
+    private suspend fun fetchLyrics(id: String, version: String): Result<String> {
         return try {
             Timber.d("Fetching lyrics from: $baseUrl")
-            val response: String = client.get(baseUrl) {
+            val response: LyricsResponse = client.get(baseUrl) {
                 url {
-                    appendPathSegments("getAppleMusicLyrics.php")
+                    appendPathSegments("apple-music/lyrics")
                     parameters.append("id", id)
+                    parameters.append("ttml", "false")
                 }
+                header("User-Agent", "metrolist/$version")
             }.body()
-            if (response.isNotBlank()) {
+
+            val lyricsText = response.elrcMultiPerson
+                ?: response.elrc
+                ?: response.lrc
+
+            if (lyricsText != null && lyricsText.isNotBlank()) {
                 Timber.d("Successfully fetched lyrics.")
-                Result.success(response)
+                Result.success(lyricsText.replace("\\n", "\n"))
             } else {
                 Result.failure(Exception("Empty lyrics response"))
             }
@@ -95,4 +137,11 @@ data class Song(
     val songName: String,
     val artistName: String,
     val albumName: String
+)
+
+@Serializable
+data class LyricsResponse(
+    val lrc: String? = null,
+    val elrc: String? = null,
+    val elrcMultiPerson: String? = null
 )
