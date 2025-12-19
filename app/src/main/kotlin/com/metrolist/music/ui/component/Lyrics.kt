@@ -361,6 +361,7 @@ fun Lyrics(
     val lazyListState = rememberLazyListState()
     var isAnimating by remember { mutableStateOf(false) }
     var isAutoScrollEnabled by rememberSaveable { mutableStateOf(true) }
+    var currentPosition by remember { mutableLongStateOf(0L) }
 
     BackHandler(enabled = isSelectionModeActive) {
         isSelectionModeActive = false
@@ -411,6 +412,7 @@ fun Lyrics(
                 val sliderPosition = sliderPositionProvider()
                 isSeeking = sliderPosition != null
                 val position = sliderPosition ?: playerConnection.player.currentPosition
+                currentPosition = position
                 currentLineIndex = when (parsedLyrics) {
                     is ParsedLyrics.Standard -> findCurrentLineIndex(parsedLyrics.lines, position)
                     is ParsedLyrics.AppleMusic -> parsedLyrics.lines.indexOfLast { it.time <= position }.coerceAtLeast(0)
@@ -711,8 +713,8 @@ fun Lyrics(
                                 )
                                 .background(if (isSelected && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
                                 .padding(horizontal = 24.dp, vertical = 8.dp)
-                            val alpha by animateFloatAsState(targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (index == displayedCurrentLineIndex) 1f else 0.5f, animationSpec = tween(durationMillis = 400))
-                            val scale by animateFloatAsState(targetValue = if (index == displayedCurrentLineIndex) 1.05f else 1f, animationSpec = tween(durationMillis = 400))
+                            val alpha = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (index == displayedCurrentLineIndex) 1f else 0.5f
+                            val scale = if (index == displayedCurrentLineIndex) 1.05f else 1f
                             val horizontalAlignment = when (item.speaker) {
                                 "v1" -> Alignment.End
                                 "v2" -> Alignment.Start
@@ -734,7 +736,7 @@ fun Lyrics(
                                     item.words.forEach { word ->
                                         SyncedLyricWord(
                                             word = word,
-                                            position = sliderPositionProvider() ?: playerConnection.player.currentPosition,
+                                            position = currentPosition,
                                             style = TextStyle(
                                                 fontSize = 24.sp,
                                                 fontWeight = if (index == displayedCurrentLineIndex && isSynced) FontWeight.ExtraBold else FontWeight.Bold,
@@ -747,6 +749,7 @@ fun Lyrics(
                                             inactiveColor = textColor.copy(alpha = 0.8f),
                                             activeColor = textColor
                                         )
+                                        Spacer(modifier = Modifier.width(4.dp))
                                     }
                                 }
                             }
