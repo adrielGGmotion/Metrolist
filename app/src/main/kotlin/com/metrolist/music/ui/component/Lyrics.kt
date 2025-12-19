@@ -123,6 +123,8 @@ import com.metrolist.music.constants.LyricsTextPositionKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
+import com.metrolist.music.lyrics.AppleMusicLyricsLine
+import com.metrolist.music.lyrics.AppleMusicLyricsParser
 import com.metrolist.music.lyrics.LyricsEntry
 import com.metrolist.music.lyrics.LyricsUtils.findCurrentLineIndex
 import com.metrolist.music.lyrics.LyricsUtils.isBelarusian
@@ -205,86 +207,82 @@ fun Lyrics(
         if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
     }
 
-    val lines = remember(lyrics, scope) {
+    var appleMusicLines by remember { mutableStateOf<List<AppleMusicLyricsLine>?>(null) }
+    var lines by remember { mutableStateOf<List<LyricsEntry>>(emptyList()) }
+
+    LaunchedEffect(lyrics, scope) {
         if (lyrics == null || lyrics == LYRICS_NOT_FOUND) {
-            emptyList()
+            lines = emptyList()
+            appleMusicLines = null
         } else if (lyrics.startsWith("[")) {
-            val parsedLines = parseLyrics(lyrics)
+            val parsedAppleMusic = AppleMusicLyricsParser.parse(lyrics)
+            if (parsedAppleMusic != null) {
+                appleMusicLines = parsedAppleMusic
+                lines = emptyList()
+            } else {
+                val parsedLines = parseLyrics(lyrics)
 
-            val isRussianLyrics = romanizeRussianLyrics && !romanizeCyrillicByLine && isRussian(lyrics)
-            val isUkrainianLyrics = romanizeUkrainianLyrics && !romanizeCyrillicByLine && isUkrainian(lyrics)
-            val isSerbianLyrics = romanizeSerbianLyrics && !romanizeCyrillicByLine && isSerbian(lyrics)
-            val isBulgarianLyrics = romanizeBulgarianLyrics && !romanizeCyrillicByLine && isBulgarian(lyrics)
-            val isBelarusianLyrics = romanizeBelarusianLyrics && !romanizeCyrillicByLine && isBelarusian(lyrics)
-            val isKyrgyzLyrics = romanizeKyrgyzLyrics && !romanizeCyrillicByLine && isKyrgyz(lyrics)
-            val isMacedonianLyrics = romanizeMacedonianLyrics && !romanizeCyrillicByLine && isMacedonian(lyrics)
+                val isRussianLyrics = romanizeRussianLyrics && !romanizeCyrillicByLine && isRussian(lyrics)
+                val isUkrainianLyrics = romanizeUkrainianLyrics && !romanizeCyrillicByLine && isUkrainian(lyrics)
+                val isSerbianLyrics = romanizeSerbianLyrics && !romanizeCyrillicByLine && isSerbian(lyrics)
+                val isBulgarianLyrics = romanizeBulgarianLyrics && !romanizeCyrillicByLine && isBulgarian(lyrics)
+                val isBelarusianLyrics = romanizeBelarusianLyrics && !romanizeCyrillicByLine && isBelarusian(lyrics)
+                val isKyrgyzLyrics = romanizeKyrgyzLyrics && !romanizeCyrillicByLine && isKyrgyz(lyrics)
+                val isMacedonianLyrics = romanizeMacedonianLyrics && !romanizeCyrillicByLine && isMacedonian(lyrics)
 
-            parsedLines.map { entry ->
-                val newEntry = LyricsEntry(entry.time, entry.text)
-                
-                if (romanizeJapaneseLyrics && isJapanese(entry.text) && !isChinese(entry.text)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeJapanese(entry.text)
+                lines = parsedLines.map { entry ->
+                    val newEntry = LyricsEntry(entry.time, entry.text)
+
+                    if (romanizeJapaneseLyrics && isJapanese(entry.text) && !isChinese(entry.text)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeJapanese(entry.text)
+                        }
                     }
-                }
 
-                if (romanizeKoreanLyrics && isKorean(entry.text)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeKorean(entry.text)
+                    if (romanizeKoreanLyrics && isKorean(entry.text)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeKorean(entry.text)
+                        }
                     }
-                }
 
-                if (romanizeRussianLyrics && (if (romanizeCyrillicByLine) isRussian(entry.text) else isRussianLyrics)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                    if (romanizeRussianLyrics && (if (romanizeCyrillicByLine) isRussian(entry.text) else isRussianLyrics)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                        }
+                    } else if (romanizeUkrainianLyrics && (if (romanizeCyrillicByLine) isUkrainian(entry.text) else isUkrainianLyrics)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                        }
+                    } else if (romanizeSerbianLyrics && (if (romanizeCyrillicByLine) isSerbian(entry.text) else isSerbianLyrics)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                        }
+                    } else if (romanizeBulgarianLyrics && (if (romanizeCyrillicByLine) isBulgarian(entry.text) else isBulgarianLyrics)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                        }
+                    } else if (romanizeBelarusianLyrics && (if (romanizeCyrillicByLine) isBelarusian(entry.text) else isBelarusianLyrics)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                        }
+                    } else if (romanizeKyrgyzLyrics && (if (romanizeCyrillicByLine) isKyrgyz(entry.text) else isKyrgyzLyrics)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                        }
+                    } else if (romanizeMacedonianLyrics && (if (romanizeCyrillicByLine) isMacedonian(entry.text) else isMacedonianLyrics)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
+                        }
+                    } else if (romanizeChineseLyrics && isChinese(entry.text)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeChinese(entry.text)
+                        }
                     }
-                }
 
-                else if (romanizeUkrainianLyrics && (if (romanizeCyrillicByLine) isUkrainian(entry.text) else isUkrainianLyrics)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
-                    }
+                    newEntry
+                }.let {
+                    listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
                 }
-
-                else if (romanizeSerbianLyrics && (if (romanizeCyrillicByLine) isSerbian(entry.text) else isSerbianLyrics)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
-                    }
-                }
-
-                else if (romanizeBulgarianLyrics && (if (romanizeCyrillicByLine) isBulgarian(entry.text) else isBulgarianLyrics)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
-                    }
-                }
-
-                else if (romanizeBelarusianLyrics && (if (romanizeCyrillicByLine) isBelarusian(entry.text) else isBelarusianLyrics)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
-                    }
-                }
-
-                else if (romanizeKyrgyzLyrics && (if (romanizeCyrillicByLine) isKyrgyz(entry.text) else isKyrgyzLyrics)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
-                    }
-                }
-
-                else if (romanizeMacedonianLyrics && (if (romanizeCyrillicByLine) isMacedonian(entry.text) else isMacedonianLyrics)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeCyrillic(entry.text)
-                    }
-                }
-
-                else if (romanizeChineseLyrics && isChinese(entry.text)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeChinese(entry.text)
-                    }
-                }
-
-                newEntry
-            }.let {
-                listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
             }
         } else {
             val isRussianLyrics = romanizeRussianLyrics && !romanizeCyrillicByLine && isRussian(lyrics)
@@ -295,7 +293,7 @@ fun Lyrics(
             val isKyrgyzLyrics = romanizeKyrgyzLyrics && !romanizeCyrillicByLine && isKyrgyz(lyrics)
             val isMacedonianLyrics = romanizeMacedonianLyrics && !romanizeCyrillicByLine && isMacedonian(lyrics)
 
-            lyrics.lines().mapIndexed { index, line ->
+            lines = lyrics.lines().mapIndexed { index, line ->
                 val newEntry = LyricsEntry(index * 100L, line)
 
                 if (romanizeJapaneseLyrics && isJapanese(line) && !isChinese(line)) {
@@ -314,45 +312,31 @@ fun Lyrics(
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeCyrillic(line)
                     }
-                }
-
-                else if (romanizeUkrainianLyrics && (if (romanizeCyrillicByLine) isUkrainian(line) else isUkrainianLyrics)) {
+                } else if (romanizeUkrainianLyrics && (if (romanizeCyrillicByLine) isUkrainian(line) else isUkrainianLyrics)) {
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeCyrillic(line)
                     }
-                }
-
-                else if (romanizeSerbianLyrics && (if (romanizeCyrillicByLine) isSerbian(line) else isSerbianLyrics)) {
+                } else if (romanizeSerbianLyrics && (if (romanizeCyrillicByLine) isSerbian(line) else isSerbianLyrics)) {
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeCyrillic(line)
                     }
-                }
-
-                else if (romanizeBulgarianLyrics && (if (romanizeCyrillicByLine) isBulgarian(line) else isBulgarianLyrics)) {
+                } else if (romanizeBulgarianLyrics && (if (romanizeCyrillicByLine) isBulgarian(line) else isBulgarianLyrics)) {
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeCyrillic(line)
                     }
-                }
-
-                else if (romanizeBelarusianLyrics && (if (romanizeCyrillicByLine) isBelarusian(line) else isBelarusianLyrics)) {
+                } else if (romanizeBelarusianLyrics && (if (romanizeCyrillicByLine) isBelarusian(line) else isBelarusianLyrics)) {
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeCyrillic(line)
                     }
-                }
-
-                else if (romanizeKyrgyzLyrics && (if (romanizeCyrillicByLine) isKyrgyz(line) else isKyrgyzLyrics)) {
+                } else if (romanizeKyrgyzLyrics && (if (romanizeCyrillicByLine) isKyrgyz(line) else isKyrgyzLyrics)) {
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeCyrillic(line)
                     }
-                }
-
-                else if (romanizeMacedonianLyrics && (if (romanizeCyrillicByLine) isMacedonian(line) else isMacedonianLyrics)) {
+                } else if (romanizeMacedonianLyrics && (if (romanizeCyrillicByLine) isMacedonian(line) else isMacedonianLyrics)) {
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeCyrillic(line)
                     }
-                }
-
-                else if (romanizeChineseLyrics && isChinese(line)) {
+                } else if (romanizeChineseLyrics && isChinese(line)) {
                     scope.launch {
                         newEntry.romanizedTextFlow.value = romanizeChinese(line)
                     }
@@ -363,8 +347,8 @@ fun Lyrics(
         }
     }
     val isSynced =
-        remember(lyrics) {
-            !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
+        remember(lyrics, appleMusicLines) {
+            appleMusicLines != null || (!lyrics.isNullOrEmpty() && lyrics.startsWith("["))
         }
 
     val textColor = when (playerBackground) {
@@ -379,6 +363,8 @@ fun Lyrics(
     var currentLineIndex by remember {
         mutableIntStateOf(-1)
     }
+    var activeAppleMusicIndices by remember { mutableStateOf<List<Int>>(emptyList()) }
+
     // Because LaunchedEffect has delay, which leads to inconsistent with current line color and scroll animation,
     // we use deferredCurrentLineIndex when user is scrolling
     var deferredCurrentLineIndex by rememberSaveable {
@@ -389,6 +375,7 @@ fun Lyrics(
         mutableIntStateOf(0)
     }
 
+    var lastScrolledEndTime by remember { mutableLongStateOf(0L) }
     var lastPreviewTime by rememberSaveable {
         mutableLongStateOf(0L)
     }
@@ -476,25 +463,39 @@ fun Lyrics(
         selectedIndices.clear()
     }
 
-    LaunchedEffect(lyrics) {
-        if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
-            currentLineIndex = -1
-            return@LaunchedEffect
-        }
-        while (isActive) {
-            delay(50)
-            val sliderPosition = sliderPositionProvider()
-            isSeeking = sliderPosition != null
-            currentLineIndex = findCurrentLineIndex(
-                lines,
-                sliderPosition ?: playerConnection.player.currentPosition
-            )
+    LaunchedEffect(lyrics, appleMusicLines) {
+        if (appleMusicLines == null) {
+            if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
+                currentLineIndex = -1
+                return@LaunchedEffect
+            }
+            while (isActive) {
+                delay(50)
+                val sliderPosition = sliderPositionProvider()
+                isSeeking = sliderPosition != null
+                currentLineIndex = findCurrentLineIndex(
+                    lines,
+                    sliderPosition ?: playerConnection.player.currentPosition
+                )
+            }
+        } else {
+            // Apple Music logic
+            while (isActive) {
+                delay(50)
+                val currentPosition = sliderPositionProvider() ?: playerConnection.player.currentPosition
+                isSeeking = sliderPositionProvider() != null
+
+                activeAppleMusicIndices = appleMusicLines!!.mapIndexedNotNull { index, line ->
+                    if (currentPosition in line.startTime..line.endTime) index else null
+                }
+            }
         }
     }
 
     LaunchedEffect(isSeeking, lastPreviewTime) {
         if (isSeeking) {
             lastPreviewTime = 0L
+            lastScrolledEndTime = 0L
         } else if (lastPreviewTime != 0L) {
             delay(LyricsPreviewTime)
             lastPreviewTime = 0L
@@ -526,37 +527,68 @@ fun Lyrics(
             isAnimating = false
         }
     }
-    LaunchedEffect(currentLineIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
+    LaunchedEffect(
+        activeAppleMusicIndices,
+        currentLineIndex,
+        lastPreviewTime,
+        initialScrollDone,
+        isAutoScrollEnabled
+    ) {
         if (!isSynced) return@LaunchedEffect
-        if (isAutoScrollEnabled) {
-        if((currentLineIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
-            shouldScrollToFirstLine = false
-            // Initial scroll to center the first line with medium animation (600ms)
-            val initialCenterIndex = kotlin.math.max(0, currentLineIndex)
-            performSmoothPageScroll(initialCenterIndex, 800) // Initial scroll duration
-            if(!isAppMinimized) {
-                initialScrollDone = true
-            }
-        } else if (currentLineIndex != -1) {
-            deferredCurrentLineIndex = currentLineIndex
-            if (isSeeking) {
-                // Fast scroll for seeking to center the target line (300ms)
-                val seekCenterIndex = kotlin.math.max(0, currentLineIndex - 1)
-                performSmoothPageScroll(seekCenterIndex, 500) // Fast seek duration
-            } else if ((lastPreviewTime == 0L || currentLineIndex != previousLineIndex) && scrollLyrics) {
-                // Auto-scroll when lyrics settings allow it
-                if (currentLineIndex != previousLineIndex) {
-                    // Calculate which line should be at the top to center the active group
-                    val centerTargetIndex = currentLineIndex
-                    performSmoothPageScroll(centerTargetIndex, 1500) // Auto scroll duration
+
+        val amLines = appleMusicLines
+        if (amLines != null) {
+            // Apple Music Scrolling Logic
+            if (isAutoScrollEnabled && !isSeeking) {
+                val currentPosition = playerConnection.player.currentPosition
+                val activeLines = activeAppleMusicIndices.mapNotNull { amLines.getOrNull(it) }
+
+                if (activeLines.isNotEmpty()) {
+                    val maxEndTime = activeLines.maxOf { it.endTime }
+                    if (currentPosition > maxEndTime && maxEndTime > lastScrolledEndTime) {
+                        val nextLineIndex = amLines.indexOfFirst { it.startTime > maxEndTime }
+                        if (nextLineIndex != -1) {
+                            performSmoothPageScroll(nextLineIndex, 1500)
+                            lastScrolledEndTime = maxEndTime
+                        }
+                    }
+                } else if (amLines.isNotEmpty() && currentPosition > lastScrolledEndTime) {
+                    // Scroll to the next line when there are no active lines (e.g., during an instrumental)
+                    val nextLineIndex = amLines.indexOfFirst { it.startTime >= currentPosition }
+                    if (nextLineIndex != -1) {
+                        performSmoothPageScroll(nextLineIndex, 1500)
+                        lastScrolledEndTime = amLines[nextLineIndex].endTime
+                    }
                 }
             }
+        } else {
+            // Standard LRC Scrolling Logic
+            if (isAutoScrollEnabled) {
+                if ((currentLineIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
+                    shouldScrollToFirstLine = false
+                    val initialCenterIndex = kotlin.math.max(0, currentLineIndex)
+                    performSmoothPageScroll(initialCenterIndex, 800)
+                    if (!isAppMinimized) {
+                        initialScrollDone = true
+                    }
+                } else if (currentLineIndex != -1) {
+                    deferredCurrentLineIndex = currentLineIndex
+                    if (isSeeking) {
+                        val seekCenterIndex = kotlin.math.max(0, currentLineIndex - 1)
+                        performSmoothPageScroll(seekCenterIndex, 500)
+                    } else if ((lastPreviewTime == 0L || currentLineIndex != previousLineIndex) && scrollLyrics) {
+                        if (currentLineIndex != previousLineIndex) {
+                            val centerTargetIndex = currentLineIndex
+                            performSmoothPageScroll(centerTargetIndex, 1500)
+                        }
+                    }
+                }
+            }
+            if (currentLineIndex > 0) {
+                shouldScrollToFirstLine = true
+            }
+            previousLineIndex = currentLineIndex
         }
-        }
-        if(currentLineIndex > 0) {
-            shouldScrollToFirstLine = true
-        }
-        previousLineIndex = currentLineIndex
     }
 
     BoxWithConstraints(
@@ -643,6 +675,29 @@ fun Lyrics(
                         }
                     }
                 }
+            } else if (appleMusicLines != null) {
+                itemsIndexed(
+                    items = appleMusicLines!!,
+                    key = { index, item -> "$index-${item.startTime}" }
+                ) { index, item ->
+                    val isActive = index in activeAppleMusicIndices
+                    AppleMusicLyricLine(
+                        line = item,
+                        currentPosition = sliderPositionProvider() ?: playerConnection.player.currentPosition,
+                        isActive = isActive,
+                        style = TextStyle(
+                            fontSize = 24.sp,
+                            textAlign = when (lyricsTextPosition) {
+                                LyricsPosition.LEFT -> TextAlign.Left
+                                LyricsPosition.CENTER -> TextAlign.Center
+                                LyricsPosition.RIGHT -> TextAlign.Right
+                            },
+                            fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Bold
+                        ),
+                        activeColor = textColor,
+                        inactiveColor = textColor.copy(alpha = 0.5f)
+                    )
+                }
             } else {
                 itemsIndexed(
                     items = lines,
@@ -720,7 +775,7 @@ fun Lyrics(
                             else Color.Transparent
                         )
                         .padding(horizontal = 24.dp, vertical = 8.dp)
-                    
+
                     val alpha by animateFloatAsState(
                         targetValue = when {
                             !isSynced || (isSelectionModeActive && isSelected) -> 1f
