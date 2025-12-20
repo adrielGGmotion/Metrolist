@@ -16,7 +16,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -26,10 +35,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +55,29 @@ fun WrappedScreen(navController: NavController) {
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
         onDispose {
             insetsController.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    val playerConnection = LocalPlayerConnection.current
+    val scope = rememberCoroutineScope()
+    val manager = remember {
+        WrappedPlaybackManager(playerConnection, scope)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(manager, lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> manager.pausePlayback()
+                Lifecycle.Event.ON_RESUME -> manager.resumePlayback()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        manager.initialize()
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            manager.release()
         }
     }
 
@@ -64,28 +101,44 @@ fun WrappedScreen(navController: NavController) {
     )
     val pagerState = rememberPagerState(pageCount = { screens.size })
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.arrow_back),
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Mute action */ }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.volume_up),
-                            contentDescription = "Mute",
-                            tint = Color.White
-                        )
-                    }
-                },
+    val isManagerReady by manager.isReady.collectAsState()
+
+    LaunchedEffect(pagerState, isManagerReady) {
+        if (isManagerReady) {
+            snapshotFlow { pagerState.currentPage }.collectLatest { page ->
+                manager.playSongForPage(page)
+            }
+        }
+    }
+
+    CompositionLocalProvider(LocalWrappedManager provides manager) {
+        var isMuted by remember { mutableStateOf(false) }
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.arrow_back),
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            manager.toggleMute()
+                            isMuted = !isMuted
+                        }) {
+                            Icon(
+                                painter = painterResource(id = if (isMuted) R.drawable.volume_off else R.drawable.volume_up),
+                                contentDescription = "Mute",
+                                tint = Color.White
+                            )
+                        }
+                    },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
                 )
