@@ -126,6 +126,7 @@ import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.LocalSyncUtils
 import com.metrolist.music.R
+import com.metrolist.music.constants.EnablePersonalizedSearchKey
 import com.metrolist.music.constants.AlbumThumbnailSize
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.PlaylistEditLockKey
@@ -137,6 +138,8 @@ import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Playlist
 import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.db.entities.PlaylistSongMap
+import com.metrolist.music.db.entities.InteractionHistory
+import com.metrolist.music.db.entities.InteractionType
 import com.metrolist.music.extensions.move
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
@@ -186,6 +189,20 @@ fun LocalPlaylistScreen(
 
     val playlist by viewModel.playlist.collectAsState()
     val songs by viewModel.playlistSongs.collectAsState()
+    val enablePersonalizedSearch by rememberPreference(key = EnablePersonalizedSearchKey, defaultValue = false)
+
+    LaunchedEffect(playlist) {
+        if (playlist != null && enablePersonalizedSearch) {
+            database.query {
+                insert(
+                    InteractionHistory(
+                        itemId = playlist!!.playlist.id,
+                        type = InteractionType.PLAYLIST
+                    )
+                )
+            }
+        }
+    }
     val mutableSongs = remember { mutableStateListOf<PlaylistSong>() }
     val playlistLength =
         remember(songs) {

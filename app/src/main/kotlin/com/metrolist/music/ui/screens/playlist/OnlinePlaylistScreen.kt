@@ -48,6 +48,8 @@ import com.metrolist.music.R
 import com.metrolist.music.db.entities.Playlist
 import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.db.entities.PlaylistSongMap
+import com.metrolist.music.db.entities.InteractionHistory
+import com.metrolist.music.db.entities.InteractionType
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.ListQueue
@@ -58,6 +60,7 @@ import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.constants.HideExplicitKey
+import com.metrolist.music.constants.EnablePersonalizedSearchKey
 import com.metrolist.music.viewmodels.OnlinePlaylistViewModel
 import java.time.LocalDateTime
 
@@ -118,6 +121,20 @@ fun OnlinePlaylistScreen(
 
     var selection by remember { mutableStateOf(false) }
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
+    val enablePersonalizedSearch by rememberPreference(key = EnablePersonalizedSearchKey, defaultValue = false)
+
+    LaunchedEffect(playlist) {
+        if (playlist != null && enablePersonalizedSearch) {
+            database.query {
+                insert(
+                    InteractionHistory(
+                        itemId = playlist!!.id,
+                        type = InteractionType.PLAYLIST
+                    )
+                )
+            }
+        }
+    }
 
     val lazyListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }

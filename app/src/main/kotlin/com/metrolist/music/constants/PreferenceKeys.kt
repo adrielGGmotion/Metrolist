@@ -73,6 +73,7 @@ val MaxSongCacheSizeKey = intPreferencesKey("maxSongCacheSize")
 
 val PauseListenHistoryKey = booleanPreferencesKey("pauseListenHistory")
 val PauseSearchHistoryKey = booleanPreferencesKey("pauseSearchHistory")
+val EnablePersonalizedSearchKey = booleanPreferencesKey("enablePersonalizedSearch")
 val DisableScreenshotKey = booleanPreferencesKey("disableScreenshot")
 
 val DiscordTokenKey = stringPreferencesKey("discordToken")

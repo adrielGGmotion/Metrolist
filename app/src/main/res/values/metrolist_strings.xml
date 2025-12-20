@@ -156,6 +156,9 @@
     <string name="audio_quality_max">Max (beta)</string>
     <string name="enable_similar_content">Enable similar content</string>
     <string name="similar_content_desc">Automatically add more similar songs when the end of the queue is reached</string>
+    <string name="search">Search</string>
+    <string name="enable_personalized_search">Enable personalized search</string>
+    <string name="enable_personalized_search_desc">Show search results based on your listening history</string>
     <string name="min_playback_duration_title">Minimum playback duration</string>
     <string name="min_playback_duration_description">The minimum amount of a song that must be played before it is considered \"played\"</string>
     <string name="percentage_format">%d%%</string>

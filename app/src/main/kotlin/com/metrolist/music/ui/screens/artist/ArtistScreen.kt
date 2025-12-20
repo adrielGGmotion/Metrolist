@@ -87,8 +87,11 @@ import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.AppBarHeight
+import com.metrolist.music.constants.EnablePersonalizedSearchKey
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.db.entities.ArtistEntity
+import com.metrolist.music.db.entities.InteractionHistory
+import com.metrolist.music.db.entities.InteractionType
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.ListQueue
@@ -144,6 +147,23 @@ fun ArtistScreen(
     val librarySongs by viewModel.librarySongs.collectAsState()
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
+    val enablePersonalizedSearch by rememberPreference(key = EnablePersonalizedSearchKey, defaultValue = false)
+
+    LaunchedEffect(artistPage, libraryArtist) {
+        if ((artistPage != null || libraryArtist != null) && enablePersonalizedSearch) {
+            val artistId = artistPage?.artist?.id ?: libraryArtist?.artist?.id
+            if (artistId != null) {
+                database.query {
+                    insert(
+                        InteractionHistory(
+                            itemId = artistId,
+                            type = InteractionType.ARTIST
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     val lazyListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }

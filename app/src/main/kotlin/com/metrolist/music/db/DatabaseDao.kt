@@ -1078,6 +1078,24 @@ interface DatabaseDao {
     fun searchHistory(query: String = ""): Flow<List<SearchHistory>>
 
     @Transaction
+    @Query("SELECT * FROM song WHERE id IN (:songIds)")
+    fun getSongsByIdsFlow(songIds: List<String>): Flow<List<Song>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE id IN (:artistIds)")
+    fun getArtistsByIds(artistIds: List<String>): Flow<List<Artist>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT * FROM album WHERE id IN (:albumIds)")
+    fun getAlbumsByIds(albumIds: List<String>): Flow<List<Album>>
+
+    @Transaction
+    @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE id IN (:playlistIds)")
+    fun getPlaylistsByIds(playlistIds: List<String>): Flow<List<Playlist>>
+
+    @Transaction
     @Query("DELETE FROM search_history")
     fun clearSearchHistory()
 
@@ -1208,6 +1226,13 @@ interface DatabaseDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(playCountEntity: PlayCountEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insert(interactionHistory: InteractionHistory)
+
+    @Transaction
+    @Query("SELECT * FROM interaction_history ORDER BY timestamp DESC LIMIT 100")
+    fun getInteractionHistory(): Flow<List<InteractionHistory>>
 
     @Transaction
     fun insert(

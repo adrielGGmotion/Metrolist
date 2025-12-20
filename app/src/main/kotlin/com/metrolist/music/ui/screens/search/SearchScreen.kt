@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
+import com.metrolist.music.constants.EnablePersonalizedSearchKey
 import com.metrolist.music.constants.PauseSearchHistoryKey
 import com.metrolist.music.constants.SearchSource
 import com.metrolist.music.constants.SearchSourceKey
@@ -48,25 +49,9 @@ fun SearchScreen(
         mutableStateOf(TextFieldValue())
     }
     val pauseSearchHistory by rememberPreference(PauseSearchHistoryKey, defaultValue = false)
+    val enablePersonalizedSearch by rememberPreference(EnablePersonalizedSearchKey, defaultValue = false)
 
     val onSearch: (String) -> Unit = remember {
-        { searchQuery ->
-            if (searchQuery.isNotEmpty()) {
-                focusManager.clearFocus()
-                navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
-
-                if (!pauseSearchHistory) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        database.query {
-                            insert(SearchHistory(query = searchQuery))
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    val onSearchFromSuggestion: (String) -> Unit = remember {
         { searchQuery ->
             if (searchQuery.isNotEmpty()) {
                 focusManager.clearFocus()
@@ -128,33 +113,31 @@ fun SearchScreen(
                             )
                         )
                         
-                        Row {
-                            if (query.text.isNotEmpty()) {
-                                IconButton(onClick = { query = TextFieldValue("") }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.close),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = {
-                                    searchSource = if (searchSource == SearchSource.ONLINE) 
-                                        SearchSource.LOCAL else SearchSource.ONLINE
-                                }
-                            ) {
+                        if (query.text.isNotEmpty()) {
+                            IconButton(onClick = { query = TextFieldValue("") }) {
                                 Icon(
-                                    painter = painterResource(
-                                        when (searchSource) {
-                                            SearchSource.LOCAL -> R.drawable.library_music
-                                            SearchSource.ONLINE -> R.drawable.language
-                                        }
-                                    ),
+                                    painter = painterResource(R.drawable.close),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
+                        }
+                        IconButton(
+                            onClick = {
+                                searchSource = if (searchSource == SearchSource.ONLINE)
+                                    SearchSource.LOCAL else SearchSource.ONLINE
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    when (searchSource) {
+                                        SearchSource.LOCAL -> R.drawable.library_music
+                                        SearchSource.ONLINE -> R.drawable.language
+                                    }
+                                ),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                 },
@@ -187,14 +170,20 @@ fun SearchScreen(
                         onDismiss = { navController.navigateUp() },
                         pureBlack = pureBlack
                     )
-                    SearchSource.ONLINE -> OnlineSearchScreen(
-                        query = query.text,
-                        onQueryChange = { query = it },
-                        navController = navController,
-                        onSearch = onSearchFromSuggestion,
-                        onDismiss = { /* Don't dismiss when searching from suggestions */ },
-                        pureBlack = pureBlack
-                    )
+                    SearchSource.ONLINE -> {
+                        if (query.text.isEmpty() && enablePersonalizedSearch) {
+                            RecentsScreen(navController = navController)
+                        } else {
+                            OnlineSearchScreen(
+                                query = query.text,
+                                onQueryChange = { query = it },
+                                navController = navController,
+                                onSearch = onSearch,
+                                onDismiss = { /* Don't dismiss when searching from suggestions */ },
+                                pureBlack = pureBlack
+                            )
+                        }
+                    }
                 }
             }
             // Bottom spacing to prevent content overlap with NavigationBar and MiniPlayer

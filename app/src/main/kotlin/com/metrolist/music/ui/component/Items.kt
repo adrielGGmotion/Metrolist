@@ -407,6 +407,7 @@ fun ArtistListItem(
         }
     },
     trailingContent: @Composable RowScope.() -> Unit = {},
+    onClick: () -> Unit = {}
 ) = ListItem(
     title = artist.artist.name,
     subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
@@ -426,7 +427,7 @@ fun ArtistListItem(
         )
     },
     trailingContent = trailingContent,
-    modifier = modifier,
+    modifier = modifier.clickable(onClick = onClick),
 )
 
 @Composable
@@ -504,6 +505,7 @@ fun AlbumListItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
+    onClick: () -> Unit = {}
 ) = ListItem(
     title = album.album.title,
     subtitle = joinByBullet(
@@ -522,7 +524,7 @@ fun AlbumListItem(
         )
     },
     trailingContent = trailingContent,
-    modifier = modifier
+    modifier = modifier.clickable(onClick = onClick)
 )
 
 @Composable
@@ -624,7 +626,8 @@ fun PlaylistListItem(
     modifier: Modifier = Modifier,
     autoPlaylist: Boolean = false,
     badges: @Composable RowScope.() -> Unit = {},
-    trailingContent: @Composable RowScope.() -> Unit = {}
+    trailingContent: @Composable RowScope.() -> Unit = {},
+    onClick: () -> Unit = {}
 ) = ListItem(
     title = playlist.playlist.name,
     subtitle = if (autoPlaylist) {
@@ -669,7 +672,7 @@ fun PlaylistListItem(
         )
     },
     trailingContent = trailingContent,
-    modifier = modifier
+    modifier = modifier.clickable(onClick = onClick)
 )
 
 @Composable

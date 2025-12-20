@@ -90,6 +90,7 @@ import com.metrolist.music.constants.DiscordTokenKey
 import com.metrolist.music.constants.DiscordUseDetailsKey
 import com.metrolist.music.constants.EnableDiscordRPCKey
 import com.metrolist.music.constants.EnableLastFMScrobblingKey
+import com.metrolist.music.constants.EnablePersonalizedSearchKey
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.HistoryDuration
@@ -110,6 +111,8 @@ import com.metrolist.music.constants.SimilarContent
 import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Event
+import com.metrolist.music.db.entities.InteractionHistory
+import com.metrolist.music.db.entities.InteractionType
 import com.metrolist.music.db.entities.FormatEntity
 import com.metrolist.music.db.entities.LyricsEntity
 import com.metrolist.music.db.entities.RelatedSongMap
@@ -1595,6 +1598,17 @@ class MusicService :
                         ),
                     )
                 } catch (_: SQLException) {
+                }
+            }
+
+            if (dataStore.get(EnablePersonalizedSearchKey, false)) {
+                database.query {
+                    insert(
+                        InteractionHistory(
+                            itemId = mediaItem.mediaId,
+                            type = InteractionType.SONG
+                        )
+                    )
                 }
             }
 

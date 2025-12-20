@@ -102,6 +102,7 @@ fun ContentSettings(
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(key = LyricsGlowEffectKey, defaultValue = false)
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
+    val (personalizedSearch, onPersonalizedSearchChange) = rememberPreference(key = EnablePersonalizedSearchKey, defaultValue = false)
 
     var showProxyConfigurationDialog by rememberSaveable {
         mutableStateOf(false)
@@ -624,6 +625,35 @@ fun ContentSettings(
                         )
                     },
                     onClick = { showQuickPicksDialog = true }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.search),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.search),
+                    title = { Text(stringResource(R.string.enable_personalized_search)) },
+                    description = { Text(stringResource(R.string.enable_personalized_search_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = personalizedSearch,
+                            onCheckedChange = onPersonalizedSearchChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (personalizedSearch) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onPersonalizedSearchChange(!personalizedSearch) }
                 )
             )
         )

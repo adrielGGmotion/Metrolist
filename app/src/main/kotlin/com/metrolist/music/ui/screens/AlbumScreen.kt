@@ -82,12 +82,15 @@ import coil3.compose.AsyncImage
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerAwareWindowInsets
+import com.metrolist.music.constants.EnablePersonalizedSearchKey
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.AlbumThumbnailSize
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Album
+import com.metrolist.music.db.entities.InteractionHistory
+import com.metrolist.music.db.entities.InteractionType
 import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.playback.queues.LocalAlbumRadio
 import com.metrolist.music.ui.component.AutoResizeText
@@ -162,6 +165,20 @@ fun AlbumScreen(
     val albumWithSongs by viewModel.albumWithSongs.collectAsState()
     val otherVersions by viewModel.otherVersions.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
+    val enablePersonalizedSearch by rememberPreference(key = EnablePersonalizedSearchKey, defaultValue = false)
+
+    LaunchedEffect(albumWithSongs) {
+        if (albumWithSongs != null && enablePersonalizedSearch) {
+            database.query {
+                insert(
+                    InteractionHistory(
+                        itemId = albumWithSongs!!.album.id,
+                        type = InteractionType.ALBUM
+                    )
+                )
+            }
+        }
+    }
 
     val wrappedSongs = remember(albumWithSongs, hideExplicit) {
         val filteredSongs = if (hideExplicit) {
