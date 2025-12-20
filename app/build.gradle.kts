@@ -236,7 +236,9 @@ dependencies {
     implementation(project(":kizzy"))
     implementation(project(":lastfm"))
 
+    implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
 
     coreLibraryDesugaring(libs.desugaring)

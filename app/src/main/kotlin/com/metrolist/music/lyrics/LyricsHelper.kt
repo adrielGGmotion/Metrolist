@@ -34,6 +34,7 @@ constructor(
         listOf(
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
+            AppleMusicLyricsProvider,
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider
         )
@@ -43,23 +44,22 @@ constructor(
             .map {
                 it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.LRCLIB)
             }.distinctUntilChanged()
-            .map {
-                lyricsProviders =
-                    if (it == PreferredLyricsProvider.LRCLIB) {
-                        listOf(
-                            LrcLibLyricsProvider,
-                            KuGouLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-                    } else {
-                        listOf(
-                            KuGouLyricsProvider,
-                            LrcLibLyricsProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-                    }
+            .map { preferred ->
+                val providers = mutableListOf<LyricsProvider>(
+                    LrcLibLyricsProvider,
+                    KuGouLyricsProvider,
+                    AppleMusicLyricsProvider,
+                    YouTubeSubtitleLyricsProvider,
+                    YouTubeLyricsProvider
+                )
+                val preferredProvider = when (preferred) {
+                    PreferredLyricsProvider.LRCLIB -> LrcLibLyricsProvider
+                    PreferredLyricsProvider.KUGOU -> KuGouLyricsProvider
+                    PreferredLyricsProvider.APPLE_MUSIC -> AppleMusicLyricsProvider
+                }
+                providers.remove(preferredProvider)
+                providers.add(0, preferredProvider)
+                lyricsProviders = providers
             }
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
