@@ -18,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -32,6 +31,7 @@ import com.metrolist.music.R
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -103,14 +103,11 @@ fun WrappedScreen(navController: NavController) {
                 .padding(paddingValues)
         ) { page ->
             when (page) {
-                0 -> WrappedIntro(
-                    onNext = {
-                        scope.launch {
-                            pagerState.animateScrollToPage(1)
-                        }
+                0 -> WrappedIntro(onStart = {
+                    scope.launch {
+                        pagerState.animateScrollToPage(1)
                     }
-                )
-
+                })
                 else -> WrappedPage(
                     name = screens[page],
                     number = page + 1,
