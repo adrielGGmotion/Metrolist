@@ -21,6 +21,7 @@ import kotlinx.serialization.json.Json
 
 object AppleMusicLyricsProvider : LyricsProvider {
     override val name = "Apple Music"
+    private const val LOG_TAG = "apple_lyrics"
 
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -37,8 +38,11 @@ object AppleMusicLyricsProvider : LyricsProvider {
         }
     }
 
-    override fun isEnabled(context: Context): Boolean =
-        context.dataStore[EnableAppleMusicKey] ?: true
+    override fun isEnabled(context: Context): Boolean {
+        val isEnabled = context.dataStore[EnableAppleMusicKey] ?: true
+        Log.d(LOG_TAG, "Provider isEnabled check: $isEnabled")
+        return isEnabled
+    }
 
     override suspend fun getLyrics(
         id: String,
@@ -46,39 +50,39 @@ object AppleMusicLyricsProvider : LyricsProvider {
         artist: String,
         duration: Int
     ): Result<String> {
-        Log.d("AppleMusicLyrics", "-> New request for title: '$title', artist: '$artist'")
+        Log.d(LOG_TAG, "-> New request for title: '$title', artist: '$artist'")
         return try {
             val searchQuery = "$title $artist"
             val searchUrl = "https://lyrics.paxsenix.org/apple-music/search?q=${searchQuery.encodeURLQueryComponent()}"
-            Log.d("AppleMusicLyrics", "  Searching with URL: $searchUrl")
+            Log.d(LOG_TAG, "  Searching with URL: $searchUrl")
 
             val searchResponse = client.get { url { encodedPath = "apple-music/search"; parameters.append("q", searchQuery) } }
-            Log.d("AppleMusicLyrics", "  Search response status: ${searchResponse.status}")
+            Log.d(LOG_TAG, "  Search response status: ${searchResponse.status}")
             val responseBody = searchResponse.bodyAsText()
-            Log.d("AppleMusicLyrics", "  Search response body: $responseBody")
+            Log.d(LOG_TAG, "  Search response body: $responseBody")
 
             val searchResults = Json.decodeFromString<AppleMusicSearchResponse>(responseBody).results
-            Log.d("AppleMusicLyrics", "  Received ${searchResults.size} search results")
+            Log.d(LOG_TAG, "  Received ${searchResults.size} search results")
 
             if (searchResults.isEmpty()) {
-                Log.d("AppleMusicLyrics", "<- No results found. Failing.")
+                Log.d(LOG_TAG, "<- No results found. Failing.")
                 return Result.failure(Exception("No results found"))
             }
 
             val bestMatch = findBestMatch(searchResults, title, artist)
             if (bestMatch == null) {
-                Log.d("AppleMusicLyrics", "<- No suitable match found after scoring. Failing.")
+                Log.d(LOG_TAG, "<- No suitable match found after scoring. Failing.")
                 return Result.failure(Exception("No suitable match found"))
             }
-            Log.d("AppleMusicLyrics", "  Best match found: '${bestMatch.songName}' by '${bestMatch.artistName}' (ID: ${bestMatch.id})")
+            Log.d(LOG_TAG, "  Best match found: '${bestMatch.songName}' by '${bestMatch.artistName}' (ID: ${bestMatch.id})")
 
             val lyricsUrl = "https://lyrics.paxsenix.org/apple-music/lyrics?id=${bestMatch.id}&ttml=false"
-            Log.d("AppleMusicLyrics", "  Fetching lyrics with URL: $lyricsUrl")
+            Log.d(LOG_TAG, "  Fetching lyrics with URL: $lyricsUrl")
 
             val lyricsResponse = client.get { url { encodedPath = "apple-music/lyrics"; parameters.append("id", bestMatch.id); parameters.append("ttml", "false") } }
-            Log.d("AppleMusicLyrics", "  Lyrics response status: ${lyricsResponse.status}")
+            Log.d(LOG_TAG, "  Lyrics response status: ${lyricsResponse.status}")
             val lyricsResponseBody = lyricsResponse.bodyAsText()
-            Log.d("AppleMusicLyrics", "  Lyrics response body: $lyricsResponseBody")
+            Log.d(LOG_TAG, "  Lyrics response body: $lyricsResponseBody")
             val lyricsData = Json.decodeFromString<AppleMusicLyricsResponse>(lyricsResponseBody)
 
 
@@ -90,16 +94,16 @@ object AppleMusicLyricsProvider : LyricsProvider {
             }
 
             if (lyricsText.isNullOrEmpty() || format == null) {
-                Log.d("AppleMusicLyrics", "<- No lyrics available in response. Failing.")
+                Log.d(LOG_TAG, "<- No lyrics available in response. Failing.")
                 return Result.failure(Exception("No lyrics found for track"))
             }
-            Log.d("AppleMusicLyrics", "  Successfully fetched lyrics using format '$format'")
+            Log.d(LOG_TAG, "  Successfully fetched lyrics using format '$format'")
             // The API returns newlines as "\\n", so we need to replace them with actual newlines.
             val finalLyrics = lyricsText.replace("\\n", "\n")
-            Log.d("AppleMusicLyrics", "<- Returning lyrics successfully.")
+            Log.d(LOG_TAG, "<- Returning lyrics successfully.")
             Result.success(finalLyrics)
         } catch (e: Exception) {
-            Log.e("AppleMusicLyrics", "<- An error occurred: ${e.message}", e)
+            Log.e(LOG_TAG, "<- An error occurred: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -114,9 +118,9 @@ object AppleMusicLyricsProvider : LyricsProvider {
             track to calculateMatchScore(track, songName, artistName, albumName)
         }.sortedByDescending { it.second }
 
-        Log.d("AppleMusicLyrics", "  Top 3 matches:")
+        Log.d(LOG_TAG, "  Top 3 matches:")
         scoredResults.take(3).forEachIndexed { index, (track, score) ->
-            Log.d("AppleMusicLyrics", "    ${index + 1}. Score: $score - '${track.songName}' by '${track.artistName}'")
+            Log.d(LOG_TAG, "    ${index + 1}. Score: $score - '${track.songName}' by '${track.artistName}'")
         }
 
         return scoredResults.firstOrNull()?.first
