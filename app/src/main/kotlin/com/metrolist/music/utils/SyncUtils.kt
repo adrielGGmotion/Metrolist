@@ -1,6 +1,7 @@
 package com.metrolist.music.utils
 
 import android.content.Context
+import android.util.Log
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -125,23 +126,32 @@ class SyncUtils @Inject constructor(
         isSyncingLibrarySongs.value = true
         try {
             YouTube.library("FEmusic_liked_videos").completed().onSuccess { page ->
-                val remoteSongItems = page.items.filterIsInstance<SongItem>().reversed()
-                val remoteSongIds = remoteSongItems.map { it.id }.toSet()
-                val localSongEntities = database.songsByNameAsc().first()
+                val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
+                val remoteIds = remoteSongs.map { it.id }.toSet()
+                val localSongs = database.songsByNameAsc().first()
                 val feedbackTokens = mutableListOf<String>()
 
-                localSongEntities.filterNot { it.id in remoteSongIds }.forEach { songEntity ->
-                    songEntity.song.libraryRemoveToken?.let {
-                        feedbackTokens.add(it)
-                    } ?: try {
-                        database.transaction { update(songEntity.song.toggleLibrary()) }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                Log.d("SyncUtils", "--- Start Library Sync ---")
+                Log.d("SyncUtils", "Remote song IDs: ${remoteIds.joinToString()}")
+                Log.d("SyncUtils", "Local song IDs: ${localSongs.map { it.id }.joinToString()}")
+
+                localSongs.filterNot { it.id in remoteIds }.forEach {
+                    Log.d("SyncUtils", "Song '${it.song.title}' (ID: ${it.id}) is local-only. Checking tokens.")
+                    Log.d("SyncUtils", "  -> libraryAddToken: ${it.song.libraryAddToken}")
+                    Log.d("SyncUtils", "  -> libraryRemoveToken: ${it.song.libraryRemoveToken}")
+                    if (it.song.libraryAddToken != null && it.song.libraryRemoveToken != null) {
+                        feedbackTokens.add(it.song.libraryAddToken)
+                        Log.d("SyncUtils", "  -> Adding ADD token to feedback: ${it.song.libraryAddToken}")
+                    } else {
+                        try {
+                            database.transaction { update(it.song.toggleLibrary()) }
+                        } catch (e: Exception) { e.printStackTrace() }
                     }
                 }
+                Log.d("SyncUtils", "Sending feedback with tokens: ${feedbackTokens.joinToString()}")
                 feedbackTokens.chunked(20).forEach { YouTube.feedback(it) }
 
-                remoteSongItems.forEach { song ->
+                remoteSongs.forEach { song ->
                     try {
                         val dbSong = database.song(song.id).firstOrNull()
                         database.transaction {
@@ -161,6 +171,7 @@ class SyncUtils @Inject constructor(
             e.printStackTrace()
         } finally {
             isSyncingLibrarySongs.value = false
+            Log.d("SyncUtils", "--- End Library Sync ---")
         }
     }
 
