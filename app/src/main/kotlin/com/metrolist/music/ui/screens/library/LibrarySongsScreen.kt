@@ -37,6 +37,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -90,6 +91,8 @@ fun LibrarySongsScreen(
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
     val songs by viewModel.allSongs.collectAsState()
+
+    Log.d("LibrarySongsScreen", "Recomposing with ${songs.size} songs. IDs: ${songs.map { it.id }.joinToString()}")
 
     var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIKED)
 
