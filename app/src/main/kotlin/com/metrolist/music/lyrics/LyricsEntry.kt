@@ -23,5 +23,6 @@ data class AppleMusicLyricsLine(
 data class AppleMusicWord(
     val startTime: Long,
     val endTime: Long,
-    val word: String
+    val word: String,
+    val trailingSpace: Boolean
 )

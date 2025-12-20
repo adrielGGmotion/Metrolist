@@ -755,13 +755,14 @@ fun Lyrics(
                             val isActivelySinging = activeLineIndices.contains(index)
                             val isBgLine = item.speaker == "bg"
 
+                            val targetAlpha = if (isBgLine) {
+                                if (isActivelySinging) 1f else 0f
+                            } else {
+                                if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.4f
+                            }
                             val alpha by animateFloatAsState(
-                                targetValue = if (isBgLine) {
-                                    if (isActivelySinging) 1f else 0f
-                                } else {
-                                    if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.4f
-                                },
-                                animationSpec = tween(durationMillis = 600),
+                                targetValue = targetAlpha,
+                                animationSpec = tween(durationMillis = if (isBgLine && targetAlpha == 0f) 150 else 600),
                                 label = "line alpha"
                             )
                             val scale by animateFloatAsState(
@@ -799,7 +800,22 @@ fun Lyrics(
                                 },
                                 horizontalAlignment = horizontalAlignment
                             ) {
-                                FlowRow {
+                                val flowRowArrangement = when (horizontalAlignment) {
+                                    Alignment.Start -> Arrangement.Start
+                                    Alignment.End -> Arrangement.End
+                                    Alignment.CenterHorizontally -> Arrangement.Center
+                                    else -> Arrangement.Start
+                                }
+                                val textAlign = when (horizontalAlignment) {
+                                    Alignment.Start -> TextAlign.Left
+                                    Alignment.End -> TextAlign.Right
+                                    Alignment.CenterHorizontally -> TextAlign.Center
+                                    else -> TextAlign.Left
+                                }
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = flowRowArrangement
+                                ) {
                                     item.words.forEach { word ->
                                         SyncedLyricWord(
                                             word = word,
@@ -807,16 +823,14 @@ fun Lyrics(
                                             style = TextStyle(
                                                 fontSize = if (isBgLine) 16.sp else 24.sp,
                                                 fontWeight = if (isActivelySinging && isSynced) FontWeight.ExtraBold else FontWeight.Bold,
-                                                textAlign = when (lyricsTextPosition) {
-                                                    LyricsPosition.LEFT -> TextAlign.Left
-                                                    LyricsPosition.CENTER -> TextAlign.Center
-                                                    LyricsPosition.RIGHT -> TextAlign.Right
-                                                }
+                                                textAlign = textAlign
                                             ),
                                             inactiveColor = textColor.copy(alpha = 0.5f),
                                             activeColor = textColor
                                         )
-                                        Spacer(modifier = Modifier.width(if (isBgLine) 2.dp else 4.dp))
+                                        if (word.trailingSpace) {
+                                            Spacer(modifier = Modifier.width(if (isBgLine) 2.dp else 4.dp))
+                                        }
                                     }
                                 }
                             }

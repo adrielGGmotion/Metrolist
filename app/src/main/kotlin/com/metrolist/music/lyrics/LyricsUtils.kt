@@ -878,7 +878,8 @@ object LyricsUtils {
                     } else {
                         startTime + 2000L // Default duration for the last word
                     }
-                    AppleMusicWord(startTime, endTime, wordMatch.groupValues[4].trim())
+                    val rawWord = wordMatch.groupValues[4]
+                    AppleMusicWord(startTime, endTime, rawWord.trim(), rawWord.endsWith(" "))
                 }
                 return@mapIndexedNotNull AppleMusicLyricsLine(words.first().startTime, words, "bg")
             }
@@ -920,7 +921,8 @@ object LyricsUtils {
                             }
                             nextLineStartTime ?: (startTime + 2000L) // Default duration
                         }
-                        AppleMusicWord(startTime, endTime, wordMatch.groupValues[4].trim())
+                        val rawWord = wordMatch.groupValues[4]
+                        AppleMusicWord(startTime, endTime, rawWord.trim(), rawWord.endsWith(" "))
                     }
                 }
 
