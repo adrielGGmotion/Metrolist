@@ -125,23 +125,23 @@ class SyncUtils @Inject constructor(
         isSyncingLibrarySongs.value = true
         try {
             YouTube.library("FEmusic_liked_videos").completed().onSuccess { page ->
-                val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
-                val remoteIds = remoteSongs.map { it.id }.toSet()
-                val localSongs = database.songsByNameAsc().first()
+                val remoteSongItems = page.items.filterIsInstance<SongItem>().reversed()
+                val remoteSongIds = remoteSongItems.map { it.id }.toSet()
+                val localSongEntities = database.songsByNameAsc().first()
                 val feedbackTokens = mutableListOf<String>()
 
-                localSongs.filterNot { it.id in remoteIds }.forEach {
-                    if (it.song.libraryAddToken != null && it.song.libraryRemoveToken != null) {
-                        feedbackTokens.add(it.song.libraryAddToken)
-                    } else {
-                        try {
-                            database.transaction { update(it.song.toggleLibrary()) }
-                        } catch (e: Exception) { e.printStackTrace() }
+                localSongEntities.filterNot { it.id in remoteSongIds }.forEach { songEntity ->
+                    songEntity.song.libraryRemoveToken?.let {
+                        feedbackTokens.add(it)
+                    } ?: try {
+                        database.transaction { update(songEntity.song.toggleLibrary()) }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
                 feedbackTokens.chunked(20).forEach { YouTube.feedback(it) }
 
-                remoteSongs.forEach { song ->
+                remoteSongItems.forEach { song ->
                     try {
                         val dbSong = database.song(song.id).firstOrNull()
                         database.transaction {
