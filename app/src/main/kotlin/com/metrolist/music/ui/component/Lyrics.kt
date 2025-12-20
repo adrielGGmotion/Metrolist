@@ -756,7 +756,11 @@ fun Lyrics(
                             val isBgLine = item.speaker == "bg"
 
                             val alpha by animateFloatAsState(
-                                targetValue = if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.4f,
+                                targetValue = if (isBgLine) {
+                                    if (isActivelySinging) 1f else 0f
+                                } else {
+                                    if (!isSynced || (isSelectionModeActive && isSelected)) 1f else if (isActivelySinging) 1f else 0.4f
+                                },
                                 animationSpec = tween(durationMillis = 600),
                                 label = "line alpha"
                             )
@@ -770,7 +774,14 @@ fun Lyrics(
                             )
 
                             val horizontalAlignment = when {
-                                isBgLine -> Alignment.CenterHorizontally
+                                isBgLine -> {
+                                    val previousSpeaker = if (index > 0) parsedLyrics.lines.getOrNull(index - 1)?.speaker else null
+                                    when (previousSpeaker) {
+                                        "v1" -> Alignment.End
+                                        "v2" -> Alignment.Start
+                                        else -> Alignment.CenterHorizontally
+                                    }
+                                }
                                 item.speaker == "v1" -> Alignment.End
                                 item.speaker == "v2" -> Alignment.Start
                                 else -> when (lyricsTextPosition) {
