@@ -57,7 +57,7 @@ object AppleMusicLyricsProvider : LyricsProvider {
             val responseBody = searchResponse.bodyAsText()
             Log.d("AppleMusicLyrics", "  Search response body: $responseBody")
 
-            val searchResults = Json.decodeFromString<List<AppleMusicTrack>>(responseBody)
+            val searchResults = Json.decodeFromString<AppleMusicSearchResponse>(responseBody).results
             Log.d("AppleMusicLyrics", "  Received ${searchResults.size} search results")
 
             if (searchResults.isEmpty()) {
