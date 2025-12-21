@@ -191,6 +191,7 @@ dependencies {
     implementation(libs.compose.ui.tooling)
     implementation(libs.compose.animation)
     implementation(libs.compose.reorderable)
+    implementation(libs.graphics.shapes)
 
     implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)
