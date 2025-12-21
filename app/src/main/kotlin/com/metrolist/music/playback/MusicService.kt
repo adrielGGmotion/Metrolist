@@ -1017,7 +1017,9 @@ class MusicService :
     private fun toggleLibrary() {
         database.query {
             currentSong.value?.let {
-                update(it.song.toggleLibrary())
+                val updatedSong = it.song.toggleLibrary()
+                Log.d("MusicService", "[toggleLibrary] Updating song ${it.id} to inLibrary=${updatedSong.inLibrary}. Stack trace: ${Log.getStackTraceString(Exception())}")
+                update(updatedSong)
             }
         }
     }

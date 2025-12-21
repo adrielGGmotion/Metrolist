@@ -1,6 +1,7 @@
 package com.metrolist.music.viewmodels
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.music.constants.HideExplicitKey
@@ -54,7 +55,9 @@ class CachePlaylistViewModel @Inject constructor(
                     database.query {
                         completeSongs.forEach {
                             if (it.song.dateDownload == null) {
-                                update(it.song.copy(dateDownload = LocalDateTime.now()))
+                                val updatedSong = it.song.copy(dateDownload = LocalDateTime.now())
+                                Log.d("CachePlaylistViewModel", "Updating song ${it.id} with download date. Stack trace: ${Log.getStackTraceString(Exception())}")
+                                update(updatedSong)
                             }
                         }
                     }

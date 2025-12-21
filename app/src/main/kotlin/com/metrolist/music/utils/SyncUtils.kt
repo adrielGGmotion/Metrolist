@@ -96,7 +96,9 @@ class SyncUtils @Inject constructor(
 
                 localSongs.filterNot { it.id in remoteIds }.forEach {
                     try {
-                        database.transaction { update(it.song.localToggleLike()) }
+                        val updatedSong = it.song.localToggleLike()
+                        Log.d("SyncUtils", "[syncLikedSongs] Updating song ${it.id} to liked=${updatedSong.liked}. Stack trace: ${Log.getStackTraceString(Exception())}")
+                        database.transaction { update(updatedSong) }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
 
@@ -122,32 +124,25 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncLibrarySongs() {
-        Log.d("SyncUtils", "--- Entering syncLibrarySongs ---")
-        if (isSyncingLibrarySongs.value) {
-            Log.d("SyncUtils", "Already syncing, returning.")
-            return
-        }
+        if (isSyncingLibrarySongs.value) return
         isSyncingLibrarySongs.value = true
+        Log.d("SyncUtils", "[syncLibrarySongs] Starting library songs sync.")
         try {
             YouTube.library("FEmusic_liked_videos").completed().onSuccess { page ->
                 val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
+                Log.d("SyncUtils", "[syncLibrarySongs] Received ${remoteSongs.size} songs from remote. IDs: ${remoteSongs.map { it.id }}")
                 val remoteIds = remoteSongs.map { it.id }.toSet()
                 val localSongs = database.songsByNameAsc().first()
                 val feedbackTokens = mutableListOf<String>()
 
-                Log.d("SyncUtils", "Remote song IDs: [${remoteIds.joinToString()}]")
-                Log.d("SyncUtils", "Local song IDs: [${localSongs.map { it.id }.joinToString()}]")
-
-
                 localSongs.filterNot { it.id in remoteIds }.forEach {
-                    Log.d("SyncUtils", "Local song '${it.song.title}' (ID: ${it.id}) not in remote. Deciding action...")
                     if (it.song.libraryAddToken != null && it.song.libraryRemoveToken != null) {
                         feedbackTokens.add(it.song.libraryAddToken)
-                        Log.d("SyncUtils", "  -> Action: Add to feedback tokens with ADD token.")
                     } else {
                         try {
-                            database.transaction { update(it.song.toggleLibrary()) }
-                            Log.d("SyncUtils", "  -> Action: Toggle library status locally.")
+                            val updatedSong = it.song.toggleLibrary()
+                            Log.d("SyncUtils", "[syncLibrarySongs] Updating song ${it.id} to inLibrary=${updatedSong.inLibrary}. Stack trace: ${Log.getStackTraceString(Exception())}")
+                            database.transaction { update(updatedSong) }
                         } catch (e: Exception) { e.printStackTrace() }
                     }
                 }
@@ -156,15 +151,18 @@ class SyncUtils @Inject constructor(
                 remoteSongs.forEach { song ->
                     try {
                         val dbSong = database.song(song.id).firstOrNull()
-                        Log.d("SyncUtils", "Processing remote song '${song.title}' (ID: ${song.id}).")
                         database.transaction {
                             if (dbSong == null) {
-                                Log.d("SyncUtils", "  -> Song not in local DB. Inserting and adding to library.")
+                                Log.d("SyncUtils", "[syncLibrarySongs] Song ${song.id} not found locally. Inserting.")
                                 insert(song.toMediaMetadata()) { it.toggleLibrary() }
                             } else {
+                                Log.d("SyncUtils", "[syncLibrarySongs] Song ${song.id} found locally. Current inLibrary status: ${dbSong.song.inLibrary}")
                                 if (dbSong.song.inLibrary == null) {
-                                    Log.d("SyncUtils", "  -> Song in local DB but not in library. Re-adding.")
-                                    update(dbSong.song.toggleLibrary())
+                                    Log.d("SyncUtils", "[syncLibrarySongs] Interpreting inLibrary=null as 'removed by user', but found on remote. Re-adding to library.")
+                                    Log.d("SyncUtils", "[syncLibrarySongs] Applying decision: Updating song ${song.id} to inLibrary=true.")
+                                    val updatedSong = dbSong.song.toggleLibrary()
+                                    Log.d("SyncUtils", "[syncLibrarySongs] Updating song ${song.id} to inLibrary=${updatedSong.inLibrary}. Stack trace: ${Log.getStackTraceString(Exception())}")
+                                    update(updatedSong)
                                 }
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
                             }
@@ -175,8 +173,8 @@ class SyncUtils @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
+            Log.d("SyncUtils", "[syncLibrarySongs] Finished library songs sync.")
             isSyncingLibrarySongs.value = false
-            Log.d("SyncUtils", "--- Exiting syncLibrarySongs ---")
         }
     }
 
@@ -189,7 +187,11 @@ class SyncUtils @Inject constructor(
                 val remoteIds = remoteSongs.map { it.id }.toSet()
                 val localSongs = database.uploadedSongsByNameAsc().first()
 
-                localSongs.filterNot { it.id in remoteIds }.forEach { database.update(it.song.toggleUploaded()) }
+                localSongs.filterNot { it.id in remoteIds }.forEach {
+                    val updatedSong = it.song.toggleUploaded()
+                    Log.d("SyncUtils", "[syncUploadedSongs] Updating song ${it.id} to isUploaded=${updatedSong.isUploaded}. Stack trace: ${Log.getStackTraceString(Exception())}")
+                    database.update(updatedSong)
+                }
 
                 remoteSongs.forEach { song ->
                     val dbSong = database.song(song.id).firstOrNull()
@@ -311,11 +313,7 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncSavedPlaylists() {
-        Log.d("SyncUtils", "--- Entering syncSavedPlaylists ---")
-        if (isSyncingPlaylists.value) {
-            Log.d("SyncUtils", "Already syncing, returning.")
-            return
-        }
+        if (isSyncingPlaylists.value) return
         isSyncingPlaylists.value = true
         try {
             YouTube.library("FEmusic_liked_playlists").completed().onSuccess { page ->
@@ -323,19 +321,11 @@ class SyncUtils @Inject constructor(
                 val remoteIds = remotePlaylists.map { it.id }.toSet()
                 val localPlaylists = database.playlistsByNameAsc().first()
 
-                Log.d("SyncUtils", "Remote playlist IDs: [${remoteIds.joinToString()}]")
-                Log.d("SyncUtils", "Local playlist IDs: [${localPlaylists.map { it.id }.joinToString()}]")
-
-                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.filterNot { it.playlist.browseId == null }.forEach {
-                    Log.d("SyncUtils", "Local playlist '${it.playlist.name}' (ID: ${it.id}) not in remote. Toggling like status.")
-                    database.update(it.playlist.localToggleLike())
-                }
+                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.filterNot { it.playlist.browseId == null }.forEach { database.update(it.playlist.localToggleLike()) }
 
                 remotePlaylists.forEach { playlist ->
                     var playlistEntity = localPlaylists.find { it.playlist.browseId == playlist.id }?.playlist
-                    Log.d("SyncUtils", "Processing remote playlist '${playlist.title}' (ID: ${playlist.id}).")
                     if (playlistEntity == null) {
-                        Log.d("SyncUtils", "  -> Playlist not in local DB. Inserting and marking as liked.")
                         playlistEntity = PlaylistEntity(
                             name = playlist.title,
                             browseId = playlist.id,
@@ -351,7 +341,6 @@ class SyncUtils @Inject constructor(
                         )
                         database.insert(playlistEntity)
                     } else {
-                        Log.d("SyncUtils", "  -> Playlist in local DB. Updating details.")
                         database.update(playlistEntity, playlist)
                     }
                     syncPlaylist(playlist.id, playlistEntity.id)
@@ -361,7 +350,6 @@ class SyncUtils @Inject constructor(
             e.printStackTrace()
         } finally {
             isSyncingPlaylists.value = false
-            Log.d("SyncUtils", "--- Exiting syncSavedPlaylists ---")
         }
     }
 
@@ -402,11 +390,19 @@ class SyncUtils @Inject constructor(
             val savedPlaylists = database.playlistsByNameAsc().first()
 
             likedSongs.forEach {
-                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { e.printStackTrace() }
+                try {
+                    val updatedSong = it.song.copy(liked = false, likedDate = null)
+                    Log.d("SyncUtils", "[clearAllSyncedContent] Updating song ${it.id} to liked=${updatedSong.liked}. Stack trace: ${Log.getStackTraceString(Exception())}")
+                    database.transaction { update(updatedSong) }
+                } catch (e: Exception) { e.printStackTrace() }
             }
             librarySongs.forEach {
                 if (it.song.inLibrary != null) {
-                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { e.printStackTrace() }
+                    try {
+                        val updatedSong = it.song.copy(inLibrary = null)
+                        Log.d("SyncUtils", "[clearAllSyncedContent] Updating song ${it.id} to inLibrary=${updatedSong.inLibrary}. Stack trace: ${Log.getStackTraceString(Exception())}")
+                        database.transaction { update(updatedSong) }
+                    } catch (e: Exception) { e.printStackTrace() }
                 }
             }
             likedAlbums.forEach {
