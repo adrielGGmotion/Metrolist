@@ -1,7 +1,6 @@
 package com.metrolist.music.utils
 
 import android.content.Context
-import android.util.Log
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -122,7 +121,6 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncLibrarySongs() {
-        Log.d("SyncUtils", "syncLibrarySongs called")
         if (isSyncingLibrarySongs.value) return
         isSyncingLibrarySongs.value = true
         try {
@@ -150,7 +148,7 @@ class SyncUtils @Inject constructor(
                             if (dbSong == null) {
                                 insert(song.toMediaMetadata()) { it.toggleLibrary() }
                             } else {
-                                if (dbSong.song.inLibrary == null) {
+                                if (dbSong.song.inLibrary == null && dbSong.song.libraryRemoveToken == null) {
                                     update(dbSong.song.toggleLibrary())
                                 }
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
