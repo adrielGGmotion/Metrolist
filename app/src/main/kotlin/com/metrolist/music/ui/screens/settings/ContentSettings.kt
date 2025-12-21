@@ -102,6 +102,7 @@ fun ContentSettings(
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(key = LyricsGlowEffectKey, defaultValue = false)
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
+    val (enableAppleMusic, onEnableAppleMusicChange) = rememberPreference(key = EnableAppleMusicKey, defaultValue = true)
 
     var showProxyConfigurationDialog by rememberSaveable {
         mutableStateOf(false)
@@ -544,7 +545,6 @@ fun ContentSettings(
                     icon = painterResource(R.drawable.lyrics),
                     title = { Text("Enable Apple Music") },
                     trailingContent = {
-                        val (enableAppleMusic, onEnableAppleMusicChange) = rememberPreference(key = EnableAppleMusicKey, defaultValue = true)
                         Switch(
                             checked = enableAppleMusic,
                             onCheckedChange = onEnableAppleMusicChange,
@@ -560,7 +560,6 @@ fun ContentSettings(
                         )
                     },
                     onClick = {
-                        val (enableAppleMusic, onEnableAppleMusicChange) = rememberPreference(key = EnableAppleMusicKey, defaultValue = true)
                         onEnableAppleMusicChange(!enableAppleMusic)
                     }
                 ),
