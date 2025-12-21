@@ -128,18 +128,8 @@ class SyncUtils @Inject constructor(
                 val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
                 val remoteIds = remoteSongs.map { it.id }.toSet()
                 val localSongs = database.songsByNameAsc().first()
-                val feedbackTokens = mutableListOf<String>()
 
-                localSongs.filterNot { it.id in remoteIds }.forEach {
-                    if (it.song.libraryAddToken != null && it.song.libraryRemoveToken != null) {
-                        feedbackTokens.add(it.song.libraryAddToken)
-                    } else {
-                        try {
-                            database.transaction { update(it.song.toggleLibrary()) }
-                        } catch (e: Exception) { e.printStackTrace() }
-                    }
-                }
-                feedbackTokens.chunked(20).forEach { YouTube.feedback(it) }
+                localSongs.filterNot { it.id in remoteIds }.forEach { database.update(it.song.toggleLibrary()) }
 
                 remoteSongs.forEach { song ->
                     try {
@@ -148,7 +138,7 @@ class SyncUtils @Inject constructor(
                             if (dbSong == null) {
                                 insert(song.toMediaMetadata()) { it.toggleLibrary() }
                             } else {
-                                if (dbSong.song.inLibrary == null && dbSong.song.libraryRemoveToken == null) {
+                                if (dbSong.song.inLibrary == null) {
                                     update(dbSong.song.toggleLibrary())
                                 }
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
@@ -303,7 +293,7 @@ class SyncUtils @Inject constructor(
                 val remoteIds = remotePlaylists.map { it.id }.toSet()
                 val localPlaylists = database.playlistsByNameAsc().first()
 
-                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.filterNot { it.playlist.browseId == null }.forEach { database.update(it.playlist.localToggleLike()) }
+                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.forEach { database.update(it.playlist.localToggleLike()) }
 
                 remotePlaylists.forEach { playlist ->
                     var playlistEntity = localPlaylists.find { it.playlist.browseId == playlist.id }?.playlist
