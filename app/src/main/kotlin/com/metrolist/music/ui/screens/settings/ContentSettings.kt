@@ -542,6 +542,30 @@ fun ContentSettings(
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),
+                    title = { Text("Enable Apple Music") },
+                    trailingContent = {
+                        val (enableAppleMusic, onEnableAppleMusicChange) = rememberPreference(key = EnableAppleMusicKey, defaultValue = true)
+                        Switch(
+                            checked = enableAppleMusic,
+                            onCheckedChange = onEnableAppleMusicChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (enableAppleMusic) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = {
+                        val (enableAppleMusic, onEnableAppleMusicChange) = rememberPreference(key = EnableAppleMusicKey, defaultValue = true)
+                        onEnableAppleMusicChange(!enableAppleMusic)
+                    }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
                     title = { Text(stringResource(R.string.enable_kugou)) },
                     trailingContent = {
                         Switch(
