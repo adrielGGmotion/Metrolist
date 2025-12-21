@@ -1,7 +1,6 @@
 package com.metrolist.music.utils
 
 import android.content.Context
-import android.util.Log
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -131,13 +130,9 @@ class SyncUtils @Inject constructor(
                 val localSongs = database.songsByNameAsc().first()
                 val feedbackTokens = mutableListOf<String>()
 
-                Log.d("SyncUtils", "--- Start Library Sync ---")
-                Log.d("SyncUtils", "Remote song IDs: ${remoteIds.joinToString()}")
-
                 localSongs.filterNot { it.id in remoteIds }.forEach {
-                    Log.d("SyncUtils", "Song '${it.song.title}' (ID: ${it.id}) is local-only. Sending REMOVE token.")
                     if (it.song.libraryAddToken != null && it.song.libraryRemoveToken != null) {
-                        feedbackTokens.add(it.song.libraryRemoveToken)
+                        feedbackTokens.add(it.song.libraryAddToken)
                     } else {
                         try {
                             database.transaction { update(it.song.toggleLibrary()) }
@@ -151,11 +146,9 @@ class SyncUtils @Inject constructor(
                         val dbSong = database.song(song.id).firstOrNull()
                         database.transaction {
                             if (dbSong == null) {
-                                Log.d("SyncUtils", "Song '${song.title}' (ID: ${song.id}) found on remote but not local. Re-adding to library.")
                                 insert(song.toMediaMetadata()) { it.toggleLibrary() }
                             } else {
                                 if (dbSong.song.inLibrary == null) {
-                                    Log.d("SyncUtils", "Song '${song.title}' (ID: ${song.id}) is marked as not in library locally. Re-adding to library.")
                                     update(dbSong.song.toggleLibrary())
                                 }
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
