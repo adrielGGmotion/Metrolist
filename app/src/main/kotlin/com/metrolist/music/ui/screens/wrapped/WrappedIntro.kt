@@ -105,7 +105,7 @@ fun WrappedIntro(onNext: () -> Unit) {
             visible = visible,
             enter = fadeIn(animationSpec = tween(durationMillis = 1500, delayMillis = 800)),
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.CenterStart)
                 .rotate(-90f)
         ) {
             BoxWithConstraints {
