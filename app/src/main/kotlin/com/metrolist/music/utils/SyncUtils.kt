@@ -1,6 +1,7 @@
 package com.metrolist.music.utils
 
 import android.content.Context
+import android.util.Log
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -121,24 +122,48 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncLibrarySongs() {
-        if (isSyncingLibrarySongs.value) return
+        Log.d("SyncUtils", "--- Entering syncLibrarySongs ---")
+        if (isSyncingLibrarySongs.value) {
+            Log.d("SyncUtils", "Already syncing, returning.")
+            return
+        }
         isSyncingLibrarySongs.value = true
         try {
             YouTube.library("FEmusic_liked_videos").completed().onSuccess { page ->
                 val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
                 val remoteIds = remoteSongs.map { it.id }.toSet()
                 val localSongs = database.songsByNameAsc().first()
+                val feedbackTokens = mutableListOf<String>()
 
-                localSongs.filterNot { it.id in remoteIds }.forEach { database.update(it.song.toggleLibrary()) }
+                Log.d("SyncUtils", "Remote song IDs: [${remoteIds.joinToString()}]")
+                Log.d("SyncUtils", "Local song IDs: [${localSongs.map { it.id }.joinToString()}]")
+
+
+                localSongs.filterNot { it.id in remoteIds }.forEach {
+                    Log.d("SyncUtils", "Local song '${it.song.title}' (ID: ${it.id}) not in remote. Deciding action...")
+                    if (it.song.libraryAddToken != null && it.song.libraryRemoveToken != null) {
+                        feedbackTokens.add(it.song.libraryAddToken)
+                        Log.d("SyncUtils", "  -> Action: Add to feedback tokens with ADD token.")
+                    } else {
+                        try {
+                            database.transaction { update(it.song.toggleLibrary()) }
+                            Log.d("SyncUtils", "  -> Action: Toggle library status locally.")
+                        } catch (e: Exception) { e.printStackTrace() }
+                    }
+                }
+                feedbackTokens.chunked(20).forEach { YouTube.feedback(it) }
 
                 remoteSongs.forEach { song ->
                     try {
                         val dbSong = database.song(song.id).firstOrNull()
+                        Log.d("SyncUtils", "Processing remote song '${song.title}' (ID: ${song.id}).")
                         database.transaction {
                             if (dbSong == null) {
+                                Log.d("SyncUtils", "  -> Song not in local DB. Inserting and adding to library.")
                                 insert(song.toMediaMetadata()) { it.toggleLibrary() }
                             } else {
                                 if (dbSong.song.inLibrary == null) {
+                                    Log.d("SyncUtils", "  -> Song in local DB but not in library. Re-adding.")
                                     update(dbSong.song.toggleLibrary())
                                 }
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
@@ -151,6 +176,7 @@ class SyncUtils @Inject constructor(
             e.printStackTrace()
         } finally {
             isSyncingLibrarySongs.value = false
+            Log.d("SyncUtils", "--- Exiting syncLibrarySongs ---")
         }
     }
 
@@ -285,7 +311,11 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncSavedPlaylists() {
-        if (isSyncingPlaylists.value) return
+        Log.d("SyncUtils", "--- Entering syncSavedPlaylists ---")
+        if (isSyncingPlaylists.value) {
+            Log.d("SyncUtils", "Already syncing, returning.")
+            return
+        }
         isSyncingPlaylists.value = true
         try {
             YouTube.library("FEmusic_liked_playlists").completed().onSuccess { page ->
@@ -293,11 +323,19 @@ class SyncUtils @Inject constructor(
                 val remoteIds = remotePlaylists.map { it.id }.toSet()
                 val localPlaylists = database.playlistsByNameAsc().first()
 
-                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.forEach { database.update(it.playlist.localToggleLike()) }
+                Log.d("SyncUtils", "Remote playlist IDs: [${remoteIds.joinToString()}]")
+                Log.d("SyncUtils", "Local playlist IDs: [${localPlaylists.map { it.id }.joinToString()}]")
+
+                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.filterNot { it.playlist.browseId == null }.forEach {
+                    Log.d("SyncUtils", "Local playlist '${it.playlist.name}' (ID: ${it.id}) not in remote. Toggling like status.")
+                    database.update(it.playlist.localToggleLike())
+                }
 
                 remotePlaylists.forEach { playlist ->
                     var playlistEntity = localPlaylists.find { it.playlist.browseId == playlist.id }?.playlist
+                    Log.d("SyncUtils", "Processing remote playlist '${playlist.title}' (ID: ${playlist.id}).")
                     if (playlistEntity == null) {
+                        Log.d("SyncUtils", "  -> Playlist not in local DB. Inserting and marking as liked.")
                         playlistEntity = PlaylistEntity(
                             name = playlist.title,
                             browseId = playlist.id,
@@ -313,6 +351,7 @@ class SyncUtils @Inject constructor(
                         )
                         database.insert(playlistEntity)
                     } else {
+                        Log.d("SyncUtils", "  -> Playlist in local DB. Updating details.")
                         database.update(playlistEntity, playlist)
                     }
                     syncPlaylist(playlist.id, playlistEntity.id)
@@ -322,6 +361,7 @@ class SyncUtils @Inject constructor(
             e.printStackTrace()
         } finally {
             isSyncingPlaylists.value = false
+            Log.d("SyncUtils", "--- Exiting syncSavedPlaylists ---")
         }
     }
 

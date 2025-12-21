@@ -6,6 +6,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.metrolist.innertube.YouTube
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -69,7 +70,10 @@ data class SongEntity(
         liked = if (inLibrary == null) liked else false,
         inLibrary = if (inLibrary == null) LocalDateTime.now() else null,
         likedDate = if (inLibrary == null) likedDate else null
-    )
+    ).also {
+        Log.d("SongEntity", "Toggling library status for song ID: $id. New inLibrary status: ${it.inLibrary}")
+        Log.d("SongEntity", "Stack trace:", Exception())
+    }
 
     fun toggleUploaded() = copy(
         isUploaded = !isUploaded

@@ -2,6 +2,7 @@ package com.metrolist.music.db.entities
 
 import androidx.compose.runtime.Immutable
 import androidx.room.ColumnInfo
+import android.util.Log
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.metrolist.innertube.YouTube
@@ -47,7 +48,10 @@ data class PlaylistEntity(
 
     fun localToggleLike() = copy(
         bookmarkedAt = if (bookmarkedAt != null) null else LocalDateTime.now()
-    )
+    ).also {
+        Log.d("PlaylistEntity", "Toggling like status for playlist ID: $id. New bookmarkedAt status: ${it.bookmarkedAt}")
+        Log.d("PlaylistEntity", "Stack trace:", Exception())
+    }
 
     fun toggleLike() = localToggleLike().also {
         CoroutineScope(Dispatchers.IO).launch {

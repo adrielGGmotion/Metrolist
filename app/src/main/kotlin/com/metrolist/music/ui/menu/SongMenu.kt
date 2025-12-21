@@ -58,6 +58,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import android.util.Log
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -468,6 +469,7 @@ fun SongMenu(
                                     if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
 
                                 token?.let {
+                                    Log.d("SongMenu", "Remove from library clicked for song: ${song.song.title} (ID: ${song.id}). Sending token: $it")
                                     coroutineScope.launch {
                                         YouTube.feedback(listOf(it))
                                     }
