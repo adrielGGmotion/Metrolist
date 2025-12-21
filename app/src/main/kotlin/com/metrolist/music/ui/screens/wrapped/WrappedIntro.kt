@@ -113,7 +113,7 @@ fun WrappedIntro(onNext: () -> Unit) {
                     text = "2025",
                     style = TextStyle(
                         fontFamily = bbhBartle,
-                        fontSize = 400.sp, // Large initial size
+                        fontSize = 800.sp, // Increased size
                         color = Color.White,
                         drawStyle = Stroke(width = 2f)
                     ),
