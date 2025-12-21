@@ -32,6 +32,7 @@ constructor(
 ) {
     private var lyricsProviders =
         listOf(
+            AppleMusicLyricsProvider,
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
             YouTubeSubtitleLyricsProvider,
@@ -45,17 +46,27 @@ constructor(
             }.distinctUntilChanged()
             .map {
                 lyricsProviders =
-                    if (it == PreferredLyricsProvider.LRCLIB) {
-                        listOf(
+                    when (it) {
+                        PreferredLyricsProvider.LRCLIB -> listOf(
                             LrcLibLyricsProvider,
                             KuGouLyricsProvider,
+                            AppleMusicLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
-                    } else {
-                        listOf(
+
+                        PreferredLyricsProvider.KUGOU -> listOf(
                             KuGouLyricsProvider,
                             LrcLibLyricsProvider,
+                            AppleMusicLyricsProvider,
+                            YouTubeSubtitleLyricsProvider,
+                            YouTubeLyricsProvider
+                        )
+
+                        PreferredLyricsProvider.APPLE_MUSIC -> listOf(
+                            AppleMusicLyricsProvider,
+                            LrcLibLyricsProvider,
+                            KuGouLyricsProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
@@ -96,6 +107,7 @@ constructor(
                             mediaMetadata.id,
                             mediaMetadata.title,
                             mediaMetadata.artists.joinToString { it.name },
+                            mediaMetadata.album?.title,
                             mediaMetadata.duration,
                         )
                         result.onSuccess { lyrics ->
@@ -121,6 +133,7 @@ constructor(
         mediaId: String,
         songTitle: String,
         songArtists: String,
+        albumName: String?,
         duration: Int,
         callback: (LyricsResult) -> Unit,
     ) {
@@ -153,7 +166,13 @@ constructor(
             lyricsProviders.forEach { provider ->
                 if (provider.isEnabled(context)) {
                     try {
-                        provider.getAllLyrics(mediaId, songTitle, songArtists, duration) { lyrics ->
+                        provider.getAllLyrics(
+                            mediaId,
+                            songTitle,
+                            songArtists,
+                            albumName,
+                            duration
+                        ) { lyrics ->
                             val result = LyricsResult(provider.name, lyrics)
                             allResult += result
                             callback(result)

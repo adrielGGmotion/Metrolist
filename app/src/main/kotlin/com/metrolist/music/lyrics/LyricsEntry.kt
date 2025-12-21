@@ -13,3 +13,16 @@ data class LyricsEntry(
         val HEAD_LYRICS_ENTRY = LyricsEntry(0L, "")
     }
 }
+
+data class AppleMusicLyricsLine(
+    val time: Long,
+    val words: List<AppleMusicWord>,
+    val speaker: String?
+)
+
+data class AppleMusicWord(
+    val startTime: Long,
+    val endTime: Long,
+    val word: String,
+    val trailingSpace: Boolean
+)

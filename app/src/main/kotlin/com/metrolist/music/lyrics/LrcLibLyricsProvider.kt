@@ -15,6 +15,7 @@ object LrcLibLyricsProvider : LyricsProvider {
         id: String,
         title: String,
         artist: String,
+        albumName: String?,
         duration: Int,
     ): Result<String> = LrcLib.getLyrics(title, artist, duration)
 
@@ -22,6 +23,7 @@ object LrcLibLyricsProvider : LyricsProvider {
         id: String,
         title: String,
         artist: String,
+        albumName: String?,
         duration: Int,
         callback: (String) -> Unit,
     ) {
