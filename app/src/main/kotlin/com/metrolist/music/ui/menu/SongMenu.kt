@@ -60,6 +60,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
@@ -468,6 +469,7 @@ fun SongMenu(
                                     if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
 
                                 token?.let {
+                                    Log.d("SongMenu", "Sending feedback to YouTube with token: $it")
                                     coroutineScope.launch {
                                         YouTube.feedback(listOf(it))
                                     }
