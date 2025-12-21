@@ -29,6 +29,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.compose.material3.MaterialTheme
 import kotlinx.coroutines.launch
+import androidx.compose.animation.core.tween
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -102,7 +103,10 @@ fun WrappedScreen(navController: NavController) {
             when (page) {
                 0 -> WrappedIntro {
                     scope.launch {
-                        pagerState.animateScrollToPage(1)
+                        pagerState.animateScrollToPage(
+                            page = 1,
+                            animationSpec = tween(durationMillis = 1000)
+                        )
                     }
                 }
                 else -> WrappedPage(

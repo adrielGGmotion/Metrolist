@@ -105,7 +105,7 @@ fun WrappedIntro(onNext: () -> Unit) {
             visible = visible,
             enter = fadeIn(animationSpec = tween(durationMillis = 1500, delayMillis = 800)),
             modifier = Modifier
-                .align(Alignment.CenterStart)
+                .align(Alignment.TopStart)
                 .rotate(-90f)
         ) {
             BoxWithConstraints {
@@ -113,7 +113,7 @@ fun WrappedIntro(onNext: () -> Unit) {
                     text = "2025",
                     style = TextStyle(
                         fontFamily = bbhBartle,
-                        fontSize = 200.sp, // Large initial size
+                        fontSize = 400.sp, // Large initial size
                         color = Color.White,
                         drawStyle = Stroke(width = 2f)
                     ),
@@ -122,20 +122,6 @@ fun WrappedIntro(onNext: () -> Unit) {
             }
         }
 
-        // Cookie Shape Background
-        AnimatedVisibility(
-            visible = visible,
-            enter = scaleIn(animationSpec = spring(dampingRatio = 0.6f, stiffness = 50f), initialScale = 0.3f) + fadeIn(animationSpec = tween(500)),
-            modifier = Modifier.align(Alignment.BottomEnd)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .fillMaxHeight(0.35f)
-                    .clip(CookieShape())
-                    .background(Color.DarkGray)
-            )
-        }
 
 
         // Main Content Column
