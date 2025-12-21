@@ -37,6 +37,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
+import android.util.Log
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.compose.material3.CardDefaults
 import com.metrolist.innertube.YouTube
@@ -62,6 +63,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+
+private const val TAG = "SelectionSongsMenu"
 
 @SuppressLint("MutableCollectionMutableState")
 @Composable
@@ -347,6 +350,7 @@ fun SelectionSongMenu(
                         },
                         onClick = {
                             if (allInLibrary) {
+                                Log.d(TAG, "Removing ${songSelection.size} songs from library")
                                 database.query {
                                     songSelection.forEach { song ->
                                         inLibrary(song.id, null)
@@ -355,11 +359,13 @@ fun SelectionSongMenu(
                                 coroutineScope.launch {
                                     val tokens =
                                         songSelection.mapNotNull { it.song.libraryRemoveToken }
+                                    Log.d(TAG, "Sending remove feedback for ${tokens.size} tokens")
                                     tokens.chunked(20).forEach {
                                         YouTube.feedback(it)
                                     }
                                 }
                             } else {
+                                Log.d(TAG, "Adding ${songSelection.size} songs to library")
                                 database.transaction {
                                     songSelection.forEach { song ->
                                         insert(song.toMediaMetadata())
@@ -370,6 +376,7 @@ fun SelectionSongMenu(
                                     val tokens =
                                         songSelection.filter { it.song.inLibrary == null }
                                             .mapNotNull { it.song.libraryAddToken }
+                                    Log.d(TAG, "Sending add feedback for ${tokens.size} tokens")
                                     tokens.chunked(20).forEach {
                                         YouTube.feedback(it)
                                     }

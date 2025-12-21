@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
+import android.util.Log
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -87,6 +88,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+
+private const val TAG = "YouTubeSongMenu"
 
 @SuppressLint("MutableCollectionMutableState")
 @Composable
@@ -388,9 +391,10 @@ fun YouTubeSongMenu(
                                 val isInLibrary = librarySong?.song?.inLibrary != null
                                 val token =
                                     if (isInLibrary) song.libraryRemoveToken else song.libraryAddToken
-
+                                Log.d(TAG, "YouTubeSongMenu: songId=${song.id}, isInLibrary=$isInLibrary, token=$token")
                                 token?.let {
                                     coroutineScope.launch {
+                                        Log.d(TAG, "YouTubeSongMenu: Sending feedback with token $it")
                                         YouTube.feedback(listOf(it))
                                     }
                                 }

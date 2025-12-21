@@ -1,6 +1,7 @@
 package com.metrolist.music.utils
 
 import android.content.Context
+import android.util.Log
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -36,6 +37,7 @@ class SyncUtils @Inject constructor(
     @ApplicationContext context: Context,
     private val database: MusicDatabase,
 ) {
+    private val TAG = "SyncUtils"
     private val syncScope = CoroutineScope(Dispatchers.IO)
 
     private val isSyncingLikedSongs = MutableStateFlow(false)
@@ -69,12 +71,13 @@ class SyncUtils @Inject constructor(
     }
 
     fun likeSong(s: SongEntity) {
-
+        Log.d(TAG, "likeSong: songId=${s.id}, liked=${s.liked}")
         syncScope.launch {
             YouTube.likeVideo(s.id, s.liked)
-
+            Log.d(TAG, "likeSong: YouTube.likeVideo finished.")
             if (lastfmSendLikes) {
                 val dbSong = database.song(s.id).firstOrNull()
+                Log.d(TAG, "likeSong: LastFM.setLoveStatus")
                 LastFM.setLoveStatus(
                     artist = dbSong?.artists?.joinToString { a -> a.name } ?: "",
                     track = s.title,
@@ -87,80 +90,99 @@ class SyncUtils @Inject constructor(
     suspend fun syncLikedSongs() {
         if (isSyncingLikedSongs.value) return
         isSyncingLikedSongs.value = true
+        Log.d(TAG, "syncLikedSongs: Starting")
         try {
             YouTube.playlist("LM").completed().onSuccess { page ->
                 val remoteSongs = page.songs
                 val remoteIds = remoteSongs.map { it.id }
                 val localSongs = database.likedSongsByNameAsc().first()
+                Log.d(TAG, "syncLikedSongs: Remote songs count: ${remoteSongs.size}, Local songs count: ${localSongs.size}")
 
                 localSongs.filterNot { it.id in remoteIds }.forEach {
                     try {
+                        Log.d(TAG, "syncLikedSongs: Removing song locally: ${it.id}")
                         database.transaction { update(it.song.localToggleLike()) }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) { Log.e(TAG, "syncLikedSongs: Failed to remove song", e) }
                 }
 
                 remoteSongs.forEachIndexed { index, song ->
                     try {
                         val dbSong = database.song(song.id).firstOrNull()
                         val timestamp = LocalDateTime.now().minusSeconds(index.toLong())
+                        Log.d(TAG, "syncLikedSongs: Processing remote song: ${song.id}")
                         database.transaction {
                             if (dbSong == null) {
+                                Log.d(TAG, "syncLikedSongs: Inserting new liked song: ${song.id}")
                                 insert(song.toMediaMetadata()) { it.copy(liked = true, likedDate = timestamp) }
                             } else if (!dbSong.song.liked || dbSong.song.likedDate != timestamp) {
+                                Log.d(TAG, "syncLikedSongs: Updating existing song to liked: ${song.id}")
                                 update(dbSong.song.copy(liked = true, likedDate = timestamp))
                             }
                         }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) { Log.e(TAG, "syncLikedSongs: Failed to process song", e) }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncLikedSongs: Exception", e)
         } finally {
             isSyncingLikedSongs.value = false
+            Log.d(TAG, "syncLikedSongs: Finished")
         }
     }
 
     suspend fun syncLibrarySongs() {
         if (isSyncingLibrarySongs.value) return
         isSyncingLibrarySongs.value = true
+        Log.d(TAG, "syncLibrarySongs: Starting")
         try {
             YouTube.library("FEmusic_liked_videos").completed().onSuccess { page ->
                 val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
                 val remoteIds = remoteSongs.map { it.id }.toSet()
                 val localSongs = database.songsByNameAsc().first()
                 val feedbackTokens = mutableListOf<String>()
+                Log.d(TAG, "syncLibrarySongs: Remote songs count: ${remoteSongs.size}, Local songs count: ${localSongs.size}")
 
                 localSongs.filterNot { it.id in remoteIds }.forEach {
                     if (it.song.libraryAddToken != null && it.song.libraryRemoveToken != null) {
+                        Log.d(TAG, "syncLibrarySongs: Adding feedback token for removal: ${it.id}")
                         feedbackTokens.add(it.song.libraryAddToken)
                     } else {
                         try {
+                            Log.d(TAG, "syncLibrarySongs: Removing song from library locally: ${it.id}")
                             database.transaction { update(it.song.toggleLibrary()) }
-                        } catch (e: Exception) { e.printStackTrace() }
+                        } catch (e: Exception) { Log.e(TAG, "syncLibrarySongs: Failed to remove song from library", e) }
                     }
                 }
-                feedbackTokens.chunked(20).forEach { YouTube.feedback(it) }
+                feedbackTokens.chunked(20).forEach {
+                    Log.d(TAG, "syncLibrarySongs: Sending feedback for removal: ${it.joinToString()}")
+                    YouTube.feedback(it)
+                }
 
                 remoteSongs.forEach { song ->
                     try {
                         val dbSong = database.song(song.id).firstOrNull()
+                        Log.d(TAG, "syncLibrarySongs: Processing remote song: ${song.id}")
                         database.transaction {
                             if (dbSong == null) {
+                                Log.d(TAG, "syncLibrarySongs: Inserting new library song: ${song.id}")
                                 insert(song.toMediaMetadata()) { it.toggleLibrary() }
                             } else {
                                 if (dbSong.song.inLibrary == null) {
+                                    Log.d(TAG, "syncLibrarySongs: Updating existing song to inLibrary: ${song.id}")
                                     update(dbSong.song.toggleLibrary())
                                 }
+                                Log.d(TAG, "syncLibrarySongs: Adding library tokens for song: ${song.id}, add=${song.libraryAddToken}, remove=${song.libraryRemoveToken}")
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
                             }
                         }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) { Log.e(TAG, "syncLibrarySongs: Failed to process song", e) }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncLibrarySongs: Exception", e)
         } finally {
             isSyncingLibrarySongs.value = false
+            Log.d(TAG, "syncLibrarySongs: Finished")
         }
     }
 
@@ -187,7 +209,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncUploadedSongs: Exception", e)
         } finally {
             isSyncingUploadedSongs.value = false
         }
@@ -196,32 +218,42 @@ class SyncUtils @Inject constructor(
     suspend fun syncLikedAlbums() {
         if (isSyncingLikedAlbums.value) return
         isSyncingLikedAlbums.value = true
+        Log.d(TAG, "syncLikedAlbums: Starting")
         try {
             YouTube.library("FEmusic_liked_albums").completed().onSuccess { page ->
                 val remoteAlbums = page.items.filterIsInstance<AlbumItem>().reversed()
                 val remoteIds = remoteAlbums.map { it.id }.toSet()
                 val localAlbums = database.albumsLikedByNameAsc().first()
+                Log.d(TAG, "syncLikedAlbums: Remote albums count: ${remoteAlbums.size}, Local albums count: ${localAlbums.size}")
 
-                localAlbums.filterNot { it.id in remoteIds }.forEach { database.update(it.album.localToggleLike()) }
+
+                localAlbums.filterNot { it.id in remoteIds }.forEach {
+                    Log.d(TAG, "syncLikedAlbums: Removing album locally: ${it.id}")
+                    database.update(it.album.localToggleLike())
+                }
 
                 remoteAlbums.forEach { album ->
                     val dbAlbum = database.album(album.id).firstOrNull()
+                    Log.d(TAG, "syncLikedAlbums: Processing remote album: ${album.id}")
                     YouTube.album(album.browseId).onSuccess { albumPage ->
                         if (dbAlbum == null) {
+                            Log.d(TAG, "syncLikedAlbums: Inserting new liked album: ${album.id}")
                             database.insert(albumPage)
                             database.album(album.id).firstOrNull()?.let { newDbAlbum ->
                                 database.update(newDbAlbum.album.localToggleLike())
                             }
                         } else if (dbAlbum.album.bookmarkedAt == null) {
+                            Log.d(TAG, "syncLikedAlbums: Updating existing album to liked: ${album.id}")
                             database.update(dbAlbum.album.localToggleLike())
                         }
                     }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncLikedAlbums: Exception", e)
         } finally {
             isSyncingLikedAlbums.value = false
+            Log.d(TAG, "syncLikedAlbums: Finished")
         }
     }
 
@@ -247,11 +279,11 @@ class SyncUtils @Inject constructor(
                         } else if (!dbAlbum.album.isUploaded) {
                             database.update(dbAlbum.album.toggleUploaded())
                         }
-                    }.onFailure { reportException(it) }
+                    }.onFailure { Log.e(TAG, "syncUploadedAlbums: Failed to get album page", it) }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncUploadedAlbums: Exception", e)
         } finally {
             isSyncingUploadedAlbums.value = false
         }
@@ -288,7 +320,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncArtistsSubscriptions: Exception", e)
         } finally {
             isSyncingArtists.value = false
         }
@@ -329,7 +361,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncSavedPlaylists: Exception", e)
         } finally {
             isSyncingPlaylists.value = false
         }
@@ -359,7 +391,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncPlaylist: Exception", e)
         }
     }
 
@@ -372,26 +404,26 @@ class SyncUtils @Inject constructor(
             val savedPlaylists = database.playlistsByNameAsc().first()
 
             likedSongs.forEach {
-                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { e.printStackTrace() }
+                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { Log.e(TAG, "clearAllSyncedContent: Failed to clear liked song", e) }
             }
             librarySongs.forEach {
                 if (it.song.inLibrary != null) {
-                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { e.printStackTrace() }
+                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { Log.e(TAG, "clearAllSyncedContent: Failed to clear library song", e) }
                 }
             }
             likedAlbums.forEach {
-                try { database.transaction { update(it.album.copy(bookmarkedAt = null)) } } catch (e: Exception) { e.printStackTrace() }
+                try { database.transaction { update(it.album.copy(bookmarkedAt = null)) } } catch (e: Exception) { Log.e(TAG, "clearAllSyncedContent: Failed to clear liked album", e) }
             }
             subscribedArtists.forEach {
-                try { database.transaction { update(it.artist.copy(bookmarkedAt = null)) } } catch (e: Exception) { e.printStackTrace() }
+                try { database.transaction { update(it.artist.copy(bookmarkedAt = null)) } } catch (e: Exception) { Log.e(TAG, "clearAllSyncedContent: Failed to clear subscribed artist", e) }
             }
             savedPlaylists.forEach {
                 if (it.playlist.browseId != null) {
-                    try { database.transaction { delete(it.playlist) } } catch (e: Exception) { e.printStackTrace() }
+                    try { database.transaction { delete(it.playlist) } } catch (e: Exception) { Log.e(TAG, "clearAllSyncedContent: Failed to clear saved playlist", e) }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "clearAllSyncedContent: Exception", e)
         }
     }
 }
