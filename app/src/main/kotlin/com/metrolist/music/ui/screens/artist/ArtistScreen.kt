@@ -317,9 +317,28 @@ fun ArtistScreen(
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    fontSize = 32.sp,
-                                    modifier = Modifier.padding(bottom = 16.dp)
+                                    fontSize = 32.sp
                                 )
+
+                                // Subscriber Count
+                                viewModel.subscriberCount?.let {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                                    ) {
+                                        // TODO: Replace with a more suitable icon when one becomes available
+                                        Icon(
+                                            painter = painterResource(com.metrolist.music.R.drawable.person),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = it,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                    }
+                                }
 
                                 // Buttons Row
                                 Row(

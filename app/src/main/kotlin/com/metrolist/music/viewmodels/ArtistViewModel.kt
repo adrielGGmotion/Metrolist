@@ -40,6 +40,7 @@ class ArtistViewModel @Inject constructor(
 ) : ViewModel() {
     val artistId = savedStateHandle.get<String>("artistId")!!
     var artistPage by mutableStateOf<ArtistPage?>(null)
+    var subscriberCount by mutableStateOf<String?>(null)
     val libraryArtist = database.artist(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
     val librarySongs = context.dataStore.data
@@ -84,6 +85,18 @@ class ArtistViewModel @Inject constructor(
                         }
 
                     artistPage = page.copy(sections = filteredSections)
+
+                    page.artist.channelId?.let { channelId ->
+                        viewModelScope.launch {
+                            YouTube.getMediaInfo(channelId)
+                                .onSuccess { mediaInfo ->
+                                    subscriberCount = mediaInfo.subscribers
+                                }
+                                .onFailure {
+                                    reportException(it)
+                                }
+                        }
+                    }
                 }.onFailure {
                     reportException(it)
                 }
