@@ -35,23 +35,35 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.random.Random
 import com.metrolist.music.R
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import com.metrolist.music.ui.theme.bbh_bartle
 import com.metrolist.music.ui.screens.wrapped.WrappedRepository
@@ -91,8 +103,7 @@ fun WrappedScreen(navController: NavController) {
     val screens = listOf(
         "Welcome screen",
         "Minutes intro screen",
-        "Minutes listened (Reveal)",
-        "Minutes listened (Total)",
+        "Minutes listened",
         "Amount of songs listened (all of them)",
         "Most listened song",
         "Most listened song listened amount",
@@ -170,8 +181,7 @@ fun WrappedScreen(navController: NavController) {
                     },
                     manager = manager
                 )
-                2 -> WrappedMinutesReveal(messagePair = messagePair)
-                3 -> WrappedMinutesTotal(
+                2 -> WrappedMinutesTotal(
                     messagePair = messagePair,
                     totalMinutes = totalMinutes
                 )
@@ -201,46 +211,139 @@ fun WrappedMinutesTotal(messagePair: MessagePair?, totalMinutes: Long) {
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = messagePair?.reveal ?: "",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedDecorativeElement(
             modifier = Modifier
-                .size(200.dp)
-                .background(
-                    MaterialTheme.colorScheme.primaryContainer,
-                    shape = CircleShape
-                )
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .size(50.dp)
+        )
+        AnimatedDecorativeElement(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(80.dp)
+        )
+        AnimatedDecorativeElement(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+                .size(60.dp)
+        )
+        AnimatedDecorativeElement(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .size(70.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = messagePair?.tease ?: "",
+                modifier = Modifier.padding(horizontal = 24.dp),
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+            )
 
-        Text(
-            text = animatedMinutes.value.toInt().toString(),
-            modifier = Modifier.padding(horizontal = 16.dp),
-            style = MaterialTheme.typography.displayLarge.copy(
+            Spacer(modifier = Modifier.height(32.dp))
+
+            val text = animatedMinutes.value.toInt().toString()
+            val textMeasurer = rememberTextMeasurer()
+            val density = LocalDensity.current
+            val baseStyle = MaterialTheme.typography.displayLarge.copy(
                 color = Color.White,
-                fontSize = 96.sp,
-                lineHeight = 104.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 fontFamily = bbh_bartle,
                 drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = 2f
+                    width = with(density) { 2.dp.toPx() }
                 )
             )
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                val textStyle = remember(totalMinutes, maxWidth) {
+                    val finalText = totalMinutes.toString()
+                    var style = baseStyle.copy(fontSize = 96.sp)
+                    var textWidth = textMeasurer.measure(finalText, style).size.width
+                    while (textWidth > constraints.maxWidth) {
+                        val newFontSize = style.fontSize * 0.95f
+                        style = style.copy(fontSize = newFontSize)
+                        textWidth = textMeasurer.measure(finalText, style).size.width
+                    }
+                    style.copy(lineHeight = style.fontSize * 1.08f)
+                }
+
+                Text(
+                    text = text,
+                    style = textStyle,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = messagePair?.reveal ?: "",
+                modifier = Modifier.padding(horizontal = 24.dp),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = Color.White.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center
+                )
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = { /* TODO: Share action */ },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                )
+            ) {
+                Text(
+                    text = "Share",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedDecorativeElement(modifier: Modifier = Modifier) {
+    val rotation = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        delay(Random.nextLong(500)) // Random delay for staggered effect
+        rotation.animateTo(
+            targetValue = 360f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessVeryLow
+            )
+        )
+    }
+
+    Canvas(modifier = modifier.graphicsLayer { rotationZ = rotation.value }) {
+        drawArc(
+            color = Color.White.copy(alpha = 0.2f),
+            startAngle = 0f,
+            sweepAngle = 90f,
+            useCenter = false,
+            style = Stroke(width = 2.dp.toPx())
         )
     }
 }
@@ -270,36 +373,6 @@ fun WrappedMinutesTease(
         ) {
             Text(
                 text = messagePair?.tease ?: "",
-                modifier = Modifier.padding(horizontal = 24.dp),
-                color = Color.White,
-                fontSize = 30.sp,
-                lineHeight = 34.sp,
-                textAlign = TextAlign.Center,
-                fontFamily = try {
-                    bbh_bartle
-                } catch (e: Exception) {
-                    FontFamily.Default
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun WrappedMinutesReveal(messagePair: MessagePair?) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        AnimatedVisibility(
-            visible = messagePair != null,
-            enter = fadeIn(animationSpec = tween(1000)) + scaleIn(
-                initialScale = 0.9f,
-                animationSpec = tween(1000)
-            )
-        ) {
-            Text(
-                text = messagePair?.reveal ?: "",
                 modifier = Modifier.padding(horizontal = 24.dp),
                 color = Color.White,
                 fontSize = 30.sp,
