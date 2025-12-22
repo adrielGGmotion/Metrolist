@@ -35,8 +35,12 @@ class WrappedManager(
     private val _topArtists = MutableStateFlow<List<Artist>>(emptyList())
     val topArtists = _topArtists.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading.asStateFlow()
+
     fun loadData() {
         scope.launch {
+            _isLoading.value = true
             _accountInfo.value = YouTube.accountInfo().getOrNull()
 
             val fromTimestamp = Calendar.getInstance().apply {
@@ -73,6 +77,7 @@ class WrappedManager(
 
             val totalMinutes = totalSeconds / 60
             _totalMinutes.value = totalMinutes
+            _isLoading.value = false
         }
     }
 }

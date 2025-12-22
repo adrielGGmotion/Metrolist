@@ -32,19 +32,39 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.metrolist.music.db.entities.Song
-import kotlinx.coroutines.delay
+import com.metrolist.music.ui.screens.wrapped.components.AnimatedDecorativeElement
+import kotlin.random.Random
 
 @Composable
-fun WrappedTopSongScreen(topSong: Song?) {
+fun WrappedTopSongScreen(topSong: Song?, isVisible: Boolean) {
     var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(200)
-        visible = true
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            visible = true
+        }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.align(Alignment.TopStart)) {
+            repeat(3) {
+                AnimatedDecorativeElement(
+                    Modifier.padding(start = (Random.nextInt(0, 100)).dp, top = (Random.nextInt(0, 100)).dp).size((Random.nextInt(20, 80)).dp),
+                    isVisible
+                )
+            }
+        }
+        Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+            repeat(4) {
+                AnimatedDecorativeElement(
+                    Modifier.padding(end = (Random.nextInt(0, 120)).dp, bottom = (Random.nextInt(0, 120)).dp).size((Random.nextInt(20, 90)).dp),
+                    isVisible
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -100,6 +120,20 @@ fun WrappedTopSongScreen(topSong: Song?) {
         ) {
             Text(
                 text = topSong?.artists?.joinToString(", ") { it.name } ?: "",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = tween(1000, delayMillis = 1000)) + slideInVertically(animationSpec = tween(1000, delayMillis = 1000))
+        ) {
+            Text(
+                text = "You've listened for ${topSong?.timeListened?.div(60000)} minutes",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center

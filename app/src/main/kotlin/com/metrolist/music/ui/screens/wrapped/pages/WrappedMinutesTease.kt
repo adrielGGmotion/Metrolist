@@ -23,7 +23,12 @@ import com.metrolist.music.ui.theme.bbh_bartle
 import kotlinx.coroutines.delay
 
 @Composable
-fun WrappedMinutesTease(messagePair: MessagePair?, onNavigateForward: () -> Unit, manager: WrappedManager) {
+fun WrappedMinutesTease(
+    messagePair: MessagePair?,
+    onNavigateForward: () -> Unit,
+    manager: WrappedManager,
+    isLoading: Boolean
+) {
     LaunchedEffect(Unit) {
         manager.loadData()
         delay(3500)
@@ -31,7 +36,7 @@ fun WrappedMinutesTease(messagePair: MessagePair?, onNavigateForward: () -> Unit
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         AnimatedVisibility(
-            visible = messagePair != null,
+            visible = messagePair != null && !isLoading,
             enter = fadeIn(tween(1000)) + scaleIn(initialScale = 0.9f, animationSpec = tween(1000))
         ) {
             Text(

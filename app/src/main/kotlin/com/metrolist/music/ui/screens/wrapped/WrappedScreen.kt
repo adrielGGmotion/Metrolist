@@ -72,6 +72,7 @@ fun WrappedScreen(navController: NavController) {
     }
     val pagerState = rememberPagerState(pageCount = { screens.size })
     val totalMinutes by manager.totalMinutes.collectAsState(initial = 0L)
+    val isLoading by manager.isLoading.collectAsState()
     val accountInfo by manager.accountInfo.collectAsState()
     val topSongs by manager.topSongs.collectAsState()
     val topArtists by manager.topArtists.collectAsState()
@@ -104,16 +105,29 @@ fun WrappedScreen(navController: NavController) {
                 1 -> WrappedMinutesTease(
                     messagePair = messagePair,
                     onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 2) } },
-                    manager = manager
+                    manager = manager,
+                    isLoading = isLoading
                 )
                 2 -> WrappedMinutesScreen(
                     messagePair = messagePair, totalMinutes = totalMinutes,
-                    accountInfo = accountInfo, isVisible = pagerState.currentPage == 2
+                    isVisible = pagerState.currentPage == 2
                 )
-                3 -> WrappedTopSongScreen(topSong = topSongs.firstOrNull())
-                4 -> WrappedTop5SongsScreen(topSongs = topSongs)
-                5 -> WrappedTopArtistScreen(topArtist = topArtists.firstOrNull())
-                6 -> WrappedTop5ArtistsScreen(topArtists = topArtists)
+                3 -> WrappedTopSongScreen(
+                    topSong = topSongs.firstOrNull(),
+                    isVisible = pagerState.currentPage == 3
+                )
+                4 -> WrappedTop5SongsScreen(
+                    topSongs = topSongs,
+                    isVisible = pagerState.currentPage == 4
+                )
+                5 -> WrappedTopArtistScreen(
+                    topArtist = topArtists.firstOrNull(),
+                    isVisible = pagerState.currentPage == 5
+                )
+                6 -> WrappedTop5ArtistsScreen(
+                    topArtists = topArtists,
+                    isVisible = pagerState.currentPage == 6
+                )
                 7 -> WrappedEndScreen()
             }
         }

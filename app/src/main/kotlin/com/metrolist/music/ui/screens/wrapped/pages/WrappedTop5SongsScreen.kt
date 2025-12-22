@@ -29,56 +29,79 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.ui.screens.wrapped.components.AnimatedDecorativeElement
 import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 @Composable
-fun WrappedTop5SongsScreen(topSongs: List<Song>) {
+fun WrappedTop5SongsScreen(topSongs: List<Song>, isVisible: Boolean) {
     var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(200)
-        visible = true
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            visible = true
+        }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(animationSpec = tween(1000, delayMillis = 200)) + slideInVertically(animationSpec = tween(1000, delayMillis = 200))
-        ) {
-            Text(
-                text = "Your top songs of the year",
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.align(Alignment.TopEnd)) {
+            repeat(4) {
+                AnimatedDecorativeElement(
+                    Modifier.padding(end = (Random.nextInt(0, 100)).dp, top = (Random.nextInt(0, 100)).dp).size((Random.nextInt(20, 80)).dp),
+                    isVisible = isVisible
+                )
+            }
+        }
+        Box(modifier = Modifier.align(Alignment.BottomStart)) {
+            repeat(3) {
+                AnimatedDecorativeElement(
+                    Modifier.padding(start = (Random.nextInt(0, 120)).dp, bottom = (Random.nextInt(0, 120)).dp).size((Random.nextInt(20, 90)).dp),
+                    isVisible = isVisible
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        topSongs.forEachIndexed { index, song ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(animationSpec = tween(1000, delayMillis = 400 + (index * 200))) + slideInVertically(animationSpec = tween(1000, delayMillis = 400 + (index * 200)))
+                enter = fadeIn(animationSpec = tween(1000, delayMillis = 200)) + slideInVertically(animationSpec = tween(1000, delayMillis = 200))
             ) {
-                TopSongItem(song = song, rank = index + 1)
+                Text(
+                    text = "Your top songs of the year",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            topSongs.forEachIndexed { index, song ->
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(animationSpec = tween(1000, delayMillis = 400 + (index * 200))) + slideInVertically(animationSpec = tween(1000, delayMillis = 400 + (index * 200)))
+                ) {
+                    TopSongItem(song = song, rank = index + 1)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
 
 @Composable
-private fun TopSongItem(song: Song, rank: Int) {
+fun TopSongItem(song: Song, rank: Int) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "#$rank",

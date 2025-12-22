@@ -35,11 +35,12 @@ import com.metrolist.music.db.entities.Artist
 import kotlinx.coroutines.delay
 
 @Composable
-fun WrappedTopArtistScreen(topArtist: Artist?) {
+fun WrappedTopArtistScreen(topArtist: Artist?, isVisible: Boolean) {
     var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(200)
-        visible = true
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            visible = true
+        }
     }
 
     Column(
