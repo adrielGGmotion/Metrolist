@@ -43,6 +43,15 @@ import com.metrolist.music.R
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import com.metrolist.music.ui.theme.bbh_bartle
 import com.metrolist.music.ui.screens.wrapped.WrappedRepository
@@ -162,6 +171,10 @@ fun WrappedScreen(navController: NavController) {
                     manager = manager
                 )
                 2 -> WrappedMinutesReveal(messagePair = messagePair)
+                3 -> WrappedMinutesTotal(
+                    messagePair = messagePair,
+                    totalMinutes = totalMinutes
+                )
                 else -> WrappedPage(
                     name = screens[page],
                     number = page + 1,
@@ -169,6 +182,66 @@ fun WrappedScreen(navController: NavController) {
                 )
             }
         }
+    }
+}
+
+@Composable
+fun WrappedMinutesTotal(messagePair: MessagePair?, totalMinutes: Long) {
+    val animatedMinutes = remember { Animatable(0f) }
+
+    LaunchedEffect(totalMinutes) {
+        if (totalMinutes > 0) {
+            animatedMinutes.animateTo(
+                targetValue = totalMinutes.toFloat(),
+                animationSpec = tween(
+                    durationMillis = 1500,
+                    easing = FastOutSlowInEasing
+                )
+            )
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = messagePair?.reveal ?: "",
+            style = MaterialTheme.typography.headlineSmall.copy(
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .background(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    shape = CircleShape
+                )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = animatedMinutes.value.toInt().toString(),
+            modifier = Modifier.padding(horizontal = 16.dp),
+            style = MaterialTheme.typography.displayLarge.copy(
+                color = Color.White,
+                fontSize = 96.sp,
+                lineHeight = 104.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                fontFamily = bbh_bartle,
+                drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 2f
+                )
+            )
+        )
     }
 }
 
