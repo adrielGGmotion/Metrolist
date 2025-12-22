@@ -1,6 +1,7 @@
 package com.metrolist.music.ui.screens.wrapped
 
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.AccountInfo
 import com.metrolist.music.db.DatabaseDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,8 +23,13 @@ class WrappedManager(
     private val _totalMinutes = MutableStateFlow<Long?>(null)
     val totalMinutes = _totalMinutes.asStateFlow().filterNotNull()
 
+    private val _accountInfo = MutableStateFlow<AccountInfo?>(null)
+    val accountInfo = _accountInfo.asStateFlow()
+
     fun loadData() {
         scope.launch {
+            _accountInfo.value = YouTube.accountInfo().getOrNull()
+
             val seenSongIds = mutableSetOf<String>()
             var totalSeconds = 0L
 
