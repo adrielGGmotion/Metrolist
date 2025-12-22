@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.db.entities.SongWithStats
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,7 +30,7 @@ class WrappedManager(
     private val _accountInfo = MutableStateFlow<AccountInfo?>(null)
     val accountInfo = _accountInfo.asStateFlow()
 
-    private val _topSongs = MutableStateFlow<List<Song>>(emptyList())
+    private val _topSongs = MutableStateFlow<List<SongWithStats>>(emptyList())
     val topSongs = _topSongs.asStateFlow()
 
     private val _topArtists = MutableStateFlow<List<Artist>>(emptyList())
@@ -50,7 +51,7 @@ class WrappedManager(
                 set(Calendar.SECOND, 0)
             }.timeInMillis
 
-            _topSongs.value = databaseDao.mostPlayedSongs(fromTimestamp, limit = 5).first()
+            _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 5).first()
             _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5).first()
 
             val seenSongIds = mutableSetOf<String>()

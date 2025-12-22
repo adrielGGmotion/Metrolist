@@ -33,13 +33,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.metrolist.music.db.entities.Song
+import com.metrolist.music.db.entities.SongWithStats
 import com.metrolist.music.ui.screens.wrapped.components.AnimatedDecorativeElement
-import kotlinx.coroutines.delay
 import kotlin.random.Random
 
 @Composable
-fun WrappedTop5SongsScreen(topSongs: List<Song>, isVisible: Boolean) {
+fun WrappedTop5SongsScreen(topSongs: List<SongWithStats>, isVisible: Boolean) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(isVisible) {
         if (isVisible) {
@@ -101,7 +100,7 @@ fun WrappedTop5SongsScreen(topSongs: List<Song>, isVisible: Boolean) {
 }
 
 @Composable
-fun TopSongItem(song: Song, rank: Int) {
+fun TopSongItem(song: SongWithStats, rank: Int) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "#$rank",
@@ -112,7 +111,7 @@ fun TopSongItem(song: Song, rank: Int) {
         )
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data(song.song.thumbnailUrl)
+                .data(song.thumbnailUrl)
                 .build(),
             contentDescription = "Album art",
             modifier = Modifier
@@ -122,13 +121,13 @@ fun TopSongItem(song: Song, rank: Int) {
         )
         Column(modifier = Modifier.padding(start = 16.dp)) {
             Text(
-                text = song.song.title,
+                text = song.title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = song.artists.joinToString(", ") { it.name },
+                text = "${song.timeListened?.div(60000) ?: 0} minutes",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.8f)
             )
