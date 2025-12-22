@@ -8,9 +8,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import com.metrolist.music.db.entities.Artist
+import com.metrolist.music.db.entities.Song
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 
 class WrappedManager(
     private val databaseDao: DatabaseDao,
@@ -26,9 +29,25 @@ class WrappedManager(
     private val _accountInfo = MutableStateFlow<AccountInfo?>(null)
     val accountInfo = _accountInfo.asStateFlow()
 
+    private val _topSongs = MutableStateFlow<List<Song>>(emptyList())
+    val topSongs = _topSongs.asStateFlow()
+
+    private val _topArtists = MutableStateFlow<List<Artist>>(emptyList())
+    val topArtists = _topArtists.asStateFlow()
+
     fun loadData() {
         scope.launch {
             _accountInfo.value = YouTube.accountInfo().getOrNull()
+
+            val fromTimestamp = Calendar.getInstance().apply {
+                set(Calendar.DAY_OF_YEAR, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+            }.timeInMillis
+
+            _topSongs.value = databaseDao.mostPlayedSongs(fromTimestamp, limit = 5).first()
+            _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5).first()
 
             val seenSongIds = mutableSetOf<String>()
             var totalSeconds = 0L
