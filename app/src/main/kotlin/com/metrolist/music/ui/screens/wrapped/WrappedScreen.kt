@@ -29,10 +29,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.metrolist.music.R
@@ -41,6 +44,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.compose.material3.MaterialTheme
 import com.metrolist.music.ui.theme.bbh_bartle
+import com.metrolist.music.ui.screens.wrapped.WrappedRepository
+import com.metrolist.music.ui.screens.wrapped.MessagePair
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -81,6 +86,11 @@ fun WrappedScreen(navController: NavController) {
         "Goodbye screen"
     )
     val pagerState = rememberPagerState(pageCount = { screens.size })
+
+    val totalMinutes by manager.totalMinutes.collectAsState(initial = 0L)
+    val messagePair = rememberSaveable(totalMinutes) {
+        WrappedRepository.getMessage(totalMinutes)
+    }
 
     Scaffold(
         topBar = {
@@ -126,15 +136,19 @@ fun WrappedScreen(navController: NavController) {
                         )
                     }
                 }
-                1 -> WrappedMinutesTease(manager = manager) {
-                    scope.launch {
-                        pagerState.animateScrollToPage(
-                            page = 2,
-                            animationSpec = tween(durationMillis = 1000)
-                        )
-                    }
-                }
-                2 -> WrappedMinutesReveal(manager = manager)
+                1 -> WrappedMinutesTease(
+                    messagePair = messagePair,
+                    onNavigateForward = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(
+                                page = 2,
+                                animationSpec = tween(durationMillis = 1000)
+                            )
+                        }
+                    },
+                    manager = manager
+                )
+                2 -> WrappedMinutesReveal(messagePair = messagePair)
                 else -> WrappedPage(
                     name = screens[page],
                     number = page + 1,
@@ -147,11 +161,10 @@ fun WrappedScreen(navController: NavController) {
 
 @Composable
 fun WrappedMinutesTease(
-    manager: WrappedManager,
-    onNavigateForward: () -> Unit
+    messagePair: MessagePair?,
+    onNavigateForward: () -> Unit,
+    manager: WrappedManager
 ) {
-    val messagePair by manager.messagePair.collectAsState()
-
     LaunchedEffect(Unit) {
         manager.loadData()
         delay(3500)
@@ -171,9 +184,11 @@ fun WrappedMinutesTease(
         ) {
             Text(
                 text = messagePair?.tease ?: "",
+                modifier = Modifier.padding(horizontal = 24.dp),
                 color = Color.White,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 30.sp,
+                lineHeight = 34.sp,
+                textAlign = TextAlign.Center,
                 fontFamily = try {
                     bbh_bartle
                 } catch (e: Exception) {
@@ -185,9 +200,7 @@ fun WrappedMinutesTease(
 }
 
 @Composable
-fun WrappedMinutesReveal(manager: WrappedManager) {
-    val messagePair by manager.messagePair.collectAsState()
-
+fun WrappedMinutesReveal(messagePair: MessagePair?) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -201,9 +214,11 @@ fun WrappedMinutesReveal(manager: WrappedManager) {
         ) {
             Text(
                 text = messagePair?.reveal ?: "",
+                modifier = Modifier.padding(horizontal = 24.dp),
                 color = Color.White,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 30.sp,
+                lineHeight = 34.sp,
+                textAlign = TextAlign.Center,
                 fontFamily = try {
                     bbh_bartle
                 } catch (e: Exception) {

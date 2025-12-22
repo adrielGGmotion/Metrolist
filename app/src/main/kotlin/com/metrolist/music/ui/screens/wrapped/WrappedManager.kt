@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -17,6 +18,9 @@ class WrappedManager(
 
     private val _messagePair = MutableStateFlow<MessagePair?>(null)
     val messagePair = _messagePair.asStateFlow()
+
+    private val _totalMinutes = MutableStateFlow<Long?>(null)
+    val totalMinutes = _totalMinutes.asStateFlow().filterNotNull()
 
     fun loadData() {
         scope.launch {
@@ -43,8 +47,7 @@ class WrappedManager(
             }
 
             val totalMinutes = totalSeconds / 60
-            val message = WrappedRepository.getMessage(totalMinutes)
-            _messagePair.value = message
+            _totalMinutes.value = totalMinutes
         }
     }
 }
