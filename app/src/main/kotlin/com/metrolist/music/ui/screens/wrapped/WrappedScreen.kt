@@ -35,41 +35,43 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import kotlin.random.Random
 import com.metrolist.music.R
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import com.metrolist.music.ui.theme.bbh_bartle
 import com.metrolist.music.ui.screens.wrapped.WrappedRepository
 import com.metrolist.music.ui.screens.wrapped.MessagePair
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.withStyle
+import kotlin.random.Random
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -100,24 +102,26 @@ fun WrappedScreen(navController: NavController) {
         }
     }
 
-    val screens = listOf(
-        "Welcome screen",
-        "Minutes intro screen",
-        "Minutes listened",
-        "Amount of songs listened (all of them)",
-        "Most listened song",
-        "Most listened song listened amount",
-        "List with top 5 most listened songs",
-        "Playlist called \"Metrolist Wrapped\"",
-        "Total amount of albums listened this year",
-        "Most listened album",
-        "Top 5 most listened albums",
-        "Total listened artists amount",
-        "Top 5 artists",
-        "Most listened artist",
-        "\"Thank you for using metrolist\" screen",
-        "Goodbye screen"
-    )
+    val screens = remember {
+        listOf(
+            "Welcome screen",
+            "Minutes intro screen",
+            "Minutes listened",
+            "Amount of songs listened (all of them)",
+            "Most listened song",
+            "Most listened song listened amount",
+            "List with top 5 most listened songs",
+            "Playlist called \"Metrolist Wrapped\"",
+            "Total amount of albums listened this year",
+            "Most listened album",
+            "Top 5 most listened albums",
+            "Total listened artists amount",
+            "Top 5 artists",
+            "Most listened artist",
+            "\"Thank you for using metrolist\" screen",
+            "Goodbye screen"
+        )
+    }
     val pagerState = rememberPagerState(pageCount = { screens.size })
 
     val totalMinutes by manager.totalMinutes.collectAsState(initial = 0L)
@@ -181,9 +185,10 @@ fun WrappedScreen(navController: NavController) {
                     },
                     manager = manager
                 )
-                2 -> WrappedMinutesTotal(
+                2 -> WrappedMinutesScreen(
                     messagePair = messagePair,
-                    totalMinutes = totalMinutes
+                    totalMinutes = totalMinutes,
+                    isVisible = pagerState.currentPage == 2
                 )
                 else -> WrappedPage(
                     name = screens[page],
@@ -192,159 +197,6 @@ fun WrappedScreen(navController: NavController) {
                 )
             }
         }
-    }
-}
-
-@Composable
-fun WrappedMinutesTotal(messagePair: MessagePair?, totalMinutes: Long) {
-    val animatedMinutes = remember { Animatable(0f) }
-
-    LaunchedEffect(totalMinutes) {
-        if (totalMinutes > 0) {
-            animatedMinutes.animateTo(
-                targetValue = totalMinutes.toFloat(),
-                animationSpec = tween(
-                    durationMillis = 1500,
-                    easing = FastOutSlowInEasing
-                )
-            )
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        AnimatedDecorativeElement(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp)
-                .size(50.dp)
-        )
-        AnimatedDecorativeElement(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
-                .size(80.dp)
-        )
-        AnimatedDecorativeElement(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-                .size(60.dp)
-        )
-        AnimatedDecorativeElement(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .size(70.dp)
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = messagePair?.tease ?: "",
-                modifier = Modifier.padding(horizontal = 24.dp),
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    color = Color.White,
-                    textAlign = TextAlign.Center
-                )
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            val text = animatedMinutes.value.toInt().toString()
-            val textMeasurer = rememberTextMeasurer()
-            val density = LocalDensity.current
-            val baseStyle = MaterialTheme.typography.displayLarge.copy(
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                fontFamily = bbh_bartle,
-                drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = with(density) { 2.dp.toPx() }
-                )
-            )
-
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                val textStyle = remember(totalMinutes, maxWidth) {
-                    val finalText = totalMinutes.toString()
-                    var style = baseStyle.copy(fontSize = 96.sp)
-                    var textWidth = textMeasurer.measure(finalText, style).size.width
-                    while (textWidth > constraints.maxWidth) {
-                        val newFontSize = style.fontSize * 0.95f
-                        style = style.copy(fontSize = newFontSize)
-                        textWidth = textMeasurer.measure(finalText, style).size.width
-                    }
-                    style.copy(lineHeight = style.fontSize * 1.08f)
-                }
-
-                Text(
-                    text = text,
-                    style = textStyle,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = messagePair?.reveal ?: "",
-                modifier = Modifier.padding(horizontal = 24.dp),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = Color.White.copy(alpha = 0.8f),
-                    textAlign = TextAlign.Center
-                )
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = { /* TODO: Share action */ },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
-                )
-            ) {
-                Text(
-                    text = "Share",
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AnimatedDecorativeElement(modifier: Modifier = Modifier) {
-    val rotation = remember { Animatable(0f) }
-
-    LaunchedEffect(Unit) {
-        delay(Random.nextLong(500)) // Random delay for staggered effect
-        rotation.animateTo(
-            targetValue = 360f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioLowBouncy,
-                stiffness = Spring.StiffnessVeryLow
-            )
-        )
-    }
-
-    Canvas(modifier = modifier.graphicsLayer { rotationZ = rotation.value }) {
-        drawArc(
-            color = Color.White.copy(alpha = 0.2f),
-            startAngle = 0f,
-            sweepAngle = 90f,
-            useCenter = false,
-            style = Stroke(width = 2.dp.toPx())
-        )
     }
 }
 
@@ -386,6 +238,209 @@ fun WrappedMinutesTease(
             )
         }
     }
+}
+
+@Composable
+fun WrappedMinutesScreen(
+    messagePair: MessagePair?,
+    totalMinutes: Long,
+    isVisible: Boolean
+) {
+    val animatedMinutes = remember { Animatable(0f) }
+    val textMeasurer = rememberTextMeasurer()
+
+    LaunchedEffect(isVisible, totalMinutes) {
+        if (isVisible && totalMinutes > 0) {
+            animatedMinutes.animateTo(
+                targetValue = totalMinutes.toFloat(),
+                animationSpec = tween(
+                    durationMillis = 1500,
+                    easing = FastOutSlowInEasing
+                )
+            )
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.align(Alignment.TopStart)) {
+            repeat(3) {
+                AnimatedDecorativeElement(
+                    modifier = Modifier
+                        .padding(
+                            start = (16 + (it * 30)).dp,
+                            top = (16 + (it * 40)).dp
+                        )
+                        .size((50 + (it * 15)).dp),
+                    isVisible = isVisible
+                )
+            }
+        }
+        Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+            repeat(3) {
+                AnimatedDecorativeElement(
+                    modifier = Modifier
+                        .padding(
+                            end = (16 + (it * 30)).dp,
+                            bottom = (16 + (it * 40)).dp
+                        )
+                        .size((60 + (it * 10)).dp),
+                    isVisible = isVisible
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            FormattedText(
+                text = messagePair?.tease ?: "",
+                modifier = Modifier.padding(horizontal = 24.dp),
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                val density = LocalDensity.current
+                val baseStyle = MaterialTheme.typography.displayLarge.copy(
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    fontFamily = bbh_bartle,
+                    drawStyle = Stroke(width = with(density) { 2.dp.toPx() })
+                )
+                val textStyle = remember(totalMinutes, maxWidth) {
+                    val finalText = totalMinutes.toString()
+                    var style = baseStyle.copy(fontSize = 96.sp)
+                    var textWidth = textMeasurer.measure(finalText, style).size.width
+                    while (textWidth > constraints.maxWidth) {
+                        val newFontSize = style.fontSize * 0.95f
+                        style = style.copy(fontSize = newFontSize)
+                        textWidth = textMeasurer.measure(finalText, style).size.width
+                    }
+                    style.copy(lineHeight = style.fontSize * 1.08f)
+                }
+
+                Text(
+                    text = animatedMinutes.value.toInt().toString(),
+                    style = textStyle,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FormattedText(
+                text = messagePair?.reveal ?: "",
+                modifier = Modifier.padding(horizontal = 24.dp),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = Color.White.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center
+                )
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = { /* TODO: Share action */ },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                )
+            ) {
+                Text(
+                    text = "Share",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedDecorativeElement(
+    modifier: Modifier = Modifier,
+    isVisible: Boolean
+) {
+    val rotation = remember { Animatable(0f) }
+    val shapeType = remember { Random.nextInt(3) }
+
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            delay(Random.nextLong(500))
+            rotation.animateTo(
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = Random.nextInt(1000, 3000)),
+                    repeatMode = RepeatMode.Restart
+                )
+            )
+        }
+    }
+
+    Canvas(modifier = modifier.graphicsLayer { rotationZ = rotation.value }) {
+        val strokeWidth = 2.dp.toPx()
+        when (shapeType) {
+            0 -> drawArc(
+                color = Color.White.copy(alpha = 0.2f),
+                startAngle = 0f,
+                sweepAngle = 90f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth)
+            )
+            1 -> drawCircle(
+                color = Color.White.copy(alpha = 0.2f),
+                style = Stroke(width = strokeWidth)
+            )
+            2 -> drawRect(
+                color = Color.White.copy(alpha = 0.2f),
+                style = Stroke(width = strokeWidth)
+            )
+        }
+    }
+}
+
+@Composable
+fun FormattedText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle
+) {
+    val annotatedString = buildAnnotatedString {
+        val parts = text.split("(?=\\*\\*)|(?<=\\*\\*)".toRegex())
+        var isBold = false
+        for (part in parts) {
+            if (part == "**") {
+                isBold = !isBold
+            } else {
+                if (isBold) {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(part)
+                    }
+                } else {
+                    append(part)
+                }
+            }
+        }
+    }
+
+    Text(
+        text = annotatedString,
+        modifier = modifier,
+        style = style
+    )
 }
 
 @Composable
