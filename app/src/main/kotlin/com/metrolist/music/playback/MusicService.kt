@@ -11,9 +11,14 @@ import coil3.request.SuccessResult
 import coil3.toBitmap
 import kotlinx.coroutines.launch
 import com.metrolist.music.widget.HelloWidget
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.appwidget.AppWidgetManager
 import android.widget.RemoteViews
 import android.app.PendingIntent
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -245,6 +250,7 @@ class MusicService :
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
     private var consecutivePlaybackErr = 0
+    private var retryJob: Job? = null
     
     // Google Cast support
     var castConnectionHandler: CastConnectionHandler? = null
@@ -252,6 +258,36 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val nm = getSystemService(NotificationManager::class.java)
+                nm?.createNotificationChannel(
+                    NotificationChannel(
+                        CHANNEL_ID,
+                        getString(R.string.music_player),
+                        NotificationManager.IMPORTANCE_LOW
+                    )
+                )
+            }
+            val pending = PendingIntent.getActivity(
+                this,
+                0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.music_player))
+                .setContentText("")
+                .setSmallIcon(R.drawable.small_icon)
+                .setContentIntent(pending)
+                .setOngoing(true)
+                .build()
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            reportException(e)
+        }
+
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
                 this,
@@ -327,15 +363,7 @@ class MusicService :
             connectivityObserver.networkStatus.collect { isConnected ->
                 isNetworkConnected.value = isConnected
                 if (isConnected && waitingForNetworkConnection.value) {
-                    // Simple auto-play logic like OuterTune
-                    waitingForNetworkConnection.value = false
-                    if (player.currentMediaItem != null && player.playWhenReady) {
-                        player.prepare()
-                        // Don't start local playback if casting
-                        if (castConnectionHandler?.isCasting?.value != true) {
-                            player.play()
-                        }
-                    }
+                    triggerRetry()
                 }
                 if (isConnected && discordRpc != null && player.isPlaying) {
                     currentSong.value?.let { song ->
@@ -655,7 +683,32 @@ class MusicService :
     }
 
     private fun waitOnNetworkError() {
+        if (waitingForNetworkConnection.value) return
         waitingForNetworkConnection.value = true
+        
+        // Start a retry timer to periodically check if we can resume playback
+        // even if the connectivity observer hasn't notified us of a change
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            while (waitingForNetworkConnection.value) {
+                delay(3000) // Retry every 3 seconds
+                if (isNetworkConnected.value && waitingForNetworkConnection.value) {
+                    triggerRetry()
+                }
+            }
+        }
+    }
+
+    private fun triggerRetry() {
+        waitingForNetworkConnection.value = false
+        retryJob?.cancel()
+        if (player.currentMediaItem != null && player.playWhenReady) {
+            player.prepare()
+            // Don't start local playback if casting
+            if (castConnectionHandler?.isCasting?.value != true) {
+                player.play()
+            }
+        }
     }
 
     private fun skipOnError() {
@@ -836,29 +889,38 @@ class MusicService :
     fun startRadioSeamlessly() {
         val currentMediaMetadata = player.currentMetadata ?: return
 
-        // Save current song
-        val currentSong = player.currentMediaItem
-
-        // Remove other songs from queue
-        if (player.currentMediaItemIndex > 0) {
-            player.removeMediaItems(0, player.currentMediaItemIndex)
-        }
-        if (player.currentMediaItemIndex < player.mediaItemCount - 1) {
-            player.removeMediaItems(player.currentMediaItemIndex + 1, player.mediaItemCount)
-        }
+        val currentIndex = player.currentMediaItemIndex
+        val currentMediaId = currentMediaMetadata.id
 
         scope.launch(SilentHandler) {
             val radioQueue = YouTubeQueue(
-                endpoint = WatchEndpoint(videoId = currentMediaMetadata.id)
+                endpoint = WatchEndpoint(videoId = currentMediaId)
             )
-            val initialStatus = radioQueue.getInitialStatus()
+            val initialStatus = withContext(Dispatchers.IO) {
+                radioQueue.getInitialStatus()
+                    .filterExplicit(dataStore.get(HideExplicitKey, false))
+                    .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+            }
 
             if (initialStatus.title != null) {
                 queueTitle = initialStatus.title
             }
 
-            // Add radio songs after current song
-            player.addMediaItems(initialStatus.items.drop(1))
+            // Filter radio items to exclude current media item
+            val radioItems = initialStatus.items.filter { item ->
+                item.mediaId != currentMediaId
+            }
+
+            if (radioItems.isNotEmpty()) {
+                val itemCount = player.mediaItemCount
+
+                if (itemCount > currentIndex + 1) {
+                    player.removeMediaItems(currentIndex + 1, itemCount)
+                }
+
+                player.addMediaItems(currentIndex + 1, radioItems)
+            }
+
             currentQueue = radioQueue
         }
     }
@@ -1184,12 +1246,13 @@ class MusicService :
             !(dataStore.get(DisableLoadMoreWhenRepeatAllKey, false) && player.repeatMode == REPEAT_MODE_ALL)
         ) {
             scope.launch(SilentHandler) {
-                val mediaItems =
+                val mediaItems = withContext(Dispatchers.IO) {
                     currentQueue.nextPage()
                         .filterExplicit(dataStore.get(HideExplicitKey, false))
                         .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
-                if (player.playbackState != STATE_IDLE) {
-                    player.addMediaItems(mediaItems.drop(1))
+                }
+                if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
+                    player.addMediaItems(mediaItems)
                 }
             }
         }
@@ -1206,6 +1269,12 @@ class MusicService :
         // Save state when playback state changes
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
+        }
+
+        if (playbackState == Player.STATE_READY) {
+            consecutivePlaybackErr = 0
+            waitingForNetworkConnection.value = false
+            retryJob?.cancel()
         }
 
         if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
@@ -1329,19 +1398,33 @@ class MusicService :
         }
     }
 
+    private fun isNetworkRelatedError(error: PlaybackException): Boolean {
+        return error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                error.cause is java.io.IOException ||
+                (error.cause as? PlaybackException)?.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+    }
+
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
-        val isConnectionError = (error.cause?.cause is PlaybackException) &&
-                (error.cause?.cause as PlaybackException).errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
-
-        if (!isNetworkConnected.value || isConnectionError) {
+        
+        Log.w(TAG, "Player error occurred: ${error.message}", error)
+        reportException(error)
+        
+        if (!isNetworkConnected.value || isNetworkRelatedError(error)) {
+            Log.d(TAG, "Network-related error detected, waiting for connection")
             waitOnNetworkError()
             return
         }
 
         if (dataStore.get(AutoSkipNextOnErrorKey, false)) {
+            Log.d(TAG, "Auto-skipping to next track due to error")
             skipOnError()
         } else {
+            Log.d(TAG, "Stopping playback due to error")
             stopOnError()
         }
     }
@@ -1530,62 +1613,76 @@ class MusicService :
 
     private fun saveQueueToDisk() {
         if (player.mediaItemCount == 0) {
+            Log.d(TAG, "Skipping queue save - no media items")
             return
         }
 
-        // Save current queue with proper type information
-        val persistQueue = currentQueue.toPersistQueue(
-            title = queueTitle,
-            items = player.mediaItems.mapNotNull { it.metadata },
-            mediaItemIndex = player.currentMediaItemIndex,
-            position = player.currentPosition
-        )
-
-        val persistAutomix =
-            PersistQueue(
-                title = "automix",
-                items = automixItems.value.mapNotNull { it.metadata },
-                mediaItemIndex = 0,
-                position = 0,
+        try {
+            // Save current queue with proper type information
+            val persistQueue = currentQueue.toPersistQueue(
+                title = queueTitle,
+                items = player.mediaItems.mapNotNull { it.metadata },
+                mediaItemIndex = player.currentMediaItemIndex,
+                position = player.currentPosition
             )
 
-        // Save player state
-        val persistPlayerState = PersistPlayerState(
-            playWhenReady = player.playWhenReady,
-            repeatMode = player.repeatMode,
-            shuffleModeEnabled = player.shuffleModeEnabled,
-            volume = player.volume,
-            currentPosition = player.currentPosition,
-            currentMediaItemIndex = player.currentMediaItemIndex,
-            playbackState = player.playbackState
-        )
+            val persistAutomix =
+                PersistQueue(
+                    title = "automix",
+                    items = automixItems.value.mapNotNull { it.metadata },
+                    mediaItemIndex = 0,
+                    position = 0,
+                )
 
-        runCatching {
-            filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistQueue)
+            // Save player state
+            val persistPlayerState = PersistPlayerState(
+                playWhenReady = player.playWhenReady,
+                repeatMode = player.repeatMode,
+                shuffleModeEnabled = player.shuffleModeEnabled,
+                volume = player.volume,
+                currentPosition = player.currentPosition,
+                currentMediaItemIndex = player.currentMediaItemIndex,
+                playbackState = player.playbackState
+            )
+
+            runCatching {
+                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
+                    ObjectOutputStream(fos).use { oos ->
+                        oos.writeObject(persistQueue)
+                    }
                 }
+                Log.d(TAG, "Queue saved successfully")
+            }.onFailure {
+                Log.e(TAG, "Failed to save queue", it)
+                reportException(it)
             }
-        }.onFailure {
-            reportException(it)
-        }
-        runCatching {
-            filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistAutomix)
+            
+            runCatching {
+                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
+                    ObjectOutputStream(fos).use { oos ->
+                        oos.writeObject(persistAutomix)
+                    }
                 }
+                Log.d(TAG, "Automix saved successfully")
+            }.onFailure {
+                Log.e(TAG, "Failed to save automix", it)
+                reportException(it)
             }
-        }.onFailure {
-            reportException(it)
-        }
-        runCatching {
-            filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistPlayerState)
+            
+            runCatching {
+                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
+                    ObjectOutputStream(fos).use { oos ->
+                        oos.writeObject(persistPlayerState)
+                    }
                 }
+                Log.d(TAG, "Player state saved successfully")
+            }.onFailure {
+                Log.e(TAG, "Failed to save player state", it)
+                reportException(it)
             }
-        }.onFailure {
-            reportException(it)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during queue save operation", e)
+            reportException(e)
         }
     }
 

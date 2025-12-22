@@ -287,7 +287,8 @@ enum class PreferredLyricsProvider {
 
 enum class PlayerButtonsStyle {
     DEFAULT,
-    PRIMARY
+    PRIMARY,
+    TERTIARY
 }
 
 enum class PlayerBackgroundStyle {
@@ -317,6 +318,7 @@ val LyricsRomanizeKyrgyzKey = booleanPreferencesKey("lyricsRomanizeKyrgyz")
 val LyricsRomanizeMacedonianKey = booleanPreferencesKey("lyricsRomanizeMacedonian")
 val LyricsRomanizeCyrillicByLineKey = booleanPreferencesKey("lyricsRomanizeCyrillicByLine")
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
+val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val RepeatModeKey = intPreferencesKey("repeatMode")
