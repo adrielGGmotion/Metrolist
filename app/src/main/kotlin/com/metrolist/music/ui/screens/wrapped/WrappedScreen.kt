@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -52,6 +53,18 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WrappedScreen(navController: NavController) {
+    val messagePairSaver = Saver<MessagePair, List<Any>>(
+        save = {
+            listOf(it.range.first, it.range.last, it.tease, it.reveal)
+        },
+        restore = {
+            MessagePair(
+                range = (it[0] as Long)..(it[1] as Long),
+                tease = it[2] as String,
+                reveal = it[3] as String
+            )
+        }
+    )
     val view = LocalView.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -88,7 +101,7 @@ fun WrappedScreen(navController: NavController) {
     val pagerState = rememberPagerState(pageCount = { screens.size })
 
     val totalMinutes by manager.totalMinutes.collectAsState(initial = 0L)
-    val messagePair = rememberSaveable(totalMinutes) {
+    val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
         WrappedRepository.getMessage(totalMinutes)
     }
 
