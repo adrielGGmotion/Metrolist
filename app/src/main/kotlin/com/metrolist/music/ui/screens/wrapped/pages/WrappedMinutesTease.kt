@@ -30,7 +30,6 @@ fun WrappedMinutesTease(
     isLoading: Boolean
 ) {
     LaunchedEffect(Unit) {
-        manager.loadData()
         delay(3500)
         onNavigateForward()
     }

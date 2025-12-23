@@ -13,6 +13,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -54,13 +55,16 @@ fun WrappedScreen(navController: NavController) {
     val view = LocalView.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val manager = remember { WrappedManager(getDatabaseDao(context), scope) }
+    val manager = remember { WrappedManager(context, getDatabaseDao(context), scope) }
 
     DisposableEffect(Unit) {
         val window = (view.context as android.app.Activity).window
         val insetsController = WindowCompat.getInsetsController(window, view)
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
-        onDispose { insetsController.show(WindowInsetsCompat.Type.systemBars()) }
+        onDispose {
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+            manager.release()
+        }
     }
 
     val screens = remember {
@@ -77,6 +81,12 @@ fun WrappedScreen(navController: NavController) {
     val topArtists by manager.topArtists.collectAsState()
     val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
         WrappedRepository.getMessage(totalMinutes)
+    }
+
+    LaunchedEffect(pagerState.currentPage, isLoading) {
+        if (!isLoading) {
+            manager.playTrackForPage(pagerState.currentPage)
+        }
     }
 
     Scaffold(
