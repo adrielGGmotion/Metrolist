@@ -54,6 +54,13 @@ class IsolatedAudioController(
                 )
                 .build().apply {
                     repeatMode = Player.REPEAT_MODE_ONE // Loop the track
+                    addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            if (playbackState == Player.STATE_READY) {
+                                seekTo(30000)
+                            }
+                        }
+                    })
                 }
         }
     }

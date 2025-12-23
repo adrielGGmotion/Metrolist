@@ -1488,4 +1488,14 @@ interface DatabaseDao {
     fun checkpoint() {
         raw("PRAGMA wal_checkpoint(FULL)".toSQLiteQuery())
     }
+
+    @Transaction
+    @Query("""
+        SELECT s.* FROM song s
+        INNER JOIN song_artist_map sam ON s.id = sam.songId
+        WHERE sam.artistId = :artistId AND s.id NOT IN (:excludedIds)
+        ORDER BY s.totalPlayTime DESC
+        LIMIT 1
+    """)
+    fun getTopSongForArtist(artistId: String, excludedIds: Set<String>): Flow<Song?>
 }

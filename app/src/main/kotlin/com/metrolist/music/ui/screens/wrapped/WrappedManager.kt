@@ -11,11 +11,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.SongWithStats
+import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_5_ARTISTS
+import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_5_SONGS
+import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_ARTIST
+import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_SONG
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
-import kotlin.random.Random
 
 class WrappedManager(
     context: Context,
@@ -42,6 +46,8 @@ class WrappedManager(
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
 
+    private val pageToSongMap = mutableMapOf<Int, String?>()
+
     init {
         loadData()
     }
@@ -58,8 +64,11 @@ class WrappedManager(
                 set(Calendar.SECOND, 0)
             }.timeInMillis
 
-            _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 5).first()
+            val topSongsResult = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 10).first()
+            _topSongs.value = topSongsResult
             _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5).first()
+
+            assignSongsToPages(topSongsResult)
 
             val seenSongIds = mutableSetOf<String>()
             var totalSeconds = 0L
@@ -89,23 +98,56 @@ class WrappedManager(
         }
     }
 
+    private suspend fun assignSongsToPages(songs: List<SongWithStats>) {
+        if (songs.isEmpty()) return
+
+        val availableSongs = songs.toMutableList()
+        val assignedIds = mutableSetOf<String>()
+
+        // Rule 1: Top Song screen gets the #1 song
+        val topSong = availableSongs.removeFirstOrNull()
+        pageToSongMap[PAGE_TOP_SONG] = topSong?.id
+        topSong?.id?.let { assignedIds.add(it) }
+
+        // Rule 2: Top Artist screen
+        val topArtist = topArtists.value.firstOrNull()
+        if (topArtist != null) {
+            // Find the top artist's most listened to song THAT ISN'T ALREADY ASSIGNED
+            val topArtistSong = databaseDao.getTopSongForArtist(topArtist.id, assignedIds).firstOrNull()
+            if (topArtistSong != null) {
+                pageToSongMap[PAGE_TOP_ARTIST] = topArtistSong.song.id
+                topArtistSong.song.id.let { songId ->
+                    assignedIds.add(songId)
+                    availableSongs.removeAll { it.id == songId }
+                }
+            } else {
+                // Fallback: If no other song, use the next available unassigned song
+                val fallbackSong = availableSongs.removeFirstOrNull()
+                pageToSongMap[PAGE_TOP_ARTIST] = fallbackSong?.id
+                fallbackSong?.id?.let { assignedIds.add(it) }
+            }
+        }
+
+
+        // Assign remaining songs to other screens
+        pageToSongMap[PAGE_TOP_5_SONGS] = availableSongs.removeFirstOrNull()?.id?.also { assignedIds.add(it) }
+        pageToSongMap[PAGE_TOP_5_ARTISTS] = availableSongs.removeFirstOrNull()?.id?.also { assignedIds.add(it) }
+
+        // Default for any other screen (e.g., intro, minutes)
+        val defaultSong = topSong?.id
+        val allPages = (0..7)
+        allPages.forEach { page ->
+            if (!pageToSongMap.containsKey(page)) {
+                pageToSongMap[page] = defaultSong
+            }
+        }
+    }
+
+
     fun playTrackForPage(page: Int) {
         if (isLoading.value) return
-
-        val songIdToPlay = when (page) {
-            WrappedConstants.PAGE_TOP_SONG, WrappedConstants.PAGE_TOP_ARTIST -> topSongs.value.firstOrNull()?.id
-            WrappedConstants.PAGE_TOP_5_ARTISTS -> {
-                if (topArtists.value.size > 1) {
-                    // We can't get the artistId from SongWithStats, so this logic is flawed.
-                    // Instead, we'll just play a random song from the top 5, excluding the first.
-                    topSongs.value.getOrNull(Random.nextInt(1, topSongs.value.size))?.id
-                } else {
-                    topSongs.value.firstOrNull()?.id // Fallback if only one top artist
-                }
-            }
-            else -> topSongs.value.firstOrNull()?.id
-        }
-        audioController.load(songIdToPlay)
+        val songId = pageToSongMap[page]
+        audioController.load(songId)
     }
 
     fun release() {
