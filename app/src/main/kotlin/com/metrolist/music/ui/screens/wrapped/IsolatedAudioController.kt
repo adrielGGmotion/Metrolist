@@ -28,6 +28,7 @@ class IsolatedAudioController(
     private var loadJob: Job? = null
     private var wasHistoryPausedInitially: Boolean = false
     private val connectivityManager = ContextCompat.getSystemService(context, ConnectivityManager::class.java)
+    private var seekPending = false
 
 
     init {
@@ -56,8 +57,9 @@ class IsolatedAudioController(
                     repeatMode = Player.REPEAT_MODE_ONE // Loop the track
                     addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
-                            if (playbackState == Player.STATE_READY) {
+                            if (playbackState == Player.STATE_READY && seekPending) {
                                 seekTo(30000)
+                                seekPending = false
                             }
                         }
                     })
@@ -84,6 +86,8 @@ class IsolatedAudioController(
             player?.clearMediaItems()
             return
         }
+
+        seekPending = true // Set the flag for the new track
 
         loadJob = scope.launch {
             val streamUrl = withContext(Dispatchers.IO) {
