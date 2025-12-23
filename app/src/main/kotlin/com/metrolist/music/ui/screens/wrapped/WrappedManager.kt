@@ -1,20 +1,26 @@
 package com.metrolist.music.ui.screens.wrapped
 
 import android.content.Context
+import android.net.ConnectivityManager
+import androidx.core.content.ContextCompat
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AccountInfo
+import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.db.DatabaseDao
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.SongWithStats
 import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_5_ARTISTS
 import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_5_SONGS
 import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_ARTIST
 import com.metrolist.music.ui.screens.wrapped.WrappedConstants.PAGE_TOP_SONG
+import com.metrolist.music.utils.YTPlayerUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -22,7 +28,7 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 class WrappedManager(
-    context: Context,
+    private val context: Context,
     private val databaseDao: DatabaseDao,
     private val scope: CoroutineScope
 ) {
@@ -46,6 +52,9 @@ class WrappedManager(
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
 
+    private val _isMuted = MutableStateFlow(false)
+    val isMuted = _isMuted.asStateFlow()
+
     private val pageToSongMap = mutableMapOf<Int, String?>()
 
     init {
@@ -65,10 +74,12 @@ class WrappedManager(
             }.timeInMillis
 
             val topSongsResult = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 10).first()
-            _topSongs.value = topSongsResult
+            _topSongs.value = topSongsResult.take(5)
             _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5).first()
 
             assignSongsToPages(topSongsResult)
+            preloadSongUrls()
+
 
             val seenSongIds = mutableSetOf<String>()
             var totalSeconds = 0L
@@ -143,6 +154,36 @@ class WrappedManager(
         }
     }
 
+    private suspend fun preloadSongUrls() {
+        val connectivityManager = ContextCompat.getSystemService(context, ConnectivityManager::class.java)
+        if (connectivityManager == null) return
+
+        val songIdsToPreload = pageToSongMap.values.filterNotNull().distinct()
+        withContext(Dispatchers.IO) {
+            songIdsToPreload.map { songId ->
+                async {
+                    YTPlayerUtils.playerResponseForPlayback(
+                        videoId = songId,
+                        audioQuality = AudioQuality.AUTO,
+                        connectivityManager = connectivityManager
+                    )
+                }
+            }.awaitAll()
+        }
+    }
+
+    fun toggleMute() {
+        _isMuted.value = !_isMuted.value
+        audioController.setMute(_isMuted.value)
+    }
+
+    fun play() {
+        audioController.play()
+    }
+
+    fun pause() {
+        audioController.pause()
+    }
 
     fun playTrackForPage(page: Int) {
         if (isLoading.value) return

@@ -60,15 +60,18 @@ fun WrappedScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val manager = remember { WrappedManager(context, getDatabaseDao(context), scope) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val isMuted by manager.isMuted.collectAsState()
 
-    DisposableEffect(Unit) {
+    DisposableEffect(lifecycleOwner) {
         val window = (view.context as android.app.Activity).window
         val insetsController = WindowCompat.getInsetsController(window, view)
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                manager.release()
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> manager.pause()
+                Lifecycle.Event.ON_RESUME -> manager.play()
+                else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -112,8 +115,12 @@ fun WrappedScreen(navController: NavController) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Mute action */ }) {
-                        Icon(painterResource(R.drawable.volume_up), "Mute", tint = Color.White)
+                    IconButton(onClick = { manager.toggleMute() }) {
+                        Icon(
+                            painter = painterResource(if (isMuted) R.drawable.volume_off else R.drawable.volume_up),
+                            contentDescription = "Mute",
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)

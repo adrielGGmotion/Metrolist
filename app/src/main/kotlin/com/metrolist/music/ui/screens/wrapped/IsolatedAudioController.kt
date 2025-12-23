@@ -73,6 +73,9 @@ class IsolatedAudioController(
         player?.playWhenReady = false
     }
 
+    fun setMute(isMuted: Boolean) {
+        player?.volume = if (isMuted) 0f else 1f
+    }
 
     fun load(songId: String?) {
         loadJob?.cancel() // Cancel any previous loading job
