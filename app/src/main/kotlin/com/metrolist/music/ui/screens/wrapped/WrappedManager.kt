@@ -56,6 +56,7 @@ class WrappedManager(
     val isMuted = _isMuted.asStateFlow()
 
     private val pageToSongMap = mutableMapOf<Int, String?>()
+    private val songUrlCache = mutableMapOf<String, String?>()
 
     init {
         loadData()
@@ -114,42 +115,58 @@ class WrappedManager(
 
         val availableSongs = songs.toMutableList()
         val assignedIds = mutableSetOf<String>()
+        val screensWithMusic = setOf(
+            PAGE_TOP_SONG,
+            PAGE_TOP_ARTIST,
+            PAGE_TOP_5_SONGS,
+            PAGE_TOP_5_ARTISTS
+        )
+
+        // Clear any previous assignments
+        pageToSongMap.clear()
 
         // Rule 1: Top Song screen gets the #1 song
         val topSong = availableSongs.removeFirstOrNull()
-        pageToSongMap[PAGE_TOP_SONG] = topSong?.id
-        topSong?.id?.let { assignedIds.add(it) }
+        if (topSong != null) {
+            pageToSongMap[PAGE_TOP_SONG] = topSong.id
+            assignedIds.add(topSong.id)
+        }
+
 
         // Rule 2: Top Artist screen
         val topArtist = topArtists.value.firstOrNull()
         if (topArtist != null) {
-            // Find the top artist's most listened to song THAT ISN'T ALREADY ASSIGNED
             val topArtistSong = databaseDao.getTopSongForArtist(topArtist.id, assignedIds).firstOrNull()
             if (topArtistSong != null) {
                 pageToSongMap[PAGE_TOP_ARTIST] = topArtistSong.song.id
-                topArtistSong.song.id.let { songId ->
-                    assignedIds.add(songId)
-                    availableSongs.removeAll { it.id == songId }
-                }
+                assignedIds.add(topArtistSong.song.id)
+                availableSongs.removeAll { it.id == topArtistSong.song.id }
             } else {
-                // Fallback: If no other song, use the next available unassigned song
                 val fallbackSong = availableSongs.removeFirstOrNull()
-                pageToSongMap[PAGE_TOP_ARTIST] = fallbackSong?.id
-                fallbackSong?.id?.let { assignedIds.add(it) }
+                if (fallbackSong != null) {
+                    pageToSongMap[PAGE_TOP_ARTIST] = fallbackSong.id
+                    assignedIds.add(fallbackSong.id)
+                }
             }
         }
 
-
         // Assign remaining songs to other screens
-        pageToSongMap[PAGE_TOP_5_SONGS] = availableSongs.removeFirstOrNull()?.id?.also { assignedIds.add(it) }
-        pageToSongMap[PAGE_TOP_5_ARTISTS] = availableSongs.removeFirstOrNull()?.id?.also { assignedIds.add(it) }
+        val songForTop5Songs = availableSongs.removeFirstOrNull()
+        if (songForTop5Songs != null) {
+            pageToSongMap[PAGE_TOP_5_SONGS] = songForTop5Songs.id
+            assignedIds.add(songForTop5Songs.id)
+        }
 
-        // Default for any other screen (e.g., intro, minutes)
-        val defaultSong = topSong?.id
-        val allPages = (0..7)
-        allPages.forEach { page ->
-            if (!pageToSongMap.containsKey(page)) {
-                pageToSongMap[page] = defaultSong
+        val songForTop5Artists = availableSongs.removeFirstOrNull()
+        if (songForTop5Artists != null) {
+            pageToSongMap[PAGE_TOP_5_ARTISTS] = songForTop5Artists.id
+            assignedIds.add(songForTop5Artists.id)
+        }
+
+        // Ensure other screens have no music
+        (0..7).forEach { page ->
+            if (page !in screensWithMusic) {
+                pageToSongMap[page] = null
             }
         }
     }
@@ -160,15 +177,19 @@ class WrappedManager(
 
         val songIdsToPreload = pageToSongMap.values.filterNotNull().distinct()
         withContext(Dispatchers.IO) {
-            songIdsToPreload.map { songId ->
+            val jobs = songIdsToPreload.map { songId ->
                 async {
-                    YTPlayerUtils.playerResponseForPlayback(
+                    val url = YTPlayerUtils.playerResponseForPlayback(
                         videoId = songId,
                         audioQuality = AudioQuality.AUTO,
                         connectivityManager = connectivityManager
-                    )
+                    ).getOrNull()?.streamUrl
+                    songId to url
                 }
-            }.awaitAll()
+            }
+            jobs.awaitAll().forEach { (songId, url) ->
+                songUrlCache[songId] = url
+            }
         }
     }
 
@@ -188,7 +209,8 @@ class WrappedManager(
     fun playTrackForPage(page: Int) {
         if (isLoading.value) return
         val songId = pageToSongMap[page]
-        audioController.load(songId)
+        val streamUrl = songUrlCache[songId]
+        audioController.load(streamUrl)
     }
 
     fun release() {

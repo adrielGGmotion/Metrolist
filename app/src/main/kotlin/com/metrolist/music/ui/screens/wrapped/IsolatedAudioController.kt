@@ -9,25 +9,19 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.PauseListenHistoryKey
-import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.dataStore
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class IsolatedAudioController(
     private val context: Context,
     private val scope: CoroutineScope
 ) {
     private var player: ExoPlayer? = null
-    private var loadJob: Job? = null
     private var wasHistoryPausedInitially: Boolean = false
-    private val connectivityManager = ContextCompat.getSystemService(context, ConnectivityManager::class.java)
     private var seekPending = false
 
 
@@ -79,9 +73,8 @@ class IsolatedAudioController(
         player?.volume = if (isMuted) 0f else 1f
     }
 
-    fun load(songId: String?) {
-        loadJob?.cancel() // Cancel any previous loading job
-        if (songId == null) {
+    fun load(streamUrl: String?) {
+        if (streamUrl == null) {
             player?.stop()
             player?.clearMediaItems()
             return
@@ -89,34 +82,13 @@ class IsolatedAudioController(
 
         seekPending = true // Set the flag for the new track
 
-        loadJob = scope.launch {
-            val streamUrl = withContext(Dispatchers.IO) {
-                if (connectivityManager == null) {
-                    return@withContext null
-                }
-                YTPlayerUtils.playerResponseForPlayback(
-                    videoId = songId,
-                    // Using a reasonable default for audio quality in this isolated context
-                    audioQuality = AudioQuality.AUTO,
-                    connectivityManager = connectivityManager
-                ).getOrNull()?.streamUrl
-            }
-
-            if (streamUrl != null) {
-                val mediaItem = MediaItem.fromUri(streamUrl)
-                player?.setMediaItem(mediaItem)
-                player?.prepare()
-                play()
-            } else {
-                // Handle case where stream URL could not be fetched
-                // Maybe log an error or play a fallback sound
-                player?.stop()
-            }
-        }
+        val mediaItem = MediaItem.fromUri(streamUrl)
+        player?.setMediaItem(mediaItem)
+        player?.prepare()
+        play()
     }
 
     fun release() {
-        loadJob?.cancel()
         player?.release()
         player = null
         scope.launch {
