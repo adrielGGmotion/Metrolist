@@ -47,15 +47,14 @@ class WrappedManager(
 
         // Page 5: Top Artist - With conflict resolution
         val topArtist = topArtists[0]
-        val topArtistTopSong = findAndUseSong { song -> song.artists.any { artist -> artist.id == topArtist.id } }
-        if (topArtistTopSong != playlist[WrappedPage.TopSong.index]) {
-            playlist[WrappedPage.TopArtist.index] = topArtistTopSong
-        } else {
+        var topArtistSongId = findAndUseSong { song -> song.artists.any { artist -> artist.id == topArtist.id } }
+        if (topArtistSongId == playlist[WrappedPage.TopSong.index]) {
             // Conflict: Top artist's top song is the same as the overall top song.
             // Find the artist's second most-played song.
             val topArtistSongs = topSongEntities.filter { song -> song.artists.any { artist -> artist.id == topArtist.id } }
-            playlist[WrappedPage.TopArtist.index] = topArtistSongs.getOrNull(1)?.id
+            topArtistSongId = topArtistSongs.getOrNull(1)?.id
         }
+        playlist[WrappedPage.TopArtist.index] = topArtistSongId
 
         // Page 6: Top 5 Artists - Random artist from 2-5
         val randomTopArtist = topArtists.drop(1).shuffled().firstOrNull()
@@ -90,6 +89,15 @@ class WrappedManager(
 
     fun onPageChanged(page: Int) {
         audioController?.onPageChanged(page)
+    }
+
+    fun initialize() {
+        scope.launch {
+            topSongs.first { it.isNotEmpty() }
+            topArtists.first { it.isNotEmpty() }
+            val playlist = generatePlaylistMap(topSongs.value, topArtists.value)
+            prepareAudio(playlist)
+        }
     }
 
     private val _messagePair = MutableStateFlow<MessagePair?>(null)
