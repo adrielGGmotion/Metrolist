@@ -1,5 +1,6 @@
 package com.metrolist.music.ui.screens.wrapped
 
+import android.net.ConnectivityManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.NavController
@@ -58,7 +60,8 @@ fun WrappedScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val manager = remember { WrappedManager(getDatabaseDao(context), scope) }
-    val audioService = remember { WrappedAudioService(context, scope) }
+    val connectivityManager = getSystemService(context, ConnectivityManager::class.java)
+    val audioService = remember { WrappedAudioService(context, scope, connectivityManager!!) }
 
     DisposableEffect(Unit) {
         val window = (view.context as android.app.Activity).window

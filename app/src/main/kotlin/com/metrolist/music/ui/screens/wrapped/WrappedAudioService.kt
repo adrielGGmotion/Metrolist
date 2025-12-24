@@ -1,15 +1,18 @@
 package com.metrolist.music.ui.screens.wrapped
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.music.R
+import com.metrolist.music.constants.AudioQuality
+import com.metrolist.music.utils.YTPlayerUtils
+import com.metrolist.music.utils.dataStore
+import com.metrolist.music.utils.get
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,7 +24,8 @@ import kotlinx.coroutines.withContext
 
 class WrappedAudioService(
     private val context: Context,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val connectivityManager: ConnectivityManager
 ) {
     private var player: SafePlayerWrapper? = null
     private var transitionJob: Job? = null
@@ -48,15 +52,12 @@ class WrappedAudioService(
             val currentPlayer = player
             player = null // Prevent further interaction with the old player
 
-            // Fade out the old player if it exists
             if (currentPlayer != null) {
                 fadeOutAndRelease(currentPlayer)
             }
 
-            // Fetch URI for the new song
             val newSongUri = getSafeUri(songId)
 
-            // Create, prepare, and fade in the new player
             withContext(Dispatchers.Main) {
                 val newPlayer = SafePlayerWrapper(context, playerListener)
                 player = newPlayer
@@ -73,28 +74,33 @@ class WrappedAudioService(
     private suspend fun getSafeUri(songId: String?): Uri {
         val fallbackUri = Uri.parse("android.resource://${context.packageName}/${R.raw.wrapped_theme}")
         if (songId == null) {
-            Log.i("WrappedAudioService", "No song ID provided, using fallback audio.")
+            Log.i("WrappedAudio", "No song ID provided, using fallback audio.")
             return fallbackUri
         }
 
         return try {
-            val streamUrl = withContext(Dispatchers.IO) {
-                 YouTube.player(songId, client = YouTubeClient.WEB_REMIX).getOrNull()
-                    ?.streamingData
-                    ?.adaptiveFormats
-                    ?.filter { it.mimeType?.startsWith("audio") == true }
-                    ?.maxByOrNull { it.bitrate }
-                    ?.url
+            val audioQuality = context.dataStore.get(com.metrolist.music.constants.AudioQualityKey).let {
+                AudioQuality.valueOf(it ?: AudioQuality.AUTO.name)
             }
 
+            val playbackData = withContext(Dispatchers.IO) {
+                YTPlayerUtils.playerResponseForPlayback(
+                    videoId = songId,
+                    audioQuality = audioQuality,
+                    connectivityManager = connectivityManager
+                ).getOrNull()
+            }
+
+            val streamUrl = playbackData?.streamUrl
             if (streamUrl.isNullOrBlank()) {
-                Log.w("WrappedAudioService", "Stream URL for song $songId was null or empty. Using fallback.")
+                Log.w("WrappedAudio", "Resolved URL for $songId is null or blank. Using fallback.")
                 fallbackUri
             } else {
+                Log.d("WrappedAudio", "Resolved URL: $streamUrl")
                 Uri.parse(streamUrl)
             }
         } catch (e: Exception) {
-            Log.e("WrappedAudioService", "Failed to fetch URL for song $songId due to exception. Using fallback.", e)
+            Log.e("WrappedAudio", "Failed to resolve URL for $songId. Using fallback.", e)
             fallbackUri
         }
     }
@@ -103,7 +109,7 @@ class WrappedAudioService(
         scope.launch(Dispatchers.Main) {
             val targetVolume = if (_isMuted.value) 0f else 1f
             player.setVolume(0f)
-            for (i in 1..20) { // Fade in over 500ms
+            for (i in 1..20) {
                 delay(25)
                 player.setVolume(targetVolume * (i / 20f))
             }
@@ -113,7 +119,7 @@ class WrappedAudioService(
 
     private suspend fun fadeOutAndRelease(player: SafePlayerWrapper) {
         try {
-            for (i in 10 downTo 0) { // Fade out over 250ms
+            for (i in 10 downTo 0) {
                 delay(25)
                 player.setVolume(i / 10f)
             }
@@ -189,7 +195,6 @@ class WrappedAudioService(
             if (isReleased) return
             isReleased = true
             try {
-                // Accessing the player on the main thread for release
                 player?.release()
                 player = null
             } catch (e: Exception) {
