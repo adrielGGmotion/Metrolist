@@ -1,6 +1,7 @@
 package com.metrolist.music.ui.screens.wrapped
 
 import android.content.Context
+import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -24,8 +25,10 @@ class IsolatedAudioController(
     private var currentPlayerIndex = 0
 
     private var loadJob: Job? = null
+    private val TAG = "IsolatedAudioController"
 
     fun prepare() {
+        Log.d(TAG, "Preparing audio controller...")
         players = listOf(buildPlayer(), buildPlayer())
         // Preload the first song
         onPageChanged(0)
@@ -42,9 +45,11 @@ class IsolatedAudioController(
     }
 
     fun onPageChanged(page: Int) {
+        Log.d(TAG, "Page changed to $page")
         val songId = playlist[page]
 
         if (songId == null) {
+            Log.d(TAG, "No song for page $page, fading out.")
             // No song for this page, fade out current player
             val currentPlayer = players[currentPlayerIndex]
             fadeOut(currentPlayer)
@@ -91,6 +96,7 @@ class IsolatedAudioController(
     }
 
     private suspend fun load(player: ExoPlayer, songId: String, onReady: () -> Unit = {}) {
+        Log.d(TAG, "Loading song $songId...")
         val url = getSongUrl(songId)
         if (url != null) {
             withContext(Dispatchers.Main) {
@@ -99,8 +105,10 @@ class IsolatedAudioController(
                 player.prepare()
                 player.addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
+                        Log.d(TAG, "Player state changed to $playbackState")
                         if (playbackState == Player.STATE_READY) {
                             val seekPosition = if (player.duration > 30000) 30000L else 0L
+                            Log.d(TAG, "Player is ready, seeking to $seekPosition")
                             player.seekTo(seekPosition)
                             player.removeListener(this)
                             onReady()
@@ -108,12 +116,16 @@ class IsolatedAudioController(
                     }
                 })
             }
+        } else {
+            Log.e(TAG, "Failed to get URL for song $songId")
         }
     }
 
     private fun loadAndPlay(player: ExoPlayer, songId: String) {
+        Log.d(TAG, "Loading and playing song $songId")
         scope.launch {
             load(player, songId) {
+                Log.d(TAG, "Song $songId is ready, playing now.")
                 player.volume = 1f
                 player.play()
             }
@@ -121,6 +133,7 @@ class IsolatedAudioController(
     }
 
     private fun crossfade(from: ExoPlayer, to: ExoPlayer) {
+        Log.d(TAG, "Crossfading players.")
         scope.launch {
             fadeIn(to)
             fadeOut(from)
@@ -128,6 +141,7 @@ class IsolatedAudioController(
     }
 
     private fun fadeIn(player: ExoPlayer) {
+        Log.d(TAG, "Fading in player.")
         scope.launch {
             player.volume = 0f
             player.play()
@@ -140,6 +154,7 @@ class IsolatedAudioController(
     }
 
     private fun fadeOut(player: ExoPlayer) {
+        Log.d(TAG, "Fading out player.")
         scope.launch {
             for (i in 10 downTo 0) {
                 player.volume = i / 10f
@@ -151,6 +166,7 @@ class IsolatedAudioController(
     }
 
     fun release() {
+        Log.d(TAG, "Releasing audio controller.")
         players.forEach { it.release() }
     }
 }

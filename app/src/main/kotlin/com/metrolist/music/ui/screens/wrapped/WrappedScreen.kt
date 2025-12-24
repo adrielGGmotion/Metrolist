@@ -58,7 +58,7 @@ fun WrappedScreen(navController: NavController) {
     val view = LocalView.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val manager = remember { WrappedManager(getDatabaseDao(context), scope) }
+    val manager = remember { WrappedManager(context, getDatabaseDao(context), scope) }
 
     DisposableEffect(Unit) {
         val window = (view.context as android.app.Activity).window
@@ -85,18 +85,18 @@ fun WrappedScreen(navController: NavController) {
         playlist = manager.generatePlaylistMap(topSongs, topArtists)
     }
 
-    val audioController = remember(playlist) {
-        IsolatedAudioController(context, scope, playlist)
-    }
-
-    DisposableEffect(Unit) {
-        audioController.prepare()
-        onDispose { audioController.release() }
+    DisposableEffect(playlist) {
+        if (playlist.isNotEmpty()) {
+            manager.prepareAudio(playlist)
+        }
+        onDispose {
+            manager.releaseAudio()
+        }
     }
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
-            audioController.onPageChanged(page)
+            manager.onPageChanged(page)
         }
     }
 

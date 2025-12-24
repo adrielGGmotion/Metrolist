@@ -15,11 +15,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import android.content.Context
 
 class WrappedManager(
+    private val context: Context,
     private val databaseDao: DatabaseDao,
     private val scope: CoroutineScope
 ) {
+
+    private var audioController: IsolatedAudioController? = null
     suspend fun generatePlaylistMap(
         topSongs: List<SongWithStats>,
         topArtists: List<Artist>
@@ -48,6 +52,19 @@ class WrappedManager(
             5 to topArtistSongId,
             6 to randomArtistSongId
         )
+    }
+
+    fun prepareAudio(playlist: Map<Int, String?>) {
+        audioController = IsolatedAudioController(context, scope, playlist).also { it.prepare() }
+    }
+
+    fun releaseAudio() {
+        audioController?.release()
+        audioController = null
+    }
+
+    fun onPageChanged(page: Int) {
+        audioController?.onPageChanged(page)
     }
 
     private val _messagePair = MutableStateFlow<MessagePair?>(null)
