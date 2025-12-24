@@ -490,6 +490,7 @@ class CrossfadeManager(
                             currentPlayer.removeAnalyticsListener(it)
                         }
                         currentPlayer.stop()
+                        currentPlayer.clearMediaItems()
                         currentPlayer.volume = 1f
                         currentPlayer = nextPlayer
                         analyticsListener?.let {
@@ -498,6 +499,7 @@ class CrossfadeManager(
                         listeners.forEach {
                             it.onTimelineChanged(currentPlayer.currentTimeline, Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
                             it.onMediaMetadataChanged(currentPlayer.mediaMetadata)
+                            it.onIsPlayingChanged(true)
                         }
                     } finally {
                         isCrossfading = false
