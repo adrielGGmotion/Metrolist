@@ -12,19 +12,22 @@ import com.metrolist.innertube.models.YouTubeClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class IsolatedAudioController(
     private val context: Context,
-    private val scope: CoroutineScope,
+    private val parentScope: CoroutineScope,
     private val playlist: Map<Int, String?>
 ) {
     private lateinit var players: List<ExoPlayer>
     private var currentPlayerIndex = 0
 
     private var loadJob: Job? = null
+    private val scope = CoroutineScope(parentScope.coroutineContext + SupervisorJob())
     private val TAG = "IsolatedAudioController"
 
     fun prepare() {
@@ -41,6 +44,7 @@ class IsolatedAudioController(
             .build()
         return ExoPlayer.Builder(context)
             .setAudioAttributes(audioAttributes, true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
     }
 
@@ -88,10 +92,15 @@ class IsolatedAudioController(
 
     private suspend fun getSongUrl(songId: String): String? {
         return withContext(Dispatchers.IO) {
-            val playerResponse = YouTube.player(songId, client = YouTubeClient.WEB_REMIX).getOrNull()
-            playerResponse?.streamingData?.adaptiveFormats
-                ?.filter { it.mimeType?.startsWith("audio") == true }
-                ?.maxByOrNull { it.bitrate ?: 0 }?.url
+            try {
+                val playerResponse = YouTube.player(songId, null, YouTubeClient.WEB_REMIX).getOrThrow()
+                playerResponse.streamingData?.adaptiveFormats
+                    ?.filter { it.mimeType?.startsWith("audio") == true }
+                    ?.maxByOrNull { it.bitrate ?: 0 }?.url
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get URL for song $songId", e)
+                null
+            }
         }
     }
 
@@ -167,6 +176,7 @@ class IsolatedAudioController(
 
     fun release() {
         Log.d(TAG, "Releasing audio controller.")
+        scope.cancel()
         players.forEach { it.release() }
     }
 }

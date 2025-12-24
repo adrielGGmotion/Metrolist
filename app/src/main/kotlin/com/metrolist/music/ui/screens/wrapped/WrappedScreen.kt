@@ -82,13 +82,13 @@ fun WrappedScreen(navController: NavController) {
     var playlist by remember { mutableStateOf<Map<Int, String?>>(emptyMap()) }
 
     LaunchedEffect(topSongs, topArtists) {
-        playlist = manager.generatePlaylistMap(topSongs, topArtists)
-    }
-
-    DisposableEffect(playlist) {
-        if (playlist.isNotEmpty()) {
+        if (topSongs.isNotEmpty() && topArtists.isNotEmpty()) {
+            playlist = manager.generatePlaylistMap(topSongs, topArtists)
             manager.prepareAudio(playlist)
         }
+    }
+
+    DisposableEffect(manager) {
         onDispose {
             manager.releaseAudio()
         }

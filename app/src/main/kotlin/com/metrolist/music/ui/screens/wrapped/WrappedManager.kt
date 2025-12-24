@@ -28,30 +28,55 @@ class WrappedManager(
         topSongs: List<SongWithStats>,
         topArtists: List<Artist>
     ): Map<Int, String?> {
-        val topSongId = topSongs.firstOrNull()?.id
-        val topArtistId = topArtists.firstOrNull()?.id
+        if (topSongs.isEmpty() || topArtists.isEmpty()) {
+            return emptyMap()
+        }
 
-        val topArtistSongId = topSongs.find {
-            val song = databaseDao.getSongById(it.id)
-            song?.artists?.firstOrNull()?.id == topArtistId && it.id != topSongId
-        }?.id
+        val playlist = mutableMapOf<Int, String?>()
+        val usedSongIds = mutableSetOf<String>()
+        val topSongEntities = databaseDao.getSongsByIds(topSongs.map { it.id })
 
-        val randomArtistSongId = topArtists
-            .drop(1)
-            .shuffled()
-            .firstOrNull()
-            ?.let { artist ->
-                topSongs.find {
-                    val song = databaseDao.getSongById(it.id)
-                    song?.artists?.firstOrNull()?.id == artist.id
-                }?.id
+        fun findAndUseSong(predicate: (Song) -> Boolean): String? {
+            val song = topSongEntities.find { it.id !in usedSongIds && predicate(it) }
+            song?.id?.let { usedSongIds.add(it) }
+            return song?.id
+        }
+
+        // Page 3: Top Song - Strictly reserve the top song
+        playlist[WrappedPage.TopSong.index] = findAndUseSong { it.id == topSongs[0].id }
+
+        // Page 5: Top Artist - With conflict resolution
+        val topArtist = topArtists[0]
+        val topArtistTopSong = findAndUseSong { song -> song.artists.any { artist -> artist.id == topArtist.id } }
+        if (topArtistTopSong != playlist[WrappedPage.TopSong.index]) {
+            playlist[WrappedPage.TopArtist.index] = topArtistTopSong
+        } else {
+            // Conflict: Top artist's top song is the same as the overall top song.
+            // Find the artist's second most-played song.
+            val topArtistSongs = topSongEntities.filter { song -> song.artists.any { artist -> artist.id == topArtist.id } }
+            playlist[WrappedPage.TopArtist.index] = topArtistSongs.getOrNull(1)?.id
+        }
+
+        // Page 6: Top 5 Artists - Random artist from 2-5
+        val randomTopArtist = topArtists.drop(1).shuffled().firstOrNull()
+        if (randomTopArtist != null) {
+            playlist[WrappedPage.Top5Artists.index] = findAndUseSong { song ->
+                song.artists.any { artist -> artist.id == randomTopArtist.id }
             }
+        }
 
-        return mapOf(
-            3 to topSongId,
-            5 to topArtistSongId,
-            6 to randomArtistSongId
+        // Fill remaining pages with any unused top songs
+        val pagesToFill = listOf(
+            WrappedPage.MinutesReveal,
+            WrappedPage.Top5Songs
         )
+        pagesToFill.forEach { page ->
+             if (playlist[page.index] == null) {
+                playlist[page.index] = findAndUseSong { true }
+            }
+        }
+
+        return playlist
     }
 
     fun prepareAudio(playlist: Map<Int, String?>) {

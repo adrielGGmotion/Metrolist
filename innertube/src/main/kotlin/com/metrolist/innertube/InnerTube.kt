@@ -144,6 +144,13 @@ class InnerTube {
         signatureTimestamp: Int?,
     ) = httpClient.post("player") {
         ytClient(client, setLogin = true)
+        cookie?.let { cookie ->
+            if ("SAPISID" !in cookieMap) return@let
+            val currentTime = System.currentTimeMillis() / 1000
+            val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
+            headers.append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
+            headers.append("Cookie", cookie)
+        }
         setBody(
             PlayerBody(
                 context = client.toContext(locale, visitorData, dataSyncId).let {
