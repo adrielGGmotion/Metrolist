@@ -90,7 +90,7 @@ class IsolatedAudioController(
         }
     }
 
-    private suspend fun load(player: ExoPlayer, songId: String) {
+    private suspend fun load(player: ExoPlayer, songId: String, onReady: () -> Unit = {}) {
         val url = getSongUrl(songId)
         if (url != null) {
             withContext(Dispatchers.Main) {
@@ -103,6 +103,7 @@ class IsolatedAudioController(
                             val seekPosition = if (player.duration > 30000) 30000L else 0L
                             player.seekTo(seekPosition)
                             player.removeListener(this)
+                            onReady()
                         }
                     }
                 })
@@ -112,9 +113,10 @@ class IsolatedAudioController(
 
     private fun loadAndPlay(player: ExoPlayer, songId: String) {
         scope.launch {
-            load(player, songId)
-            player.volume = 1f
-            player.play()
+            load(player, songId) {
+                player.volume = 1f
+                player.play()
+            }
         }
     }
 
