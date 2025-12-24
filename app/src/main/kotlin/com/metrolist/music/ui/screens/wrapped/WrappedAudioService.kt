@@ -27,7 +27,12 @@ class WrappedAudioService(
     private val scope: CoroutineScope,
     private val connectivityManager: ConnectivityManager
 ) {
-    private var player: SafePlayerWrapper? = null
+    private var currentPlayer: SafePlayerWrapper? = null
+    private var nextPlayer: SafePlayerWrapper? = null
+
+    private var currentPlayerId: String? = null
+    private var nextPlayerId: String? = null
+
     private var transitionJob: Job? = null
 
     private val _isMuted = MutableStateFlow(false)
@@ -36,37 +41,70 @@ class WrappedAudioService(
     private val playerListener = object : Player.Listener {
         override fun onPlayerError(error: PlaybackException) {
             Log.e("WrappedAudioService", "Player error, switching to fallback audio.", error)
-            onPageChanged(null) // Pass null to trigger fallback
+            onPageChanged(null, null)
         }
     }
 
     fun toggleMute() {
         _isMuted.value = !_isMuted.value
         val targetVolume = if (_isMuted.value) 0f else 1f
-        player?.setVolume(targetVolume)
+        currentPlayer?.setVolume(targetVolume)
     }
 
-    fun onPageChanged(songId: String?) {
+    fun onPageChanged(songId: String?, screenType: WrappedScreenType?) {
+        if (songId == currentPlayerId) {
+             // If the song is the same, do nothing.
+            return
+        }
+
         transitionJob?.cancel()
         transitionJob = scope.launch {
-            val currentPlayer = player
-            player = null // Prevent further interaction with the old player
+            val oldPlayer = currentPlayer
 
-            if (currentPlayer != null) {
-                fadeOutAndRelease(currentPlayer)
+            if (nextPlayerId == songId && nextPlayer != null) {
+                currentPlayer = nextPlayer
+                currentPlayerId = nextPlayerId
+                nextPlayer = null
+                nextPlayerId = null
+            } else {
+                // If next player is not ready, create a new one.
+                val newSongUri = getSafeUri(songId)
+                withContext(Dispatchers.Main) {
+                    val newPlayer = SafePlayerWrapper(context, playerListener)
+                    newPlayer.prepare(MediaItem.fromUri(newSongUri))
+                    if (songId != null) {
+                        newPlayer.seekTo(30_000)
+                    }
+                    currentPlayer = newPlayer
+                    currentPlayerId = songId
+                }
             }
 
-            val newSongUri = getSafeUri(songId)
+            currentPlayer?.play()
+            fadeIn(currentPlayer!!)
 
+            oldPlayer?.let { fadeOutAndRelease(it) }
+        }
+    }
+
+    fun prepareNext(nextSongId: String?) {
+        scope.launch {
+            if (nextSongId == null) {
+                nextPlayer?.release()
+                nextPlayer = null
+                nextPlayerId = null
+                return@launch
+            }
+
+            val nextSongUri = getSafeUri(nextSongId)
             withContext(Dispatchers.Main) {
                 val newPlayer = SafePlayerWrapper(context, playerListener)
-                player = newPlayer
-                newPlayer.prepare(MediaItem.fromUri(newSongUri))
-                if (songId != null) {
+                newPlayer.prepare(MediaItem.fromUri(nextSongUri))
+                if (nextSongId != null) {
                     newPlayer.seekTo(30_000)
                 }
-                newPlayer.play()
-                fadeIn(newPlayer)
+                nextPlayer = newPlayer
+                nextPlayerId = nextSongId
             }
         }
     }
@@ -133,22 +171,22 @@ class WrappedAudioService(
     }
 
     fun pause() {
-        player?.pause()
+        currentPlayer?.pause()
     }
 
     fun resume() {
         if (!_isMuted.value) {
-            player?.play()
+            currentPlayer?.play()
         }
     }
 
     fun release() {
         transitionJob?.cancel()
         scope.launch {
-            player?.let {
-                fadeOutAndRelease(it)
-            }
-            player = null
+            currentPlayer?.let { fadeOutAndRelease(it) }
+            nextPlayer?.let { fadeOutAndRelease(it) }
+            currentPlayer = null
+            nextPlayer = null
         }
     }
 

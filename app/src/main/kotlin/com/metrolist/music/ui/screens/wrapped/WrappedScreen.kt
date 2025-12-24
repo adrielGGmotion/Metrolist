@@ -42,11 +42,50 @@ import com.metrolist.music.ui.screens.wrapped.pages.WrappedMinutesScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedMinutesTease
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedEndScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5ArtistsScreen
+import com.metrolist.music.db.entities.SongWithStats
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5SongsScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopArtistScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopSongScreen
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+
+private fun generateTrackMap(topSongs: List<SongWithStats>): Map<WrappedScreenType, String?> {
+    if (topSongs.isEmpty()) return emptyMap()
+
+    val topSongId = topSongs.first().id
+    val usedTracks = mutableSetOf(topSongId)
+
+    val minutesSong = topSongs.take(50).filterNot { usedTracks.contains(it.id) }.randomOrNull()?.id
+    minutesSong?.let { usedTracks.add(it) }
+
+    val topArtistSong = topSongs.drop(1).firstOrNull { it.id != topSongId }?.id
+    topArtistSong?.let { usedTracks.add(it) }
+
+    val miscSong = topSongs.take(50).filterNot { usedTracks.contains(it.id) }.randomOrNull()?.id
+    miscSong?.let { usedTracks.add(it) }
+
+    return mapOf(
+        WrappedScreenType.Welcome to miscSong,
+        WrappedScreenType.MinutesTease to minutesSong,
+        WrappedScreenType.MinutesReveal to minutesSong,
+        WrappedScreenType.TopSong to topSongId,
+        WrappedScreenType.Top5Songs to (topSongs.getOrNull(1)?.id ?: topSongId),
+        WrappedScreenType.TopArtist to (topArtistSong ?: topSongId),
+        WrappedScreenType.Top5Artists to (topSongs.getOrNull(2)?.id ?: topSongId),
+        WrappedScreenType.End to miscSong
+    )
+}
+
+sealed class WrappedScreenType {
+    object Welcome : WrappedScreenType()
+    object MinutesTease : WrappedScreenType()
+    object MinutesReveal : WrappedScreenType()
+    object TopSong : WrappedScreenType()
+    object Top5Songs : WrappedScreenType()
+    object TopArtist : WrappedScreenType()
+    object Top5Artists : WrappedScreenType()
+    object End : WrappedScreenType()
+}
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -94,8 +133,14 @@ fun WrappedScreen(navController: NavController) {
 
     val screens = remember {
         listOf(
-            "Welcome", "Minutes Tease", "Minutes Reveal", "Top Song", "Top 5 Songs",
-            "Top Artist", "Top 5 Artists", "End & Playlist"
+            WrappedScreenType.Welcome,
+            WrappedScreenType.MinutesTease,
+            WrappedScreenType.MinutesReveal,
+            WrappedScreenType.TopSong,
+            WrappedScreenType.Top5Songs,
+            WrappedScreenType.TopArtist,
+            WrappedScreenType.Top5Artists,
+            WrappedScreenType.End
         )
     }
     val pagerState = rememberPagerState(pageCount = { screens.size })
@@ -108,30 +153,23 @@ fun WrappedScreen(navController: NavController) {
     val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
         WrappedRepository.getMessage(totalMinutes)
     }
-    var lastPlayedId by remember { mutableStateOf<String?>(null) }
+    val trackMap by remember(topSongs) {
+        mutableStateOf(generateTrackMap(topSongs))
+    }
 
-    LaunchedEffect(pagerState, topSongs) {
-        if (topSongs.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(pagerState, trackMap) {
+        if (trackMap.isEmpty()) return@LaunchedEffect
 
         snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
-            val topSongId = topSongs.first().id
-            val songToPlay = when (page) {
-                3 -> topSongId // Top Song Screen
-                4 -> topSongs.getOrNull(1)?.id ?: topSongId // Top 5 Songs screen (e.g., show #2)
-                5 -> topArtists.firstOrNull()?.let { topSongs.find { song -> song.id == it.id }?.id } ?: topSongId // Top Artist Screen
-                6 -> topArtists.getOrNull(1)?.let { topSongs.find { song -> song.id == it.id }?.id } ?: topSongId // Top 5 Artists
-                0, 1, 2, 7 -> { // Intro, Tease, Reveal, End screens
-                    val eligibleSongs = topSongs.take(50).filter { it.id != lastPlayedId }
-                    if (eligibleSongs.isNotEmpty()) {
-                        eligibleSongs.random().id
-                    } else {
-                        topSongs.take(50).randomOrNull()?.id // Fallback if all top songs were last played
-                    }
-                }
-                else -> null // No music for other screens
+            val screen = screens.getOrNull(page)
+            val nextScreen = screens.getOrNull(page + 1)
+            val songToPlay = trackMap[screen]
+            val nextSongToPlay = trackMap[nextScreen]
+
+            audioService.onPageChanged(songToPlay, screen)
+            if (screen != nextScreen) {
+                audioService.prepareNext(nextSongToPlay)
             }
-            lastPlayedId = songToPlay
-            audioService.onPageChanged(songToPlay)
         }
     }
 
@@ -157,35 +195,35 @@ fun WrappedScreen(navController: NavController) {
         containerColor = Color.Black
     ) { paddingValues ->
         VerticalPager(state = pagerState, modifier = Modifier.fillMaxSize().padding(paddingValues)) { page ->
-            when (page) {
-                0 -> WrappedIntro { scope.launch { pagerState.animateScrollToPage(page = 1) } }
-                1 -> WrappedMinutesTease(
+            when (screens[page]) {
+                is WrappedScreenType.Welcome -> WrappedIntro { scope.launch { pagerState.animateScrollToPage(page = 1) } }
+                is WrappedScreenType.MinutesTease -> WrappedMinutesTease(
                     messagePair = messagePair,
                     onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 2) } },
                     manager = manager,
                     isLoading = isLoading
                 )
-                2 -> WrappedMinutesScreen(
+                is WrappedScreenType.MinutesReveal -> WrappedMinutesScreen(
                     messagePair = messagePair, totalMinutes = totalMinutes,
                     isVisible = pagerState.currentPage == 2
                 )
-                3 -> WrappedTopSongScreen(
+                is WrappedScreenType.TopSong -> WrappedTopSongScreen(
                     topSong = topSongs.firstOrNull(),
                     isVisible = pagerState.currentPage == 3
                 )
-                4 -> WrappedTop5SongsScreen(
+                is WrappedScreenType.Top5Songs -> WrappedTop5SongsScreen(
                     topSongs = topSongs,
                     isVisible = pagerState.currentPage == 4
                 )
-                5 -> WrappedTopArtistScreen(
+                is WrappedScreenType.TopArtist -> WrappedTopArtistScreen(
                     topArtist = topArtists.firstOrNull(),
                     isVisible = pagerState.currentPage == 5
                 )
-                6 -> WrappedTop5ArtistsScreen(
+                is WrappedScreenType.Top5Artists -> WrappedTop5ArtistsScreen(
                     topArtists = topArtists,
                     isVisible = pagerState.currentPage == 6
                 )
-                7 -> WrappedEndScreen()
+                is WrappedScreenType.End -> WrappedEndScreen()
             }
         }
     }
