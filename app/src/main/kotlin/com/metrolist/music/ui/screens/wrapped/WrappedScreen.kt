@@ -17,19 +17,24 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.metrolist.music.R
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedIntro
@@ -62,6 +67,7 @@ fun WrappedScreen(navController: NavController) {
     val manager = remember { WrappedManager(getDatabaseDao(context), scope) }
     val connectivityManager = getSystemService(context, ConnectivityManager::class.java)
     val audioService = remember { WrappedAudioService(context, scope, connectivityManager!!) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(Unit) {
         val window = (view.context as android.app.Activity).window
@@ -70,8 +76,18 @@ fun WrappedScreen(navController: NavController) {
 
         manager.loadData()
 
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> audioService.pause()
+                Lifecycle.Event.ON_RESUME -> audioService.resume()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
         onDispose {
             insetsController.show(WindowInsetsCompat.Type.systemBars())
+            lifecycleOwner.lifecycle.removeObserver(observer)
             audioService.release()
         }
     }
@@ -92,30 +108,33 @@ fun WrappedScreen(navController: NavController) {
     val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
         WrappedRepository.getMessage(totalMinutes)
     }
+    var lastPlayedId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(pagerState, topSongs) {
+        if (topSongs.isEmpty()) return@LaunchedEffect
+
         snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
-            val topSongId = topSongs.firstOrNull()?.id
+            val topSongId = topSongs.first().id
             val songToPlay = when (page) {
-                // Pages with Top Song
-                3, 4 -> topSongId
-                // Pages with Top Artist's song (or a different top song)
-                5, 6 -> {
-                    if (topSongs.size > 1) {
-                        // Pick a different song from the top list that is not the top song
-                        topSongs.drop(1).random().id
+                3 -> topSongId // Top Song Screen
+                4 -> topSongs.getOrNull(1)?.id ?: topSongId // Top 5 Songs screen (e.g., show #2)
+                5 -> topArtists.firstOrNull()?.let { topSongs.find { song -> song.id == it.id }?.id } ?: topSongId // Top Artist Screen
+                6 -> topArtists.getOrNull(1)?.let { topSongs.find { song -> song.id == it.id }?.id } ?: topSongId // Top 5 Artists
+                0, 1, 2, 7 -> { // Intro, Tease, Reveal, End screens
+                    val eligibleSongs = topSongs.take(50).filter { it.id != lastPlayedId }
+                    if (eligibleSongs.isNotEmpty()) {
+                        eligibleSongs.random().id
                     } else {
-                        // Fallback to top song if there's only one
-                        topSongId
+                        topSongs.take(50).randomOrNull()?.id // Fallback if all top songs were last played
                     }
                 }
-                // Any other page with background music
-                1, 2 -> topSongs.getOrNull(2)?.id ?: topSongId // Example: play 3rd song or fallback
-                else -> null // Pages without music
+                else -> null // No music for other screens
             }
+            lastPlayedId = songToPlay
             audioService.onPageChanged(songToPlay)
         }
     }
+
 
     Scaffold(
         topBar = {

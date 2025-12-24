@@ -132,6 +132,16 @@ class WrappedAudioService(
         }
     }
 
+    fun pause() {
+        player?.pause()
+    }
+
+    fun resume() {
+        if (!_isMuted.value) {
+            player?.play()
+        }
+    }
+
     fun release() {
         transitionJob?.cancel()
         scope.launch {
@@ -169,6 +179,15 @@ class WrappedAudioService(
                 player?.play()
             } catch (e: IllegalStateException) {
                 Log.w("SafePlayerWrapper", "play failed: ${e.message}")
+            }
+        }
+
+        fun pause() {
+            if (isReleased) return
+            try {
+                player?.pause()
+            } catch (e: IllegalStateException) {
+                Log.w("SafePlayerWrapper", "pause failed: ${e.message}")
             }
         }
 
