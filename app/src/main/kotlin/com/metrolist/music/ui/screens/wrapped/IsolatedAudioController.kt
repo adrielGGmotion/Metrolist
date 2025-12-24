@@ -25,7 +25,7 @@ class IsolatedAudioController(
 ) {
     private lateinit var players: List<ExoPlayer>
     private var currentPlayerIndex = 0
-
+    
     private var loadJob: Job? = null
     private val scope = CoroutineScope(parentScope.coroutineContext + SupervisorJob())
     private val TAG = "IsolatedAudioController"
@@ -51,7 +51,7 @@ class IsolatedAudioController(
     fun onPageChanged(page: Int) {
         Log.d(TAG, "Page changed to $page")
         val songId = playlist[page]
-
+        
         if (songId == null) {
             Log.d(TAG, "No song for page $page, fading out.")
             // No song for this page, fade out current player
@@ -140,7 +140,7 @@ class IsolatedAudioController(
             }
         }
     }
-
+    
     private fun crossfade(from: ExoPlayer, to: ExoPlayer) {
         Log.d(TAG, "Crossfading players.")
         scope.launch {

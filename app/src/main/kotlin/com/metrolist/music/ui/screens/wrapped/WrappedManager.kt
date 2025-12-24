@@ -55,7 +55,7 @@ class WrappedManager(
             topArtistSongId = topArtistSongs.getOrNull(1)?.id
         }
         playlist[WrappedPage.TopArtist.index] = topArtistSongId
-
+        
         // Page 6: Top 5 Artists - Random artist from 2-5
         val randomTopArtist = topArtists.drop(1).shuffled().firstOrNull()
         if (randomTopArtist != null) {
