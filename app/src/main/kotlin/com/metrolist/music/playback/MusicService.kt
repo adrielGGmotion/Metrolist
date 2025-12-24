@@ -307,7 +307,7 @@ class MusicService :
         player.addListener(this)
         sleepTimer = SleepTimer(scope, player)
         player.addListener(sleepTimer)
-        player.addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
+        player.setAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
         player.setOffloadEnabled(dataStore.get(AudioOffload, false))
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager

@@ -39,6 +39,7 @@ class CrossfadeManager(
     var isCrossfading = false
 
     private val listeners = CopyOnWriteArrayList<Player.Listener>()
+    private var analyticsListener: AnalyticsListener? = null
 
     private val internalListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
@@ -79,9 +80,17 @@ class CrossfadeManager(
     }
 
     // Custom methods & Overrides with custom logic
-    fun addAnalyticsListener(listener: AnalyticsListener) {
-        player1.addAnalyticsListener(listener)
-        player2.addAnalyticsListener(listener)
+    fun setAnalyticsListener(listener: AnalyticsListener) {
+        this.analyticsListener = listener
+        currentPlayer.addAnalyticsListener(listener)
+    }
+
+    fun clearAnalyticsListener() {
+        analyticsListener?.let {
+            player1.removeAnalyticsListener(it)
+            player2.removeAnalyticsListener(it)
+        }
+        this.analyticsListener = null
     }
 
     var skipSilenceEnabled: Boolean
@@ -463,9 +472,19 @@ class CrossfadeManager(
                             delay(stepDuration.toLong())
                         }
 
+                        analyticsListener?.let {
+                            currentPlayer.removeAnalyticsListener(it)
+                        }
                         currentPlayer.stop()
                         currentPlayer.volume = 1f
                         currentPlayer = nextPlayer
+                        analyticsListener?.let {
+                            currentPlayer.addAnalyticsListener(it)
+                        }
+                        listeners.forEach {
+                            it.onTimelineChanged(currentPlayer.currentTimeline, Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
+                            it.onMediaMetadataChanged(currentPlayer.mediaMetadata)
+                        }
                     } finally {
                         isCrossfading = false
                     }
