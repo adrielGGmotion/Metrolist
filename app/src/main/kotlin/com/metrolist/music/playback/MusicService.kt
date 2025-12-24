@@ -251,11 +251,6 @@ class MusicService :
 
     private var consecutivePlaybackErr = 0
     private var retryJob: Job? = null
-    
-    // Crossfade
-    private var crossfadeJob: Job? = null
-    private var crossfadeDurationSeconds = 5
-    private var crossfadeEnabled = false
 
     // Google Cast support
     var castConnectionHandler: CastConnectionHandler? = null
@@ -304,21 +299,11 @@ class MusicService :
                     setSmallIcon(R.drawable.small_icon)
                 },
         )
-        val exoPlayer = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(createMediaSourceFactory())
-            .setRenderersFactory(createRenderersFactory())
-            .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_NETWORK)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                false,
-            ).setSeekBackIncrementMs(5000)
-            .setSeekForwardIncrementMs(5000)
-            .build()
-        player = CrossfadeManager(exoPlayer)
+        player = CrossfadeManager(
+            this,
+            createMediaSourceFactory(),
+            createRenderersFactory()
+        )
         player.addListener(this)
         sleepTimer = SleepTimer(scope, player)
         player.addListener(sleepTimer)
@@ -584,15 +569,21 @@ class MusicService :
         dataStore.data
             .map { it[com.metrolist.music.constants.EnableCrossfadeKey] ?: false }
             .distinctUntilChanged()
-            .collectLatest(scope) {
-                crossfadeEnabled = it
+            .collectLatest(scope) { enabled ->
+                player.crossfadeDuration = if (enabled) {
+                    dataStore.get(com.metrolist.music.constants.CrossfadeDurationKey, 5)
+                } else {
+                    0
+                }
             }
 
         dataStore.data
             .map { it[com.metrolist.music.constants.CrossfadeDurationKey] ?: 5 }
             .distinctUntilChanged()
-            .collectLatest(scope) {
-                crossfadeDurationSeconds = it
+            .collectLatest(scope) { duration ->
+                if (player.crossfadeDuration > 0) {
+                    player.crossfadeDuration = duration
+                }
             }
     }
 
@@ -875,17 +866,17 @@ class MusicService :
             if (queue.preloadItem != null) {
                 player.addMediaItems(
                     0,
-                    initialStatus.items.subList(0, initialStatus.mediaItemIndex)
+                    initialStatus.items.subList(0, initialStatus.mediaItemIndex).toMutableList()
                 )
                 player.addMediaItems(
                     initialStatus.items.subList(
                         initialStatus.mediaItemIndex + 1,
                         initialStatus.items.size
-                    )
+                    ).toMutableList()
                 )
             } else {
                 player.setMediaItems(
-                    initialStatus.items,
+                    initialStatus.items.toMutableList(),
                     if (initialStatus.mediaItemIndex >
                         0
                     ) {
@@ -933,7 +924,7 @@ class MusicService :
                     player.removeMediaItems(currentIndex + 1, itemCount)
                 }
 
-                player.addMediaItems(currentIndex + 1, radioItems)
+                player.addMediaItems(currentIndex + 1, radioItems.toMutableList())
             }
 
             currentQueue = radioQueue
@@ -999,7 +990,7 @@ class MusicService :
     fun playNext(items: List<MediaItem>) {
         // If queue is empty or player is idle, play immediately instead
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
-            player.setMediaItems(items)
+            player.setMediaItems(items.toMutableList())
             player.prepare()
             // Don't start local playback if casting
             if (castConnectionHandler?.isCasting?.value != true) {
@@ -1012,7 +1003,7 @@ class MusicService :
         val shuffleEnabled = player.shuffleModeEnabled
 
         // Insert items immediately after the current item in the window/index space
-        player.addMediaItems(insertIndex, items)
+        player.addMediaItems(insertIndex, items.toMutableList())
         player.prepare()
 
         if (shuffleEnabled) {
@@ -1069,7 +1060,7 @@ class MusicService :
     }
 
     fun addToQueue(items: List<MediaItem>) {
-        player.addMediaItems(items)
+        player.addMediaItems(items.toMutableList())
         player.prepare()
     }
 
@@ -1267,7 +1258,7 @@ class MusicService :
                         .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
                 }
                 if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
-                    player.addMediaItems(mediaItems)
+                    player.addMediaItems(mediaItems.toMutableList())
                 }
             }
         }
