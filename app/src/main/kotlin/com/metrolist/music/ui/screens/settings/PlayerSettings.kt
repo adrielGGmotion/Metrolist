@@ -44,6 +44,8 @@ import com.metrolist.music.constants.PersistentQueueKey
 import com.metrolist.music.constants.SimilarContent
 import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
+import com.metrolist.music.constants.EnableCrossfadeKey
+import com.metrolist.music.constants.CrossfadeDurationKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.SeekExtraSeconds
 import com.metrolist.music.ui.component.EnumDialog
@@ -81,6 +83,16 @@ fun PlayerSettings(
     val (audioOffload, onAudioOffloadChange) = rememberPreference(
         key = AudioOffload,
         defaultValue = false
+    )
+
+    val (enableCrossfade, onEnableCrossfadeChange) = rememberPreference(
+        key = com.metrolist.music.constants.EnableCrossfadeKey,
+        defaultValue = false
+    )
+
+    val (crossfadeDuration, onCrossfadeDurationChange) = rememberPreference(
+        key = com.metrolist.music.constants.CrossfadeDurationKey,
+        defaultValue = 5
     )
 
     val (enableGoogleCast, onEnableGoogleCastChange) = rememberPreference(
@@ -256,6 +268,45 @@ fun PlayerSettings(
                     },
                     onClick = { onAudioOffloadChange(!audioOffload) }
                 ))
+
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.ic_crossfade),
+                    title = { Text(stringResource(R.string.enable_crossfade)) },
+                    description = { Text(stringResource(R.string.enable_crossfade_description)) },
+                    trailingContent = {
+                        Switch(
+                            checked = enableCrossfade,
+                            onCheckedChange = onEnableCrossfadeChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (enableCrossfade) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onEnableCrossfadeChange(!enableCrossfade) }
+                ))
+
+                if (enableCrossfade) {
+                    add(Material3SettingsItem(
+                        icon = painterResource(R.drawable.tune),
+                        title = { Text(stringResource(R.string.crossfade_duration)) },
+                        description = {
+                            Column {
+                                Text(stringResource(R.string.seconds_template, crossfadeDuration))
+                                Slider(
+                                    value = crossfadeDuration.toFloat(),
+                                    onValueChange = { onCrossfadeDurationChange(it.roundToInt()) },
+                                    valueRange = 1f..15f
+                                )
+                            }
+                        }
+                    ))
+                }
                 // Only show Cast setting in GMS builds (not in F-Droid/FOSS)
                 if (BuildConfig.CAST_AVAILABLE) {
                     add(Material3SettingsItem(

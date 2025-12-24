@@ -59,6 +59,8 @@ enum class AudioQuality {
 val AudioOffload = booleanPreferencesKey("enableOffload")
 
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
+val EnableCrossfadeKey = booleanPreferencesKey("enableCrossfade")
+val CrossfadeDurationKey = intPreferencesKey("crossfadeDuration")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")

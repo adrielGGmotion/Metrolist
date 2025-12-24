@@ -235,7 +235,7 @@ class MusicService :
     @DownloadCache
     lateinit var downloadCache: SimpleCache
 
-    lateinit var player: ExoPlayer
+    lateinit var player: CrossfadeManager
     private lateinit var mediaSession: MediaLibrarySession
 
     private var isAudioEffectSessionOpened = false
@@ -252,6 +252,11 @@ class MusicService :
     private var consecutivePlaybackErr = 0
     private var retryJob: Job? = null
     
+    // Crossfade
+    private var crossfadeJob: Job? = null
+    private var crossfadeDurationSeconds = 5
+    private var crossfadeEnabled = false
+
     // Google Cast support
     var castConnectionHandler: CastConnectionHandler? = null
         private set
@@ -299,30 +304,26 @@ class MusicService :
                     setSmallIcon(R.drawable.small_icon)
                 },
         )
-        player =
-            ExoPlayer
-                .Builder(this)
-                .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory())
-                .setHandleAudioBecomingNoisy(true)
-                .setWakeMode(C.WAKE_MODE_NETWORK)
-                .setAudioAttributes(
-                    AudioAttributes
-                        .Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build(),
-                    false,
-                ).setSeekBackIncrementMs(5000)
-                .setSeekForwardIncrementMs(5000)
-                .build()
-                .apply {
-                    addListener(this@MusicService)
-                    sleepTimer = SleepTimer(scope, this)
-                    addListener(sleepTimer)
-                    addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
-                    setOffloadEnabled(dataStore.get(AudioOffload, false))
-                }
+        val exoPlayer = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(createMediaSourceFactory())
+            .setRenderersFactory(createRenderersFactory())
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                false,
+            ).setSeekBackIncrementMs(5000)
+            .setSeekForwardIncrementMs(5000)
+            .build()
+        player = CrossfadeManager(exoPlayer)
+        player.addListener(this)
+        sleepTimer = SleepTimer(scope, player)
+        player.addListener(sleepTimer)
+        player.addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
+        player.setOffloadEnabled(dataStore.get(AudioOffload, false))
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         setupAudioFocusRequest()
@@ -579,6 +580,20 @@ class MusicService :
                 }
             }
         }
+
+        dataStore.data
+            .map { it[com.metrolist.music.constants.EnableCrossfadeKey] ?: false }
+            .distinctUntilChanged()
+            .collectLatest(scope) {
+                crossfadeEnabled = it
+            }
+
+        dataStore.data
+            .map { it[com.metrolist.music.constants.CrossfadeDurationKey] ?: 5 }
+            .distinctUntilChanged()
+            .collectLatest(scope) {
+                crossfadeDurationSeconds = it
+            }
     }
 
     private fun setupAudioFocusRequest() {
@@ -1357,7 +1372,7 @@ class MusicService :
             shuffledIndices[shuffledIndices.indexOf(player.currentMediaItemIndex)] =
                 shuffledIndices[0]
             shuffledIndices[0] = player.currentMediaItemIndex
-            player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
+        player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
         }
 
         // Save state when shuffle mode changes

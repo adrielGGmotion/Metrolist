@@ -101,9 +101,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.window.DialogProperties
+import android.os.Bundle
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
@@ -588,15 +591,15 @@ fun Queue(
                     if (!playerConnection.player.shuffleModeEnabled) {
                         playerConnection.player.moveMediaItem(safeFrom, safeTo)
                     } else {
-                        playerConnection.player.setShuffleOrder(
-                            DefaultShuffleOrder(
-                                queueWindows.map { it.firstPeriodIndex }
-                                    .toMutableList()
-                                    .move(safeFrom, safeTo)
-                                    .toIntArray(),
-                                System.currentTimeMillis()
-                            )
-                        )
+                        val newOrder = queueWindows.map { it.firstPeriodIndex }
+                            .toMutableList()
+                            .move(safeFrom, safeTo)
+                            .toIntArray()
+                        val params = android.os.Bundle().apply {
+                            putIntArray("order", newOrder)
+                        }
+                        val sessionCommand = SessionCommand("setShuffleOrder", Bundle.EMPTY)
+                        (playerConnection.player as MediaController).sendCustomCommand(sessionCommand, params)
                     }
                     dragInfo = null
                 }
@@ -1136,7 +1139,6 @@ fun Queue(
         )
     }
 }
-
 @Composable
 private fun PlayerQueueButton(
     icon: Int,

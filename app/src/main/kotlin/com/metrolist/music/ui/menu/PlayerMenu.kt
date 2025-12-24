@@ -5,6 +5,9 @@ import android.content.res.Configuration
 import android.media.audiofx.AudioEffect
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.os.Bundle
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -505,25 +508,30 @@ fun PlayerMenu(
                                     )
                                 },
                                 onClick = {
-                                    val intent =
-                                        Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
-                                            putExtra(
-                                                AudioEffect.EXTRA_AUDIO_SESSION,
-                                                playerConnection.player.audioSessionId,
-                                            )
-                                            putExtra(
-                                                AudioEffect.EXTRA_PACKAGE_NAME,
-                                                context.packageName
-                                            )
-                                            putExtra(
-                                                AudioEffect.EXTRA_CONTENT_TYPE,
-                                                AudioEffect.CONTENT_TYPE_MUSIC
-                                            )
+                                    val sessionCommand = SessionCommand("getAudioSessionId", Bundle.EMPTY)
+                                    coroutineScope.launch {
+                                        val result = (playerConnection.player as MediaController).sendCustomCommand(sessionCommand, Bundle.EMPTY).get()
+                                        val audioSessionId = result.resultCode
+                                        val intent =
+                                            Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
+                                                putExtra(
+                                                    AudioEffect.EXTRA_AUDIO_SESSION,
+                                                    audioSessionId,
+                                                )
+                                                putExtra(
+                                                    AudioEffect.EXTRA_PACKAGE_NAME,
+                                                    context.packageName
+                                                )
+                                                putExtra(
+                                                    AudioEffect.EXTRA_CONTENT_TYPE,
+                                                    AudioEffect.CONTENT_TYPE_MUSIC
+                                                )
+                                            }
+                                        if (intent.resolveActivity(context.packageManager) != null) {
+                                            activityResultLauncher.launch(intent)
                                         }
-                                    if (intent.resolveActivity(context.packageManager) != null) {
-                                        activityResultLauncher.launch(intent)
+                                        onDismiss()
                                     }
-                                    onDismiss()
                                 }
                             )
                         )

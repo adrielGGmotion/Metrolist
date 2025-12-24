@@ -71,7 +71,7 @@ constructor(
 
     override fun onConnect(
         session: MediaSession,
-        controller: MediaSession.ControllerInfo,
+        controller: MediaSession.ControllerInfo
     ): MediaSession.ConnectionResult {
         val connectionResult = super.onConnect(session, controller)
         return MediaSession.ConnectionResult.accept(
@@ -82,6 +82,8 @@ constructor(
                 .add(MediaSessionConstants.CommandToggleLibrary)
                 .add(MediaSessionConstants.CommandToggleShuffle)
                 .add(MediaSessionConstants.CommandToggleRepeatMode)
+                .add(SessionCommand("setShuffleOrder", Bundle.EMPTY))
+                .add(SessionCommand("getAudioSessionId", Bundle.EMPTY))
                 .build(),
             connectionResult.availablePlayerCommands,
         )
@@ -91,15 +93,29 @@ constructor(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
         customCommand: SessionCommand,
-        args: Bundle,
-    ): ListenableFuture<SessionResult> {
+        args: Bundle
+    ): com.google.common.util.concurrent.ListenableFuture<SessionResult> {
         when (customCommand.customAction) {
+            "setShuffleOrder" -> {
+                val order = args.getIntArray("order")
+                if (order != null) {
+                    (session.player as CrossfadeManager).setShuffleOrder(
+                        androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder(
+                            order,
+                            System.currentTimeMillis()
+                        )
+                    )
+                }
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            "getAudioSessionId" -> {
+                return Futures.immediateFuture(SessionResult((session.player as CrossfadeManager).audioSessionId))
+            }
             MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
             MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
             MediaSessionConstants.ACTION_TOGGLE_LIBRARY -> toggleLibrary()
             MediaSessionConstants.ACTION_TOGGLE_SHUFFLE -> session.player.shuffleModeEnabled =
                 !session.player.shuffleModeEnabled
-
             MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE -> session.player.toggleRepeatMode()
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
