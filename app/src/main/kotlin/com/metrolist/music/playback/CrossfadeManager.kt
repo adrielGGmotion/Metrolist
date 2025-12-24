@@ -133,7 +133,7 @@ class CrossfadeManager(
         crossfadeJob?.cancel()
         if (isCrossfading) {
             val nextPlayer = if (currentPlayer === player1) player2 else player1
-            nextPlayer.stop()
+            nextPlayer.pause()
         }
         currentPlayer.pause()
     }
@@ -160,19 +160,22 @@ class CrossfadeManager(
     }
 
     // Playlist manipulation methods (apply to both players)
-    override fun setMediaItems(mediaItems: MutableList<MediaItem>) {
-        player1.setMediaItems(mediaItems)
-        player2.setMediaItems(mediaItems)
+    override fun setMediaItems(mediaItems: List<MediaItem>) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        player1.setMediaItems(mutableMediaItems)
+        player2.setMediaItems(mutableMediaItems)
     }
 
-    override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
-        player1.setMediaItems(mediaItems, resetPosition)
-        player2.setMediaItems(mediaItems, resetPosition)
+    override fun setMediaItems(mediaItems: List<MediaItem>, resetPosition: Boolean) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        player1.setMediaItems(mutableMediaItems, resetPosition)
+        player2.setMediaItems(mutableMediaItems, resetPosition)
     }
 
-    override fun setMediaItems(mediaItems: MutableList<MediaItem>, startIndex: Int, startPositionMs: Long) {
-        player1.setMediaItems(mediaItems, startIndex, startPositionMs)
-        player2.setMediaItems(mediaItems, startIndex, startPositionMs)
+    override fun setMediaItems(mediaItems: List<MediaItem>, startIndex: Int, startPositionMs: Long) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        player1.setMediaItems(mutableMediaItems, startIndex, startPositionMs)
+        player2.setMediaItems(mutableMediaItems, startIndex, startPositionMs)
     }
 
     override fun addMediaItem(mediaItem: MediaItem) {
@@ -180,9 +183,10 @@ class CrossfadeManager(
         player2.addMediaItem(mediaItem)
     }
 
-    override fun addMediaItems(mediaItems: MutableList<MediaItem>) {
-        player1.addMediaItems(mediaItems)
-        player2.addMediaItems(mediaItems)
+    override fun addMediaItems(mediaItems: List<MediaItem>) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        player1.addMediaItems(mutableMediaItems)
+        player2.addMediaItems(mutableMediaItems)
     }
 
     override fun addMediaItem(index: Int, mediaItem: MediaItem) {
@@ -190,9 +194,10 @@ class CrossfadeManager(
         player2.addMediaItem(index, mediaItem)
     }
 
-    override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
-        player1.addMediaItems(index, mediaItems)
-        player2.addMediaItems(index, mediaItems)
+    override fun addMediaItems(index: Int, mediaItems: List<MediaItem>) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        player1.addMediaItems(index, mutableMediaItems)
+        player2.addMediaItems(index, mutableMediaItems)
     }
 
     override fun removeMediaItem(index: Int) {
@@ -225,9 +230,10 @@ class CrossfadeManager(
         player2.replaceMediaItem(index, mediaItem)
     }
 
-    override fun replaceMediaItems(fromIndex: Int, toIndex: Int, mediaItems: MutableList<MediaItem>) {
-        player1.replaceMediaItems(fromIndex, toIndex, mediaItems)
-        player2.replaceMediaItems(fromIndex, toIndex, mediaItems)
+    override fun replaceMediaItems(fromIndex: Int, toIndex: Int, mediaItems: List<MediaItem>) {
+        val mutableMediaItems = mediaItems.toMutableList()
+        player1.replaceMediaItems(fromIndex, toIndex, mutableMediaItems)
+        player2.replaceMediaItems(fromIndex, toIndex, mutableMediaItems)
     }
 
     // Pure delegation to currentPlayer
@@ -456,6 +462,14 @@ class CrossfadeManager(
             if (!isCrossfading && scope.isActive) {
                 val nextPlayer = if (currentPlayer === player1) player2 else player1
                 if (currentPlayer.nextMediaItemIndex != C.INDEX_UNSET) {
+                    // Deduplication Check
+                    val currentItem = currentPlayer.currentMediaItem
+                    val nextItem = currentPlayer.getMediaItemAt(currentPlayer.nextMediaItemIndex)
+                    if (currentItem?.mediaId == nextItem.mediaId && repeatMode != Player.REPEAT_MODE_ONE) {
+                        delay(1000) // Wait and re-evaluate
+                        continue
+                    }
+
                     try {
                         isCrossfading = true
                         nextPlayer.volume = 0f

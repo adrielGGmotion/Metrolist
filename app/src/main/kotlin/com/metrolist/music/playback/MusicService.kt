@@ -866,17 +866,17 @@ class MusicService :
             if (queue.preloadItem != null) {
                 player.addMediaItems(
                     0,
-                    initialStatus.items.subList(0, initialStatus.mediaItemIndex).toMutableList()
+                    initialStatus.items.subList(0, initialStatus.mediaItemIndex)
                 )
                 player.addMediaItems(
                     initialStatus.items.subList(
                         initialStatus.mediaItemIndex + 1,
                         initialStatus.items.size
-                    ).toMutableList()
+                    )
                 )
             } else {
                 player.setMediaItems(
-                    initialStatus.items.toMutableList(),
+                    initialStatus.items,
                     if (initialStatus.mediaItemIndex >
                         0
                     ) {
@@ -924,7 +924,7 @@ class MusicService :
                     player.removeMediaItems(currentIndex + 1, itemCount)
                 }
 
-                player.addMediaItems(currentIndex + 1, radioItems.toMutableList())
+                player.addMediaItems(currentIndex + 1, radioItems)
             }
 
             currentQueue = radioQueue
@@ -990,7 +990,7 @@ class MusicService :
     fun playNext(items: List<MediaItem>) {
         // If queue is empty or player is idle, play immediately instead
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
-            player.setMediaItems(items.toMutableList())
+            player.setMediaItems(items)
             player.prepare()
             // Don't start local playback if casting
             if (castConnectionHandler?.isCasting?.value != true) {
@@ -1003,7 +1003,7 @@ class MusicService :
         val shuffleEnabled = player.shuffleModeEnabled
 
         // Insert items immediately after the current item in the window/index space
-        player.addMediaItems(insertIndex, items.toMutableList())
+        player.addMediaItems(insertIndex, items)
         player.prepare()
 
         if (shuffleEnabled) {
@@ -1060,7 +1060,7 @@ class MusicService :
     }
 
     fun addToQueue(items: List<MediaItem>) {
-        player.addMediaItems(items.toMutableList())
+        player.addMediaItems(items)
         player.prepare()
     }
 
@@ -1258,7 +1258,7 @@ class MusicService :
                         .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
                 }
                 if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
-                    player.addMediaItems(mediaItems.toMutableList())
+                    player.addMediaItems(mediaItems)
                 }
             }
         }
