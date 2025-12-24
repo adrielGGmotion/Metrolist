@@ -13,12 +13,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -75,6 +79,27 @@ fun WrappedScreen(navController: NavController) {
     val accountInfo by manager.accountInfo.collectAsState()
     val topSongs by manager.topSongs.collectAsState()
     val topArtists by manager.topArtists.collectAsState()
+    var playlist by remember { mutableStateOf<Map<Int, String?>>(emptyMap()) }
+
+    LaunchedEffect(topSongs, topArtists) {
+        playlist = manager.generatePlaylistMap(topSongs, topArtists)
+    }
+
+    val audioController = remember(playlist) {
+        IsolatedAudioController(context, scope, playlist)
+    }
+
+    DisposableEffect(Unit) {
+        audioController.prepare()
+        onDispose { audioController.release() }
+    }
+
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { page ->
+            audioController.onPageChanged(page)
+        }
+    }
+
     val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
         WrappedRepository.getMessage(totalMinutes)
     }

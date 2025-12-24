@@ -20,6 +20,35 @@ class WrappedManager(
     private val databaseDao: DatabaseDao,
     private val scope: CoroutineScope
 ) {
+    suspend fun generatePlaylistMap(
+        topSongs: List<SongWithStats>,
+        topArtists: List<Artist>
+    ): Map<Int, String?> {
+        val topSongId = topSongs.firstOrNull()?.id
+        val topArtistId = topArtists.firstOrNull()?.id
+
+        val topArtistSongId = topSongs.find {
+            val song = databaseDao.getSongById(it.id)
+            song?.artists?.firstOrNull()?.id == topArtistId && it.id != topSongId
+        }?.id
+
+        val randomArtistSongId = topArtists
+            .drop(1)
+            .shuffled()
+            .firstOrNull()
+            ?.let { artist ->
+                topSongs.find {
+                    val song = databaseDao.getSongById(it.id)
+                    song?.artists?.firstOrNull()?.id == artist.id
+                }?.id
+            }
+
+        return mapOf(
+            3 to topSongId,
+            5 to topArtistSongId,
+            6 to randomArtistSongId
+        )
+    }
 
     private val _messagePair = MutableStateFlow<MessagePair?>(null)
     val messagePair = _messagePair.asStateFlow()
