@@ -43,38 +43,13 @@ import com.metrolist.music.ui.screens.wrapped.pages.WrappedMinutesTease
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedEndScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5ArtistsScreen
 import com.metrolist.music.db.entities.SongWithStats
+import com.metrolist.music.ui.screens.wrapped.getDatabaseDao
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5SongsScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopArtistScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopSongScreen
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
-private fun generateTrackMap(topSongs: List<SongWithStats>): Map<WrappedScreenType, String?> {
-    if (topSongs.isEmpty()) return emptyMap()
-
-    val topSongId = topSongs.first().id
-    val usedTracks = mutableSetOf(topSongId)
-
-    val minutesSong = topSongs.take(50).filterNot { usedTracks.contains(it.id) }.randomOrNull()?.id
-    minutesSong?.let { usedTracks.add(it) }
-
-    val topArtistSong = topSongs.drop(1).firstOrNull { it.id != topSongId }?.id
-    topArtistSong?.let { usedTracks.add(it) }
-
-    val miscSong = topSongs.take(50).filterNot { usedTracks.contains(it.id) }.randomOrNull()?.id
-    miscSong?.let { usedTracks.add(it) }
-
-    return mapOf(
-        WrappedScreenType.Welcome to miscSong,
-        WrappedScreenType.MinutesTease to minutesSong,
-        WrappedScreenType.MinutesReveal to minutesSong,
-        WrappedScreenType.TopSong to topSongId,
-        WrappedScreenType.Top5Songs to (topSongs.getOrNull(1)?.id ?: topSongId),
-        WrappedScreenType.TopArtist to (topArtistSong ?: topSongId),
-        WrappedScreenType.Top5Artists to (topSongs.getOrNull(2)?.id ?: topSongId),
-        WrappedScreenType.End to miscSong
-    )
-}
 
 sealed class WrappedScreenType {
     object Welcome : WrappedScreenType()
@@ -150,11 +125,9 @@ fun WrappedScreen(navController: NavController) {
     val topSongs by manager.topSongs.collectAsState()
     val topArtists by manager.topArtists.collectAsState()
     val isMuted by audioService.isMuted.collectAsState()
+    val trackMap by manager.trackMap.collectAsState()
     val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
         WrappedRepository.getMessage(totalMinutes)
-    }
-    val trackMap by remember(topSongs) {
-        mutableStateOf(generateTrackMap(topSongs))
     }
 
     LaunchedEffect(pagerState, trackMap) {
