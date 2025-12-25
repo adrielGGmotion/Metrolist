@@ -49,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
@@ -193,14 +194,16 @@ fun HomeScreen(
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
 
-    val wrappedDismissed = backStackEntry?.savedStateHandle?.get<Boolean>("wrapped_seen")
+    val wrappedDismissed by backStackEntry?.savedStateHandle?.getStateFlow("wrapped_seen", false)
+        ?.collectAsState() ?: remember { mutableStateOf(false) }
+
     LaunchedEffect(wrappedDismissed) {
-        if (wrappedDismissed == true) {
+        if (wrappedDismissed) {
             viewModel.markWrappedAsSeen()
             scope.launch {
                 snackbarHostState.showSnackbar("Found in Settings > Content")
             }
-            backStackEntry?.savedStateHandle?.remove<Boolean>("wrapped_seen")
+            backStackEntry?.savedStateHandle?.set("wrapped_seen", false) // Reset the value
         }
     }
 

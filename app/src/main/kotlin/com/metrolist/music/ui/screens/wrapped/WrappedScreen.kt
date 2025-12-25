@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
@@ -61,6 +62,12 @@ sealed class WrappedScreenType {
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WrappedScreen(navController: NavController) {
+    val onClose: () -> Unit = {
+        navController.previousBackStackEntry?.savedStateHandle?.set("wrapped_seen", true)
+        navController.popBackStack()
+    }
+    BackHandler(onBack = onClose)
+
     val messagePairSaver = Saver<MessagePair, List<Any>>(
         save = { listOf(it.range.first, it.range.last, it.tease, it.reveal) },
         restore = {
@@ -140,10 +147,7 @@ fun WrappedScreen(navController: NavController) {
             TopAppBar(
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("wrapped_seen", true)
-                        navController.popBackStack()
-                    }) {
+                    IconButton(onClick = onClose) {
                         Icon(painterResource(R.drawable.arrow_back), "Back", tint = Color.White)
                     }
                 },

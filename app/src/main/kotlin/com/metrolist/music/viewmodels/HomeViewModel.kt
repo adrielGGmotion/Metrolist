@@ -75,16 +75,21 @@ class HomeViewModel @Inject constructor(
     val accountName = MutableStateFlow("Guest")
     val accountImageUrl = MutableStateFlow<String?>(null)
 
-	val showWrappedCard: StateFlow<Boolean> =
-        combine(
-            context.dataStore.data.map { prefs ->
-                val defaultShowWrapped = LocalDate.now().isBefore(LocalDate.of(2026, 1, 10))
-                prefs[ShowWrappedCardKey] ?: defaultShowWrapped
-            },
-            context.dataStore.data.map { it[WrappedSeenKey] ?: false }
-        ) { showWrappedSetting, wrappedSeen ->
-            showWrappedSetting && !wrappedSeen
-        }.stateIn(viewModelScope, SharingStarted.Lazily, false)
+	val showWrappedCard: StateFlow<Boolean> = context.dataStore.data.map { prefs ->
+        val showWrappedPref: Boolean? = prefs[ShowWrappedCardKey]
+        val seen: Boolean = prefs[WrappedSeenKey] ?: false
+        val isBeforeDate = LocalDate.now().isBefore(LocalDate.of(2026, 1, 10))
+
+        when (showWrappedPref) {
+            true -> true
+            false -> false
+            null -> isBeforeDate && !seen
+        }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, false)
+
+    val wrappedSeen: StateFlow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[WrappedSeenKey] ?: false
+    }.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
     fun markWrappedAsSeen() {
         viewModelScope.launch(Dispatchers.IO) {
