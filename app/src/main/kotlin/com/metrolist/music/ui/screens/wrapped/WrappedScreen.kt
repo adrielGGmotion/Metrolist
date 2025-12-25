@@ -17,12 +17,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,13 +35,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.metrolist.music.R
+import com.metrolist.music.ui.screens.wrapped.pages.WrappedEndScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedIntro
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedMinutesScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedMinutesTease
-import com.metrolist.music.ui.screens.wrapped.pages.WrappedEndScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5ArtistsScreen
-import com.metrolist.music.db.entities.SongWithStats
-import com.metrolist.music.ui.screens.wrapped.getDatabaseDao
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5SongsScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopArtistScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopSongScreen
@@ -121,7 +117,6 @@ fun WrappedScreen(navController: NavController) {
     val pagerState = rememberPagerState(pageCount = { screens.size })
     val totalMinutes by manager.totalMinutes.collectAsState(initial = 0L)
     val isLoading by manager.isLoading.collectAsState()
-    val accountInfo by manager.accountInfo.collectAsState()
     val topSongs by manager.topSongs.collectAsState()
     val topArtists by manager.topArtists.collectAsState()
     val isMuted by audioService.isMuted.collectAsState()
@@ -135,9 +130,7 @@ fun WrappedScreen(navController: NavController) {
 
         snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
             val screen = screens.getOrNull(page)
-            val nextScreen = screens.getOrNull(page + 1)
-            val songToPlay = trackMap[screen]
-            audioService.onPageChanged(songToPlay)
+            audioService.onPageChanged(trackMap[screen])
         }
     }
 
@@ -162,7 +155,9 @@ fun WrappedScreen(navController: NavController) {
         },
         containerColor = Color.Black
     ) { paddingValues ->
-        VerticalPager(state = pagerState, modifier = Modifier.fillMaxSize().padding(paddingValues)) { page ->
+        VerticalPager(state = pagerState, modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)) { page ->
             when (screens[page]) {
                 is WrappedScreenType.Welcome -> WrappedIntro { scope.launch { pagerState.animateScrollToPage(page = 1) } }
                 is WrappedScreenType.MinutesTease -> WrappedMinutesTease(
@@ -180,7 +175,7 @@ fun WrappedScreen(navController: NavController) {
                     isVisible = pagerState.currentPage == 3
                 )
                 is WrappedScreenType.Top5Songs -> WrappedTop5SongsScreen(
-                    topSongs = topSongs,
+                    topSongs = topSongs.take(5),
                     isVisible = pagerState.currentPage == 4
                 )
                 is WrappedScreenType.TopArtist -> WrappedTopArtistScreen(
@@ -191,7 +186,7 @@ fun WrappedScreen(navController: NavController) {
                     topArtists = topArtists,
                     isVisible = pagerState.currentPage == 6
                 )
-                is WrappedScreenType.End -> WrappedEndScreen()
+                is WrappedScreenType.End -> WrappedEndScreen(manager = manager)
             }
         }
     }

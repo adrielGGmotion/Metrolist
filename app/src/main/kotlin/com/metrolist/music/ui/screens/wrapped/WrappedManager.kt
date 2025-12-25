@@ -6,16 +6,23 @@ import com.metrolist.innertube.models.AccountInfo
 import com.metrolist.music.constants.ArtistSongSortType
 import com.metrolist.music.db.DatabaseDao
 import com.metrolist.music.db.entities.Artist
+import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.db.entities.SongWithStats
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
 import java.util.Calendar
+import java.util.UUID
+
+sealed class PlaylistCreationState {
+    object Idle : PlaylistCreationState()
+    object Creating : PlaylistCreationState()
+    object Success : PlaylistCreationState()
+}
 
 class WrappedManager(
     private val databaseDao: DatabaseDao,
@@ -41,6 +48,40 @@ class WrappedManager(
 
     private val _trackMap = MutableStateFlow<Map<WrappedScreenType, String?>>(emptyMap())
     val trackMap = _trackMap.asStateFlow()
+
+    private val _playlistCreationState = MutableStateFlow<PlaylistCreationState>(PlaylistCreationState.Idle)
+    val playlistCreationState = _playlistCreationState.asStateFlow()
+
+    fun saveWrappedPlaylist() {
+        if (_playlistCreationState.value != PlaylistCreationState.Idle) return
+
+        scope.launch {
+            _playlistCreationState.value = PlaylistCreationState.Creating
+            try {
+                val playlistId = UUID.randomUUID().toString()
+                val newPlaylist = PlaylistEntity(
+                    id = playlistId,
+                    name = WrappedConstants.PLAYLIST_NAME,
+                    thumbnailUrl = "android.resource://com.metrolist.music/drawable/ic_launcher_static_foreground",
+                    bookmarkedAt = LocalDateTime.now(),
+                    isEditable = true
+                )
+                databaseDao.insert(newPlaylist)
+
+                val createdPlaylist = databaseDao.playlist(playlistId).first()
+                if (createdPlaylist != null) {
+                    val songIds = _topSongs.value.map { it.id }
+                    databaseDao.addSongToPlaylist(createdPlaylist, songIds)
+                } else {
+                    Log.e("WrappedManager", "Failed to retrieve created playlist with id: $playlistId")
+                }
+                _playlistCreationState.value = PlaylistCreationState.Success
+            } catch (e: Exception) {
+                Log.e("WrappedManager", "Error saving wrapped playlist", e)
+                _playlistCreationState.value = PlaylistCreationState.Idle
+            }
+        }
+    }
 
     /**
      * Generates a map of screen types to song IDs for the Wrapped experience.
@@ -123,40 +164,20 @@ class WrappedManager(
             _accountInfo.value = YouTube.accountInfo().getOrNull()
 
             val fromTimestamp = Calendar.getInstance().apply {
-                set(Calendar.DAY_OF_YEAR, 1)
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
+                set(WrappedConstants.YEAR, Calendar.JANUARY, 1, 0, 0, 0)
             }.timeInMillis
 
-            _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 50).first()
-            _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5).first()
+            val toTimestamp = Calendar.getInstance().apply {
+                set(WrappedConstants.YEAR, Calendar.DECEMBER, 31, 23, 59, 59)
+            }.timeInMillis
 
-            val seenSongIds = mutableSetOf<String>()
-            var totalSeconds = 0L
+            _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 50, toTimeStamp = toTimestamp).first()
+            _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5, toTimeStamp = toTimestamp).first()
 
-            withContext(Dispatchers.IO) {
-                val events = databaseDao.events().first()
-                events.forEach { event ->
-                    totalSeconds += event.event.playTime / 1000
-                    seenSongIds.add(event.song.id)
-                }
-            }
-
-            withContext(Dispatchers.IO) {
-                // Continue with existing history fetching logic...
-                val historyPage = YouTube.musicHistory().getOrNull()
-                historyPage?.sections?.forEach { section ->
-                    section.songs.forEach { song ->
-                        if (song.id !in seenSongIds) {
-                            totalSeconds += song.duration ?: 0
-                        }
-                    }
-                }
-            }
-
-            val totalMinutes = totalSeconds / 60
+            val totalPlayTimeMs = databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() ?: 0L
+            val totalMinutes = totalPlayTimeMs / 1000 / 60
             _totalMinutes.value = totalMinutes
+
             generatePlaylistMap()
             _isLoading.value = false
         }
