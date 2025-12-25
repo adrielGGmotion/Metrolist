@@ -1,18 +1,17 @@
 package com.metrolist.music.ui.screens.wrapped
 
+import android.util.Log
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AccountInfo
+import com.metrolist.music.constants.ArtistSongSortType
 import com.metrolist.music.db.DatabaseDao
+import com.metrolist.music.db.entities.Artist
+import com.metrolist.music.db.entities.SongWithStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
-import com.metrolist.music.db.entities.Artist
-import android.util.Log
-import com.metrolist.music.constants.ArtistSongSortType
-import com.metrolist.music.db.entities.Song
-import com.metrolist.music.db.entities.SongWithStats
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -22,7 +21,6 @@ class WrappedManager(
     private val databaseDao: DatabaseDao,
     private val scope: CoroutineScope
 ) {
-
     private val _messagePair = MutableStateFlow<MessagePair?>(null)
     val messagePair = _messagePair.asStateFlow()
 
@@ -44,105 +42,78 @@ class WrappedManager(
     private val _trackMap = MutableStateFlow<Map<WrappedScreenType, String?>>(emptyMap())
     val trackMap = _trackMap.asStateFlow()
 
-    private fun generateTrackMap() {
+    /**
+     * Generates a map of screen types to song IDs for the Wrapped experience.
+     * This function ensures that songs are unique across screens where possible
+     * and that certain screens (like Tease/Reveal) share the same song.
+     */
+    private fun generatePlaylistMap() {
         scope.launch {
             val topSongs = _topSongs.value
             val topArtists = _topArtists.value
-
             if (topSongs.isEmpty()) {
+                Log.w("WrappedManager", "Cannot generate playlist map, top songs list is empty.")
                 _trackMap.value = emptyMap()
                 return@launch
             }
 
-            val usedTrackIds = mutableSetOf<String>()
-            val finalMap = mutableMapOf<WrappedScreenType, String?>()
+            val usedSongIds = mutableSetOf<String>()
+            val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
-            // Priority 1: Top Song
+            // Assign Top Song first, as it's the most important.
             val topSong = topSongs.first()
-            usedTrackIds.add(topSong.id)
-            finalMap[WrappedScreenType.TopSong] = topSong.id
+            playlistMap[WrappedScreenType.TopSong] = topSong.id
+            usedSongIds.add(topSong.id)
 
-            // Priority 2: Top Artist's song
-            val topArtist = topArtists.firstOrNull()
-            if (topArtist != null) {
-                val topArtistTracks = databaseDao.artistSongs(
-                    artistId = topArtist.artist.id,
+            // Assign Top Artist's song, ensuring it's not the same as the top overall song.
+            topArtists.firstOrNull()?.let { artist ->
+                val artistTopSongs = databaseDao.artistSongs(
+                    artistId = artist.id, // Verified schema: artist.id is correct
                     sortType = ArtistSongSortType.PLAY_TIME,
                     descending = true
                 ).first()
-                val artistSong = topArtistTracks.firstOrNull { it.id !in usedTrackIds }
-                if (artistSong != null) {
-                    finalMap[WrappedScreenType.TopArtist] = artistSong.id
-                    usedTrackIds.add(artistSong.id)
+
+                val topArtistSong = artistTopSongs.firstOrNull { it.id !in usedSongIds }
+                    ?: artistTopSongs.firstOrNull() // Fallback to any song if all are used
+
+                topArtistSong?.let {
+                    playlistMap[WrappedScreenType.TopArtist] = it.id
+                    usedSongIds.add(it.id)
+                }
+            }
+
+            // Function to find a unique song from the top tracks.
+            fun findUniqueSong(): SongWithStats? {
+                return topSongs.firstOrNull { it.id !in usedSongIds }
+            }
+
+            // Assign songs to the remaining screens.
+            val remainingScreens = listOf(
+                WrappedScreenType.Welcome,
+                WrappedScreenType.MinutesTease,
+                WrappedScreenType.MinutesReveal,
+                WrappedScreenType.Top5Songs,
+                WrappedScreenType.Top5Artists,
+                WrappedScreenType.End
+            ).filter { it !in playlistMap.keys }
+
+            for (screen in remainingScreens) {
+                // Link Tease and Reveal screens to the same song.
+                if (screen == WrappedScreenType.MinutesTease || screen == WrappedScreenType.MinutesReveal) {
+                    if (!playlistMap.containsKey(WrappedScreenType.MinutesTease)) {
+                        val sharedSong = findUniqueSong() ?: topSong // Fallback to top song
+                        playlistMap[WrappedScreenType.MinutesTease] = sharedSong.id
+                        playlistMap[WrappedScreenType.MinutesReveal] = sharedSong.id
+                        usedSongIds.add(sharedSong.id)
+                    }
                 } else {
-                    // Fallback: if all of the artist's top songs are already used,
-                    // just use their top song (which will be a repeat)
-                    finalMap[WrappedScreenType.TopArtist] = topArtistTracks.firstOrNull()?.id
+                    val song = findUniqueSong() ?: topSong // Fallback to top song
+                    playlistMap[screen] = song.id
+                    usedSongIds.add(song.id)
                 }
             }
-
-            // Priority 3: Top 5 Songs
-            val top5Song = topSongs.firstOrNull { it.id !in usedTrackIds }
-            if (top5Song != null) {
-                finalMap[WrappedScreenType.Top5Songs] = top5Song.id
-                usedTrackIds.add(top5Song.id)
-            }
-
-            // Priority 4: Top 5 Artists
-            for (artist in topArtists.take(5)) {
-                val artistTracks = databaseDao.artistSongs(
-                    artistId = artist.artist.id,
-                    sortType = ArtistSongSortType.PLAY_TIME,
-                    descending = true
-                ).first()
-                val artistSong = artistTracks.firstOrNull { it.id !in usedTrackIds }
-                if (artistSong != null) {
-                    finalMap.putIfAbsent(WrappedScreenType.Top5Artists, artistSong.id)
-                    usedTrackIds.add(artistSong.id)
-                    break // Found a song for this screen, move on
-                }
-            }
-
-
-            // Priority 5: Linked Screens (Minutes Tease/Reveal)
-            var potentialFiller = topSongs.filter { it.id !in usedTrackIds }
-            if (potentialFiller.isEmpty()) {
-                potentialFiller = topSongs // Fallback: allow repeats if we run out
-            }
-            val minutesSong = potentialFiller.randomOrNull()
-            if (minutesSong != null) {
-                finalMap[WrappedScreenType.MinutesTease] = minutesSong.id
-                finalMap[WrappedScreenType.MinutesReveal] = minutesSong.id
-                usedTrackIds.add(minutesSong.id)
-            }
-
-            // Priority 6: Filler Screens (Intro/Outro)
-            potentialFiller = topSongs.filter { it.id !in usedTrackIds }
-            if (potentialFiller.isEmpty()) {
-                potentialFiller = topSongs // Fallback: allow repeats
-            }
-            val introSong = potentialFiller.randomOrNull()
-            if (introSong != null) {
-                finalMap[WrappedScreenType.Welcome] = introSong.id
-                usedTrackIds.add(introSong.id)
-            }
-            potentialFiller = topSongs.filter { it.id !in usedTrackIds }
-            if (potentialFiller.isEmpty()) {
-                potentialFiller = topSongs
-            }
-            val outroSong = potentialFiller.randomOrNull()
-            if (outroSong != null) {
-                finalMap[WrappedScreenType.End] = outroSong.id
-                usedTrackIds.add(outroSong.id)
-            }
-
-            // Log the results for verification
-            finalMap.forEach { (screen, songId) ->
-                val songName = topSongs.find { it.id == songId }?.title ?: "N/A"
-                Log.d("WrappedMap", "Screen: ${screen::class.simpleName}, Song: $songName (ID: $songId)")
-            }
-
-            _trackMap.value = finalMap
+            Log.d("WrappedManager", "Generated Playlist Map: $playlistMap")
+            _trackMap.value = playlistMap
         }
     }
 
@@ -173,6 +144,7 @@ class WrappedManager(
             }
 
             withContext(Dispatchers.IO) {
+                // Continue with existing history fetching logic...
                 val historyPage = YouTube.musicHistory().getOrNull()
                 historyPage?.sections?.forEach { section ->
                     section.songs.forEach { song ->
@@ -185,7 +157,7 @@ class WrappedManager(
 
             val totalMinutes = totalSeconds / 60
             _totalMinutes.value = totalMinutes
-            generateTrackMap()
+            generatePlaylistMap()
             _isLoading.value = false
         }
     }

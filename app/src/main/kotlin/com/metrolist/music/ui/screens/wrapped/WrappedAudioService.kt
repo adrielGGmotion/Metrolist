@@ -5,7 +5,6 @@ import android.net.ConnectivityManager
 import android.net.Uri
 import android.util.Log
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.metrolist.music.R
@@ -16,7 +15,6 @@ import com.metrolist.music.utils.get
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -27,89 +25,60 @@ class WrappedAudioService(
     private val scope: CoroutineScope,
     private val connectivityManager: ConnectivityManager
 ) {
-    private var currentPlayer: SafePlayerWrapper? = null
-    private var nextPlayer: SafePlayerWrapper? = null
-
+    private var player: ExoPlayer? = null
     private var currentPlayerId: String? = null
-    private var nextPlayerId: String? = null
-
-    private var transitionJob: Job? = null
+    private var playbackJob: Job? = null
 
     private val _isMuted = MutableStateFlow(false)
     val isMuted = _isMuted.asStateFlow()
 
-    private val playerListener = object : Player.Listener {
-        override fun onPlayerError(error: PlaybackException) {
-            Log.e("WrappedAudioService", "Player error, switching to fallback audio.", error)
-            onPageChanged(null, null)
+    private fun initPlayer() {
+        if (player == null) {
+            player = ExoPlayer.Builder(context).build().apply {
+                addListener(object : Player.Listener {
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        Log.e("WrappedAudioService", "Player error", error)
+                        // By stopping the job, we allow the next page change to gracefully
+                        // recover by creating a new playback job.
+                        playbackJob?.cancel()
+                    }
+                })
+            }
         }
     }
 
     fun toggleMute() {
         _isMuted.value = !_isMuted.value
-        val targetVolume = if (_isMuted.value) 0f else 1f
-        currentPlayer?.setVolume(targetVolume)
+        player?.volume = if (_isMuted.value) 0f else 1f
     }
 
-    fun onPageChanged(songId: String?, screenType: WrappedScreenType?) {
+    fun onPageChanged(songId: String?) {
         if (songId == currentPlayerId) {
-             // If the song is the same, do nothing.
-            return
+            return // Song is already playing or preparing.
         }
+        currentPlayerId = songId
+        playbackJob?.cancel() // Cancel any ongoing playback or preparation.
 
-        transitionJob?.cancel()
-        transitionJob = scope.launch {
-            val oldPlayer = currentPlayer
-
-            if (nextPlayerId == songId && nextPlayer != null) {
-                currentPlayer = nextPlayer
-                currentPlayerId = nextPlayerId
-                nextPlayer = null
-                nextPlayerId = null
-            } else {
-                // If next player is not ready, create a new one.
-                val newSongUri = getSafeUri(songId)
+        playbackJob = scope.launch {
+            try {
+                initPlayer()
+                val songUri = getSongUri(songId)
                 withContext(Dispatchers.Main) {
-                    val newPlayer = SafePlayerWrapper(context, playerListener)
-                    newPlayer.prepare(MediaItem.fromUri(newSongUri))
+                    player?.setMediaItem(MediaItem.fromUri(songUri))
+                    player?.prepare()
                     if (songId != null) {
-                        newPlayer.seekTo(30_000)
+                        player?.seekTo(30_000) // Start 30 seconds in.
                     }
-                    currentPlayer = newPlayer
-                    currentPlayerId = songId
+                    player?.play()
+                    player?.volume = if (_isMuted.value) 0f else 1f
                 }
-            }
-
-            currentPlayer?.play()
-            fadeIn(currentPlayer!!)
-
-            oldPlayer?.let { fadeOutAndRelease(it) }
-        }
-    }
-
-    fun prepareNext(nextSongId: String?) {
-        scope.launch {
-            if (nextSongId == null) {
-                nextPlayer?.release()
-                nextPlayer = null
-                nextPlayerId = null
-                return@launch
-            }
-
-            val nextSongUri = getSafeUri(nextSongId)
-            withContext(Dispatchers.Main) {
-                val newPlayer = SafePlayerWrapper(context, playerListener)
-                newPlayer.prepare(MediaItem.fromUri(nextSongUri))
-                if (nextSongId != null) {
-                    newPlayer.seekTo(30_000)
-                }
-                nextPlayer = newPlayer
-                nextPlayerId = nextSongId
+            } catch (e: Exception) {
+                Log.e("WrappedAudioService", "Error during playback preparation", e)
             }
         }
     }
 
-    private suspend fun getSafeUri(songId: String?): Uri {
+    private suspend fun getSongUri(songId: String?): Uri {
         val fallbackUri = Uri.parse("android.resource://${context.packageName}/${R.raw.wrapped_theme}")
         if (songId == null) {
             Log.i("WrappedAudio", "No song ID provided, using fallback audio.")
@@ -120,7 +89,6 @@ class WrappedAudioService(
             val audioQuality = context.dataStore.get(com.metrolist.music.constants.AudioQualityKey).let {
                 AudioQuality.valueOf(it ?: AudioQuality.AUTO.name)
             }
-
             val playbackData = withContext(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(
                     videoId = songId,
@@ -128,13 +96,11 @@ class WrappedAudioService(
                     connectivityManager = connectivityManager
                 ).getOrNull()
             }
-
             val streamUrl = playbackData?.streamUrl
             if (streamUrl.isNullOrBlank()) {
                 Log.w("WrappedAudio", "Resolved URL for $songId is null or blank. Using fallback.")
                 fallbackUri
             } else {
-                Log.d("WrappedAudio", "Resolved URL: $streamUrl")
                 Uri.parse(streamUrl)
             }
         } catch (e: Exception) {
@@ -143,120 +109,20 @@ class WrappedAudioService(
         }
     }
 
-    private fun fadeIn(player: SafePlayerWrapper) {
-        scope.launch(Dispatchers.Main) {
-            val targetVolume = if (_isMuted.value) 0f else 1f
-            player.setVolume(0f)
-            for (i in 1..20) {
-                delay(25)
-                player.setVolume(targetVolume * (i / 20f))
-            }
-            player.setVolume(targetVolume)
-        }
-    }
-
-    private suspend fun fadeOutAndRelease(player: SafePlayerWrapper) {
-        try {
-            for (i in 10 downTo 0) {
-                delay(25)
-                player.setVolume(i / 10f)
-            }
-        } catch (e: Exception) {
-            Log.e("WrappedAudioService", "Error during fade out, releasing immediately.", e)
-        } finally {
-            withContext(Dispatchers.Main) {
-                player.release()
-            }
-        }
-    }
-
     fun pause() {
-        currentPlayer?.pause()
+        player?.pause()
     }
 
     fun resume() {
-        if (!_isMuted.value) {
-            currentPlayer?.play()
-        }
+        player?.play()
     }
 
     fun release() {
-        transitionJob?.cancel()
-        scope.launch {
-            currentPlayer?.let { fadeOutAndRelease(it) }
-            nextPlayer?.let { fadeOutAndRelease(it) }
-            currentPlayer = null
-            nextPlayer = null
-        }
-    }
-
-    private class SafePlayerWrapper(
-        context: Context,
-        listener: Player.Listener
-    ) {
-        private var player: ExoPlayer? = ExoPlayer.Builder(context).build()
-        @Volatile
-        private var isReleased = false
-
-        init {
-            player?.addListener(listener)
-        }
-
-        fun setVolume(volume: Float) {
-            if (isReleased) return
-            try {
-                player?.volume = volume
-            } catch (e: IllegalStateException) {
-                Log.w("SafePlayerWrapper", "setVolume failed: ${e.message}")
-            }
-        }
-
-        fun play() {
-            if (isReleased) return
-            try {
-                player?.play()
-            } catch (e: IllegalStateException) {
-                Log.w("SafePlayerWrapper", "play failed: ${e.message}")
-            }
-        }
-
-        fun pause() {
-            if (isReleased) return
-            try {
-                player?.pause()
-            } catch (e: IllegalStateException) {
-                Log.w("SafePlayerWrapper", "pause failed: ${e.message}")
-            }
-        }
-
-        fun seekTo(position: Long) {
-            if (isReleased) return
-            try {
-                player?.seekTo(position)
-            } catch (e: IllegalStateException) {
-                Log.w("SafePlayerWrapper", "seekTo failed: ${e.message}")
-            }
-        }
-
-        fun prepare(mediaItem: MediaItem) {
-            if (isReleased) return
-            try {
-                player?.setMediaItem(mediaItem)
-                player?.prepare()
-            } catch (e: IllegalStateException) {
-                Log.w("SafePlayerWrapper", "prepare failed: ${e.message}")
-            }
-        }
-
-        fun release() {
-            if (isReleased) return
-            isReleased = true
-            try {
-                player?.release()
-                player = null
-            } catch (e: Exception) {
-                Log.e("SafePlayerWrapper", "Exception during release.", e)
-            }
-        }
+        playbackJob?.cancel()
+        // Release is a synchronous operation on the main thread.
+        // It's crucial this is not in a coroutine to prevent leaks.
+        player?.release()
+        player = null
+        Log.d("WrappedAudioService", "Player released.")
     }
 }

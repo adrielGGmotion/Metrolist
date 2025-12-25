@@ -137,12 +137,7 @@ fun WrappedScreen(navController: NavController) {
             val screen = screens.getOrNull(page)
             val nextScreen = screens.getOrNull(page + 1)
             val songToPlay = trackMap[screen]
-            val nextSongToPlay = trackMap[nextScreen]
-
-            audioService.onPageChanged(songToPlay, screen)
-            if (screen != nextScreen) {
-                audioService.prepareNext(nextSongToPlay)
-            }
+            audioService.onPageChanged(songToPlay)
         }
     }
 
