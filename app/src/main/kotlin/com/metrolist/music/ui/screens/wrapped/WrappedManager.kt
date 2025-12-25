@@ -105,15 +105,17 @@ class WrappedManager(
             val usedSongIds = mutableSetOf<String>()
             val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
-            // Assign Top Song first, as it's the most important.
+            // Chapter 1: Top Song
             val topSong = topSongs.first()
-            playlistMap[WrappedScreenType.TopSong] = topSong.id
+            playlistMap[WrappedScreenType.TotalSongs] = topSong.id
+            playlistMap[WrappedScreenType.TopSongTease] = topSong.id
+            playlistMap[WrappedScreenType.TopSongReveal] = topSong.id
             usedSongIds.add(topSong.id)
 
-            // Assign Top Artist's song, ensuring it's not the same as the top overall song.
+            // Chapter 2: Top Artist
             topArtists.firstOrNull()?.let { artist ->
                 val artistTopSongs = databaseDao.artistSongs(
-                    artistId = artist.id, // Verified schema: artist.id is correct
+                    artistId = artist.id,
                     sortType = ArtistSongSortType.PLAY_TIME,
                     descending = true
                 ).first()
@@ -122,7 +124,9 @@ class WrappedManager(
                     ?: artistTopSongs.firstOrNull() // Fallback to any song if all are used
 
                 topArtistSong?.let {
-                    playlistMap[WrappedScreenType.TopArtist] = it.id
+                    playlistMap[WrappedScreenType.TotalArtists] = it.id
+                    playlistMap[WrappedScreenType.TopArtistTease] = it.id
+                    playlistMap[WrappedScreenType.TopArtistReveal] = it.id
                     usedSongIds.add(it.id)
                 }
             }

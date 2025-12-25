@@ -44,6 +44,10 @@ import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5ArtistsScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTop5SongsScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopArtistScreen
 import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopSongScreen
+import com.metrolist.music.ui.screens.wrapped.pages.WrappedTotalArtistsScreen
+import com.metrolist.music.ui.screens.wrapped.pages.WrappedTotalSongsScreen
+import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopArtistTease
+import com.metrolist.music.ui.screens.wrapped.pages.WrappedTopSongTease
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -52,9 +56,13 @@ sealed class WrappedScreenType {
     object Welcome : WrappedScreenType()
     object MinutesTease : WrappedScreenType()
     object MinutesReveal : WrappedScreenType()
-    object TopSong : WrappedScreenType()
+    object TotalSongs : WrappedScreenType()
+    object TopSongTease : WrappedScreenType()
+    object TopSongReveal : WrappedScreenType()
     object Top5Songs : WrappedScreenType()
-    object TopArtist : WrappedScreenType()
+    object TotalArtists : WrappedScreenType()
+    object TopArtistTease : WrappedScreenType()
+    object TopArtistReveal : WrappedScreenType()
     object Top5Artists : WrappedScreenType()
     object End : WrappedScreenType()
 }
@@ -114,9 +122,13 @@ fun WrappedScreen(navController: NavController) {
             WrappedScreenType.Welcome,
             WrappedScreenType.MinutesTease,
             WrappedScreenType.MinutesReveal,
-            WrappedScreenType.TopSong,
+            WrappedScreenType.TotalSongs,
+            WrappedScreenType.TopSongTease,
+            WrappedScreenType.TopSongReveal,
             WrappedScreenType.Top5Songs,
-            WrappedScreenType.TopArtist,
+            WrappedScreenType.TotalArtists,
+            WrappedScreenType.TopArtistTease,
+            WrappedScreenType.TopArtistReveal,
             WrappedScreenType.Top5Artists,
             WrappedScreenType.End
         )
@@ -137,7 +149,7 @@ fun WrappedScreen(navController: NavController) {
 
         snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
             val screen = screens.getOrNull(page)
-            audioService.onPageChanged(trackMap[screen])
+            audioService.playTrack(trackMap[screen])
         }
     }
 
@@ -177,21 +189,39 @@ fun WrappedScreen(navController: NavController) {
                     messagePair = messagePair, totalMinutes = totalMinutes,
                     isVisible = pagerState.currentPage == 2
                 )
-                is WrappedScreenType.TopSong -> WrappedTopSongScreen(
-                    topSong = topSongs.firstOrNull(),
+                is WrappedScreenType.TotalSongs -> WrappedTotalSongsScreen(
+                    topSongs = topSongs,
                     isVisible = pagerState.currentPage == 3
+                )
+                is WrappedScreenType.TopSongTease -> WrappedTopSongTease(
+                    onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 5) } },
+                    manager = manager,
+                    isLoading = isLoading
+                )
+                is WrappedScreenType.TopSongReveal -> WrappedTopSongScreen(
+                    topSong = topSongs.firstOrNull(),
+                    isVisible = pagerState.currentPage == 5
                 )
                 is WrappedScreenType.Top5Songs -> WrappedTop5SongsScreen(
                     topSongs = topSongs.take(5),
-                    isVisible = pagerState.currentPage == 4
+                    isVisible = pagerState.currentPage == 6
                 )
-                is WrappedScreenType.TopArtist -> WrappedTopArtistScreen(
+                is WrappedScreenType.TotalArtists -> WrappedTotalArtistsScreen(
+                    topArtists = topArtists,
+                    isVisible = pagerState.currentPage == 7
+                )
+                is WrappedScreenType.TopArtistTease -> WrappedTopArtistTease(
+                    onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 9) } },
+                    manager = manager,
+                    isLoading = isLoading
+                )
+                is WrappedScreenType.TopArtistReveal -> WrappedTopArtistScreen(
                     topArtist = topArtists.firstOrNull(),
-                    isVisible = pagerState.currentPage == 5
+                    isVisible = pagerState.currentPage == 9
                 )
                 is WrappedScreenType.Top5Artists -> WrappedTop5ArtistsScreen(
                     topArtists = topArtists,
-                    isVisible = pagerState.currentPage == 6
+                    isVisible = pagerState.currentPage == 10
                 )
                 is WrappedScreenType.End -> WrappedEndScreen(manager = manager)
             }

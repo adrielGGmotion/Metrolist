@@ -52,9 +52,10 @@ class WrappedAudioService(
         player?.volume = if (_isMuted.value) 0f else 1f
     }
 
-    fun onPageChanged(songId: String?) {
-        if (songId == currentPlayerId) {
-            return // Song is already playing or preparing.
+    fun playTrack(songId: String?) {
+        if (player?.currentMediaItem?.mediaId == songId) {
+            Log.d("WrappedAudioService", "Track $songId is already playing.")
+            return
         }
         currentPlayerId = songId
         playbackJob?.cancel() // Cancel any ongoing playback or preparation.
