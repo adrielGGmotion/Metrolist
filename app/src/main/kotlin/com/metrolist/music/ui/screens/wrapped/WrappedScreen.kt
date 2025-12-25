@@ -194,9 +194,7 @@ fun WrappedScreen(navController: NavController) {
                     isVisible = pagerState.currentPage == 3
                 )
                 is WrappedScreenType.TopSongTease -> WrappedTopSongTease(
-                    onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 5) } },
-                    manager = manager,
-                    isLoading = isLoading
+                    onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 5) } }
                 )
                 is WrappedScreenType.TopSongReveal -> WrappedTopSongScreen(
                     topSong = topSongs.firstOrNull(),
@@ -211,9 +209,7 @@ fun WrappedScreen(navController: NavController) {
                     isVisible = pagerState.currentPage == 7
                 )
                 is WrappedScreenType.TopArtistTease -> WrappedTopArtistTease(
-                    onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 9) } },
-                    manager = manager,
-                    isLoading = isLoading
+                    onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 9) } }
                 )
                 is WrappedScreenType.TopArtistReveal -> WrappedTopArtistScreen(
                     topArtist = topArtists.firstOrNull(),

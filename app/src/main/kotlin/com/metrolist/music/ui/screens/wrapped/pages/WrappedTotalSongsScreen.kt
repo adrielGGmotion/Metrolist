@@ -93,7 +93,14 @@ fun WrappedTotalSongsScreen(
                     }
                     style.copy(lineHeight = style.fontSize * 1.08f)
                 }
-                Text(animatedSongs.value.toInt().toString(), style = textStyle, maxLines = 1, softWrap = false)
+                Text(
+                    text = animatedSongs.value.toInt().toString(),
+                    style = textStyle,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
             }
             Spacer(Modifier.height(16.dp))
             Text(

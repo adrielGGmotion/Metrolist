@@ -4,17 +4,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.metrolist.music.ui.screens.wrapped.WrappedManager
+import kotlinx.coroutines.delay
+
 @Composable
 fun WrappedTopArtistTease(
-    onNavigateForward: () -> Unit,
-    manager: WrappedManager,
-    isLoading: Boolean
+    onNavigateForward: () -> Unit
 ) {
+    LaunchedEffect(Unit) {
+        delay(2000) // 2-second delay before auto-navigating
+        onNavigateForward()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -22,10 +30,10 @@ fun WrappedTopArtistTease(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        com.metrolist.music.ui.screens.wrapped.components.PrimaryButton(
-            onClick = onNavigateForward,
-            isLoading = isLoading,
-            text = "Reveal your top artist"
+        Text(
+            text = "And your top artist is...",
+            color = Color.White,
+            textAlign = TextAlign.Center
         )
     }
 }
