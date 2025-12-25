@@ -95,72 +95,34 @@ class WrappedManager(
     private fun generatePlaylistMap() {
         scope.launch {
             val topSongs = _topSongs.value
-            val topArtists = _topArtists.value
-            if (topSongs.isEmpty()) {
-                Log.w("WrappedManager", "Cannot generate playlist map, top songs list is empty.")
+            if (topSongs.size < 3) {
+                Log.w("WrappedManager", "Not enough top songs to generate a playlist map.")
                 _trackMap.value = emptyMap()
                 return@launch
             }
 
-            val usedSongIds = mutableSetOf<String>()
             val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
-            // Chapter 1: Top Song
-            val topSong = topSongs.first()
-            playlistMap[WrappedScreenType.TotalSongs] = topSong.id
-            playlistMap[WrappedScreenType.TopSongTease] = topSong.id
-            playlistMap[WrappedScreenType.TopSongReveal] = topSong.id
-            usedSongIds.add(topSong.id)
+            val trackA = topSongs[0].id
+            val trackB = topSongs[1].id
+            val trackC = topSongs[2].id
 
-            // Chapter 2: Top Artist
-            topArtists.firstOrNull()?.let { artist ->
-                val artistTopSongs = databaseDao.artistSongs(
-                    artistId = artist.id,
-                    sortType = ArtistSongSortType.PLAY_TIME,
-                    descending = true
-                ).first()
+            // Group A
+            playlistMap[WrappedScreenType.Welcome] = trackA
+            playlistMap[WrappedScreenType.MinutesTease] = trackA
+            playlistMap[WrappedScreenType.MinutesReveal] = trackA
+            playlistMap[WrappedScreenType.TotalSongs] = trackA
 
-                val topArtistSong = artistTopSongs.firstOrNull { it.id !in usedSongIds }
-                    ?: artistTopSongs.firstOrNull() // Fallback to any song if all are used
+            // Group B
+            playlistMap[WrappedScreenType.TopSongReveal] = trackB
+            playlistMap[WrappedScreenType.Top5Songs] = trackB
 
-                topArtistSong?.let {
-                    playlistMap[WrappedScreenType.TotalArtists] = it.id
-                    playlistMap[WrappedScreenType.TopArtistTease] = it.id
-                    playlistMap[WrappedScreenType.TopArtistReveal] = it.id
-                    usedSongIds.add(it.id)
-                }
-            }
+            // Group C
+            playlistMap[WrappedScreenType.TotalArtists] = trackC
+            playlistMap[WrappedScreenType.TopArtistReveal] = trackC
+            playlistMap[WrappedScreenType.Top5Artists] = trackC
+            playlistMap[WrappedScreenType.End] = trackC
 
-            // Function to find a unique song from the top tracks.
-            fun findUniqueSong(): SongWithStats? {
-                return topSongs.firstOrNull { it.id !in usedSongIds }
-            }
-
-            // Assign songs to the remaining screens.
-            val remainingScreens = listOf(
-                WrappedScreenType.Welcome,
-                WrappedScreenType.MinutesTease,
-                WrappedScreenType.MinutesReveal,
-                WrappedScreenType.Top5Songs,
-                WrappedScreenType.Top5Artists,
-                WrappedScreenType.End
-            ).filter { it !in playlistMap.keys }
-
-            for (screen in remainingScreens) {
-                // Link Tease and Reveal screens to the same song.
-                if (screen == WrappedScreenType.MinutesTease || screen == WrappedScreenType.MinutesReveal) {
-                    if (!playlistMap.containsKey(WrappedScreenType.MinutesTease)) {
-                        val sharedSong = findUniqueSong() ?: topSong // Fallback to top song
-                        playlistMap[WrappedScreenType.MinutesTease] = sharedSong.id
-                        playlistMap[WrappedScreenType.MinutesReveal] = sharedSong.id
-                        usedSongIds.add(sharedSong.id)
-                    }
-                } else {
-                    val song = findUniqueSong() ?: topSong // Fallback to top song
-                    playlistMap[screen] = song.id
-                    usedSongIds.add(song.id)
-                }
-            }
             Log.d("WrappedManager", "Generated Playlist Map: $playlistMap")
             _trackMap.value = playlistMap
         }

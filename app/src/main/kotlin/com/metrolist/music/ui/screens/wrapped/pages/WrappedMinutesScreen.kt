@@ -115,7 +115,13 @@ fun WrappedMinutesScreen(
                     }
                     style.copy(lineHeight = style.fontSize * 1.08f)
                 }
-                Text(animatedMinutes.value.toInt().toString(), style = textStyle, maxLines = 1, softWrap = false)
+                Text(
+                    text = animatedMinutes.value.toInt().toString(),
+                    style = textStyle,
+                    maxLines = 1,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
             }
             Spacer(Modifier.height(16.dp))
             FormattedText(

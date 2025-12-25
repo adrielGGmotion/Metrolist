@@ -97,7 +97,6 @@ fun WrappedTotalSongsScreen(
                     text = animatedSongs.value.toInt().toString(),
                     style = textStyle,
                     maxLines = 1,
-                    softWrap = false,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
