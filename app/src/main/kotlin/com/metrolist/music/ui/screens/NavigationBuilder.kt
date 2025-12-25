@@ -89,7 +89,7 @@ fun NavGraphBuilder.navigationBuilder(
     snackbarHostState: SnackbarHostState
 ) {
     composable(Screens.Home.route) {
-        HomeScreen(navController)
+        HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
     }
     composable(
         Screens.Library.route,

@@ -64,6 +64,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
+import java.time.LocalDate
+import com.metrolist.music.R
+import com.metrolist.music.constants.WrappedSeenKey
+import androidx.compose.material3.SnackbarHostState
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.metrolist.music.constants.ShowWrappedCardKey
@@ -84,7 +91,6 @@ import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
-import com.metrolist.music.R
 import com.metrolist.music.constants.GridThumbnailHeight
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.ListItemHeight
@@ -138,6 +144,7 @@ import kotlin.random.Random
 @Composable
 fun HomeScreen(
     navController: NavController,
+    snackbarHostState: SnackbarHostState,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val menuState = LocalMenuState.current
@@ -172,7 +179,14 @@ fun HomeScreen(
     val accountName by viewModel.accountName.collectAsState()
     val accountImageUrl by viewModel.accountImageUrl.collectAsState()
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
-    val showWrappedCard by rememberPreference(ShowWrappedCardKey, true)
+
+    val defaultShowWrapped = remember {
+        LocalDate.now().isBefore(LocalDate.of(2026, 1, 10))
+    }
+    val (showWrappedCard, onShowWrappedCardChange) = rememberPreference(ShowWrappedCardKey, defaultShowWrapped)
+    val (wrappedSeen, onWrappedSeenChange) = rememberPreference(WrappedSeenKey, false)
+    val shouldShowWrappedCard = showWrappedCard && !wrappedSeen
+
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
@@ -183,6 +197,17 @@ fun HomeScreen(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
+
+    val wrappedDismissed = backStackEntry?.savedStateHandle?.get<Boolean>("wrapped_seen")
+    LaunchedEffect(wrappedDismissed) {
+        if (wrappedDismissed == true) {
+            onWrappedSeenChange(true)
+            scope.launch {
+                snackbarHostState.showSnackbar("Found in Settings > Content")
+            }
+            backStackEntry?.savedStateHandle?.remove<Boolean>("wrapped_seen")
+        }
+    }
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {
@@ -402,7 +427,7 @@ fun HomeScreen(
 
             if (selectedChip == null) {
                 item(key = "wrapped_card") {
-                    AnimatedVisibility(visible = showWrappedCard) {
+                    AnimatedVisibility(visible = shouldShowWrappedCard) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -417,14 +442,24 @@ fun HomeScreen(
                                     .padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
+                                val bbhFont = try {
+                                    FontFamily(Font(R.font.bbh_bartle_regular))
+                                } catch (e: Exception) {
+                                    FontFamily.Default
+                                }
                                 Text(
                                     text = "YOUR WRAPPED IS READY!",
-                                    style = MaterialTheme.typography.headlineLarge
+                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                        fontFamily = bbhFont,
+                                        textAlign = TextAlign.Center
+                                    )
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Time to see what you loved this year.",
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        textAlign = TextAlign.Center
+                                    )
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(onClick = { navController.navigate("wrapped") }) {
