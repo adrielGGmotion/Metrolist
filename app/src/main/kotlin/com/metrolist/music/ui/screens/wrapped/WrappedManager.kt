@@ -9,9 +9,11 @@ import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.db.entities.SongWithStats
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -58,22 +60,24 @@ class WrappedManager(
         scope.launch {
             _playlistCreationState.value = PlaylistCreationState.Creating
             try {
-                val playlistId = UUID.randomUUID().toString()
-                val newPlaylist = PlaylistEntity(
-                    id = playlistId,
-                    name = WrappedConstants.PLAYLIST_NAME,
-                    thumbnailUrl = "android.resource://com.metrolist.music/drawable/ic_launcher_static_foreground",
-                    bookmarkedAt = LocalDateTime.now(),
-                    isEditable = true
-                )
-                databaseDao.insert(newPlaylist)
+                withContext(Dispatchers.IO) {
+                    val playlistId = UUID.randomUUID().toString()
+                    val newPlaylist = PlaylistEntity(
+                        id = playlistId,
+                        name = WrappedConstants.PLAYLIST_NAME,
+                        thumbnailUrl = "android.resource://com.metrolist.music/drawable/ic_launcher_static_foreground",
+                        bookmarkedAt = LocalDateTime.now(),
+                        isEditable = true
+                    )
+                    databaseDao.insert(newPlaylist)
 
-                val createdPlaylist = databaseDao.playlist(playlistId).first()
-                if (createdPlaylist != null) {
-                    val songIds = _topSongs.value.map { it.id }
-                    databaseDao.addSongToPlaylist(createdPlaylist, songIds)
-                } else {
-                    Log.e("WrappedManager", "Failed to retrieve created playlist with id: $playlistId")
+                    val createdPlaylist = databaseDao.playlist(playlistId).first()
+                    if (createdPlaylist != null) {
+                        val songIds = _topSongs.value.map { it.id }
+                        databaseDao.addSongToPlaylist(createdPlaylist, songIds)
+                    } else {
+                        Log.e("WrappedManager", "Failed to retrieve created playlist with id: $playlistId")
+                    }
                 }
                 _playlistCreationState.value = PlaylistCreationState.Success
             } catch (e: Exception) {
