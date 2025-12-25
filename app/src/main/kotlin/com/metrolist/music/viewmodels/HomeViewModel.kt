@@ -30,11 +30,19 @@ import com.metrolist.music.utils.reportException
 import com.metrolist.music.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.metrolist.music.constants.ShowWrappedCardKey
+import com.metrolist.music.constants.WrappedSeenKey
+import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -67,6 +75,24 @@ class HomeViewModel @Inject constructor(
     val accountName = MutableStateFlow("Guest")
     val accountImageUrl = MutableStateFlow<String?>(null)
 
+	val showWrappedCard: StateFlow<Boolean> =
+        combine(
+            context.dataStore.data.map { prefs ->
+                val defaultShowWrapped = LocalDate.now().isBefore(LocalDate.of(2026, 1, 10))
+                prefs[ShowWrappedCardKey] ?: defaultShowWrapped
+            },
+            context.dataStore.data.map { it[WrappedSeenKey] ?: false }
+        ) { showWrappedSetting, wrappedSeen ->
+            showWrappedSetting && !wrappedSeen
+        }.stateIn(viewModelScope, SharingStarted.Lazily, false)
+
+    fun markWrappedAsSeen() {
+        viewModelScope.launch(Dispatchers.IO) {
+            context.dataStore.edit {
+                it[WrappedSeenKey] = true
+            }
+        }
+    }
     // Track last processed cookie to avoid unnecessary updates
     private var lastProcessedCookie: String? = null
     // Track if we're currently processing account data

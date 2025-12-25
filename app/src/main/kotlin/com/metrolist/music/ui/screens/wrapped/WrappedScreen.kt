@@ -140,7 +140,10 @@ fun WrappedScreen(navController: NavController) {
             TopAppBar(
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("wrapped_seen", true)
+                        navController.popBackStack()
+                    }) {
                         Icon(painterResource(R.drawable.arrow_back), "Back", tint = Color.White)
                     }
                 },

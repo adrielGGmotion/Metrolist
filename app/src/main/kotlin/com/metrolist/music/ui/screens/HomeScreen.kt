@@ -180,12 +180,7 @@ fun HomeScreen(
     val accountImageUrl by viewModel.accountImageUrl.collectAsState()
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
 
-    val defaultShowWrapped = remember {
-        LocalDate.now().isBefore(LocalDate.of(2026, 1, 10))
-    }
-    val (showWrappedCard, onShowWrappedCardChange) = rememberPreference(ShowWrappedCardKey, defaultShowWrapped)
-    val (wrappedSeen, onWrappedSeenChange) = rememberPreference(WrappedSeenKey, false)
-    val shouldShowWrappedCard = showWrappedCard && !wrappedSeen
+    val shouldShowWrappedCard by viewModel.showWrappedCard.collectAsState()
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -201,7 +196,7 @@ fun HomeScreen(
     val wrappedDismissed = backStackEntry?.savedStateHandle?.get<Boolean>("wrapped_seen")
     LaunchedEffect(wrappedDismissed) {
         if (wrappedDismissed == true) {
-            onWrappedSeenChange(true)
+            viewModel.markWrappedAsSeen()
             scope.launch {
                 snackbarHostState.showSnackbar("Found in Settings > Content")
             }
