@@ -53,8 +53,8 @@ class WrappedAudioService(
     }
 
     fun playTrack(songId: String?) {
-        if (player?.currentMediaItem?.mediaId == songId && player?.isPlaying == true) {
-            Log.d("WrappedAudioService", "Track $songId is already playing.")
+        if (player?.currentMediaItem?.mediaId == songId) {
+            Log.d("WrappedAudioService", "Track $songId is already loaded or playing.")
             return
         }
         currentPlayerId = songId
