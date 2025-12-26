@@ -99,17 +99,16 @@ class WrappedManager(
      * This function ensures that songs are unique across screens where possible
      * and that certain screens (like Tease/Reveal) share the same song.
      */
-    private fun generatePlaylistMap() {
-        scope.launch {
-            val topSongs = _topSongs.value
-            val topArtists = _topArtists.value
-            if (topSongs.isEmpty()) {
-                Log.w("WrappedManager", "Cannot generate playlist map, top songs list is empty.")
-                _trackMap.value = emptyMap()
-                return@launch
-            }
+    private suspend fun generatePlaylistMap() {
+        val topSongs = _topSongs.value
+        val topArtists = _topArtists.value
+        if (topSongs.isEmpty()) {
+            Log.w("WrappedManager", "Cannot generate playlist map, top songs list is empty.")
+            _trackMap.value = emptyMap()
+            return
+        }
 
-            val playlistMap = mutableMapOf<WrappedScreenType, String>()
+        val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
             // Group A: Random Track (Excluding Top 1)
             val topSong = topSongs.first()
@@ -140,7 +139,6 @@ class WrappedManager(
 
             Log.d("WrappedManager", "Generated Playlist Map: $playlistMap")
             _trackMap.value = playlistMap
-        }
     }
 
     suspend fun prepare() {

@@ -468,8 +468,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Button(onClick = {
-                                        scope.launch {
-                                            viewModel.prepareWrapped()
+                                        viewModel.prepareWrapped {
                                             navController.navigate("wrapped")
                                         }
                                     }) {

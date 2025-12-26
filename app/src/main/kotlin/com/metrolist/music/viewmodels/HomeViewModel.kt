@@ -104,13 +104,19 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun prepareWrapped() {
+    fun prepareWrapped(onSuccess: () -> Unit) {
         viewModelScope.launch {
             isPreloading.value = true
             wrappedManager.prepare()
-            val firstTrackId = wrappedManager.trackMap.first().entries.first().value
+            val trackMap = wrappedManager.trackMap.first()
+            if (trackMap.isEmpty()) {
+                isPreloading.value = false
+                return@launch
+            }
+            val firstTrackId = trackMap.entries.first().value
             wrappedAudioService.prepare(firstTrackId)
             isPreloading.value = false
+            onSuccess()
         }
     }
     // Track last processed cookie to avoid unnecessary updates
