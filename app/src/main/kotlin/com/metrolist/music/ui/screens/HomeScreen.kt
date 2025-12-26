@@ -184,7 +184,7 @@ fun HomeScreen(
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
 
     val shouldShowWrappedCard by viewModel.showWrappedCard.collectAsState()
-    val isPreloading by viewModel.isPreloading.collectAsState()
+    val isWrappedDataReady by viewModel.wrappedManager.isDataReady.collectAsState()
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -438,45 +438,44 @@ fun HomeScreen(
                             ),
                         ) {
                             Box(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().height(200.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    val bbhFont = try {
-                                        FontFamily(Font(R.font.bbh_bartle_regular))
-                                    } catch (e: Exception) {
-                                        FontFamily.Default
-                                    }
-                                    Text(
-                                        text = "YOUR WRAPPED IS READY!",
-                                        style = MaterialTheme.typography.headlineLarge.copy(
-                                            fontFamily = bbhFont,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Time to see what you loved this year.",
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            textAlign = TextAlign.Center
-                                        )
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(onClick = {
-                                        viewModel.prepareWrapped {
-                                            navController.navigate("wrapped")
+                                if (isWrappedDataReady) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        val bbhFont = try {
+                                            FontFamily(Font(R.font.bbh_bartle_regular))
+                                        } catch (e: Exception) {
+                                            FontFamily.Default
                                         }
-                                    }) {
-                                        Text("Let's go!")
+                                        Text(
+                                            text = "YOUR WRAPPED IS READY!",
+                                            style = MaterialTheme.typography.headlineLarge.copy(
+                                                fontFamily = bbhFont,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Time to see what you loved this year.",
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                textAlign = TextAlign.Center
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Button(onClick = {
+                                            navController.navigate("wrapped")
+                                        }) {
+                                            Text("Let's go!")
+                                        }
                                     }
-                                }
-                                if (isPreloading) {
-                                    ContainedLoadingIndicator(modifier = Modifier.size(56.dp))
+                                } else {
+                                    ContainedLoadingIndicator()
                                 }
                             }
                         }

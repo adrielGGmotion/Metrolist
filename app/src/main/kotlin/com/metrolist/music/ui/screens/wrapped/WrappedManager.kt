@@ -52,8 +52,8 @@ class WrappedManager(
     private val _uniqueArtistCount = MutableStateFlow(0)
     val uniqueArtistCount = _uniqueArtistCount.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading = _isLoading.asStateFlow()
+    private val _isDataReady = MutableStateFlow(false)
+    val isDataReady = _isDataReady.asStateFlow()
 
     private val _trackMap = MutableStateFlow<Map<WrappedScreenType, String?>>(emptyMap())
     val trackMap = _trackMap.asStateFlow()
@@ -142,7 +142,7 @@ class WrappedManager(
     }
 
     suspend fun prepare() {
-        _isLoading.value = true
+        if (isDataReady.value) return
         _accountInfo.value = YouTube.accountInfo().getOrNull()
 
         val fromTimestamp = Calendar.getInstance().apply {
@@ -153,8 +153,10 @@ class WrappedManager(
             set(WrappedConstants.YEAR, Calendar.DECEMBER, 31, 23, 59, 59)
         }.timeInMillis
 
-        _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
-        _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
+        val allSongs = databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
+        _topSongs.value = allSongs.take(5)
+        val allArtists = databaseDao.mostPlayedArtists(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
+        _topArtists.value = allArtists.take(5)
         _uniqueSongCount.value = databaseDao.getUniqueSongCountInRange(fromTimestamp, toTimestamp).first()
         _uniqueArtistCount.value = databaseDao.getUniqueArtistCountInRange(fromTimestamp, toTimestamp).first()
 
@@ -163,6 +165,6 @@ class WrappedManager(
         _totalMinutes.value = totalMinutes
 
         generatePlaylistMap()
-        _isLoading.value = false
+        _isDataReady.value = true
     }
 }

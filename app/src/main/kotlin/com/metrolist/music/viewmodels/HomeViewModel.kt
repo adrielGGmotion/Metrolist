@@ -53,12 +53,11 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     val syncUtils: SyncUtils,
-    private val wrappedManager: WrappedManager,
+    val wrappedManager: WrappedManager,
     private val wrappedAudioService: WrappedAudioService,
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
-    val isPreloading = MutableStateFlow(false)
 
     private val quickPicksEnum = context.dataStore.data.map {
         it[QuickPicksKey].toEnum(QuickPicks.QUICK_PICKS)
@@ -101,22 +100,6 @@ class HomeViewModel @Inject constructor(
             context.dataStore.edit {
                 it[WrappedSeenKey] = true
             }
-        }
-    }
-
-    fun prepareWrapped(onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            isPreloading.value = true
-            wrappedManager.prepare()
-            val trackMap = wrappedManager.trackMap.first()
-            if (trackMap.isEmpty()) {
-                isPreloading.value = false
-                return@launch
-            }
-            val firstTrackId = trackMap.entries.first().value
-            wrappedAudioService.prepare(firstTrackId)
-            isPreloading.value = false
-            onSuccess()
         }
     }
     // Track last processed cookie to avoid unnecessary updates
@@ -294,6 +277,17 @@ class HomeViewModel @Inject constructor(
             val isSyncEnabled = context.dataStore.get(YtmSyncKey, true)
             if (isSyncEnabled) {
                 syncUtils.runAllSyncs()
+            }
+        }
+
+        viewModelScope.launch {
+            if (showWrappedCard.first()) {
+                wrappedManager.prepare()
+                val trackMap = wrappedManager.trackMap.first()
+                if (trackMap.isNotEmpty()) {
+                    val firstTrackId = trackMap.entries.first().value
+                    wrappedAudioService.prepare(firstTrackId)
+                }
             }
         }
 

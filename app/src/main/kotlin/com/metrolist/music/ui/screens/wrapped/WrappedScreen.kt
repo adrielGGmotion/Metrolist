@@ -128,7 +128,7 @@ fun WrappedScreen(navController: NavController) {
     }
     val pagerState = rememberPagerState(pageCount = { screens.size })
     val totalMinutes by manager.totalMinutes.collectAsState(initial = 0L)
-    val isLoading by manager.isLoading.collectAsState()
+    val isDataReady by manager.isDataReady.collectAsState()
     val topSongs by manager.topSongs.collectAsState()
     val topArtists by manager.topArtists.collectAsState()
     val uniqueSongCount by manager.uniqueSongCount.collectAsState()
@@ -178,7 +178,7 @@ fun WrappedScreen(navController: NavController) {
                     messagePair = messagePair,
                     onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 2) } },
                     manager = manager,
-                    isLoading = isLoading
+                    isDataReady = isDataReady
                 )
                 is WrappedScreenType.MinutesReveal -> WrappedMinutesScreen(
                     messagePair = messagePair, totalMinutes = totalMinutes,

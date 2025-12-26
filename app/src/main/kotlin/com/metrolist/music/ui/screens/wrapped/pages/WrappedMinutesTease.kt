@@ -27,7 +27,7 @@ fun WrappedMinutesTease(
     messagePair: MessagePair?,
     onNavigateForward: () -> Unit,
     manager: WrappedManager,
-    isLoading: Boolean
+    isDataReady: Boolean
 ) {
     LaunchedEffect(Unit) {
         delay(3500)
@@ -35,7 +35,7 @@ fun WrappedMinutesTease(
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         AnimatedVisibility(
-            visible = messagePair != null && !isLoading,
+            visible = messagePair != null && isDataReady,
             enter = fadeIn(tween(1000)) + scaleIn(initialScale = 0.9f, animationSpec = tween(1000))
         ) {
             Text(
