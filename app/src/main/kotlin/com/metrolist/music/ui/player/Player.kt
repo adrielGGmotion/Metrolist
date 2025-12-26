@@ -19,6 +19,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -56,6 +58,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -172,7 +175,7 @@ import kotlinx.coroutines.withContext
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BottomSheetPlayer(
     state: BottomSheetState,
@@ -1163,42 +1166,29 @@ fun BottomSheetPlayer(
             ) {
                 Column {
                     if (useNewPlayerDesign) {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = PlayerHorizontalPadding)
+                        ButtonGroup(
+                            modifier = Modifier.fillMaxWidth(),
+                            expandedRatio = 0.7f
                         ) {
                             val backInteractionSource = remember { MutableInteractionSource() }
-                            val nextInteractionSource = remember { MutableInteractionSource() }
-                            val playPauseInteractionSource = remember { MutableInteractionSource() }
-                            val isPlayPausePressed by playPauseInteractionSource.collectIsPressedAsState()
-
-                            val playPauseWeight by animateFloatAsState(
-                                targetValue = if (isPlayPausePressed) 2.1f else 1.5f,
-                                animationSpec = spring(),
-                                label = "playPauseWeight"
-                            )
-                            val sideButtonWeight by animateFloatAsState(
-                                targetValue = if (isPlayPausePressed) 0.35f else 0.45f,
-                                animationSpec = spring(),
-                                label = "sideButtonWeight"
-                            )
-
-                            FilledIconButton(
+                            FilledTonalIconButton(
                                 onClick = playerConnection::seekToPrevious,
                                 enabled = canSkipPrevious,
-                                shape = RoundedCornerShape(50),
                                 interactionSource = backInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
                                 modifier = Modifier
                                     .height(64.dp)
-                                    .weight(sideButtonWeight)
-                                    .bouncy(backInteractionSource)
+                                    .animateWidth(
+                                        interactionSource = backInteractionSource,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioHighBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        )
+                                    )
+                                    .bouncy(backInteractionSource),
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = sideButtonContainerColor,
+                                    contentColor = sideButtonContentColor
+                                )
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_previous),
@@ -1207,45 +1197,42 @@ fun BottomSheetPlayer(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
+                            val playPauseInteractionSource = remember { MutableInteractionSource() }
                             FilledIconButton(
                                 onClick = {
                                     if (isCasting) {
-                                        if (castIsPlaying) {
-                                            castHandler?.pause()
-                                        } else {
-                                            castHandler?.play()
-                                        }
+                                        if (castIsPlaying) castHandler?.pause() else castHandler?.play()
                                     } else if (playbackState == STATE_ENDED) {
-                                        playerConnection.player.seekTo(0, 0)
+                                        playerConnection.player.seekTo(0)
                                         playerConnection.player.playWhenReady = true
                                     } else {
                                         playerConnection.togglePlayPause()
                                     }
                                 },
-                                shape = RoundedCornerShape(50),
                                 interactionSource = playPauseInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = textButtonColor,
-                                    contentColor = iconButtonColor,
-                                ),
                                 modifier = Modifier
                                     .height(64.dp)
-                                    .weight(playPauseWeight)
+                                    .animateWidth(
+                                        interactionSource = playPauseInteractionSource,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioHighBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        )
+                                    ),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = textButtonColor,
+                                    contentColor = iconButtonColor
+                                )
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(
-                                            if (effectiveIsPlaying) R.drawable.pause else R.drawable.play
-                                        ),
+                                        painter = painterResource(if (effectiveIsPlaying) R.drawable.pause else R.drawable.play),
                                         contentDescription = if (effectiveIsPlaying) "Pause" else stringResource(R.string.play),
                                         modifier = Modifier.size(32.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = if (effectiveIsPlaying) "Pause" else stringResource(R.string.play),
                                         style = MaterialTheme.typography.titleMedium
@@ -1253,21 +1240,24 @@ fun BottomSheetPlayer(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            FilledIconButton(
+                            val nextInteractionSource = remember { MutableInteractionSource() }
+                            FilledTonalIconButton(
                                 onClick = playerConnection::seekToNext,
                                 enabled = canSkipNext,
-                                shape = RoundedCornerShape(50),
                                 interactionSource = nextInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
                                 modifier = Modifier
                                     .height(64.dp)
-                                    .weight(sideButtonWeight)
-                                    .bouncy(nextInteractionSource)
+                                    .animateWidth(
+                                        interactionSource = nextInteractionSource,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioHighBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        )
+                                    ),
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = sideButtonContainerColor,
+                                    contentColor = sideButtonContentColor
+                                )
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_next),
