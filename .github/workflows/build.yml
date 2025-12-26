@@ -150,13 +150,17 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Modify Package Name and App Name
+      # This changes only the application identity, not the source code imports.
+      - name: Surgical Package Rename
         run: |
-          find . -type f -name "build.gradle*" -exec sed -i 's/com.metrolist.music/com.metrolist.music.clone/g' {} +
-          find . -type f -name "strings.xml" -exec sed -i 's/Metrolist/Metrolist Clone/g' {} +
+          sed -i 's/applicationId "com.metrolist.music"/applicationId "com.metrolist.music.clone"/g' app/build.gradle
+          sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.clone"/g' app/build.gradle
 
       - name: Build Clone APK
-        run: ./gradlew assembleUniversalFossRelease --no-configuration-cache --console=plain --warning-mode summary
+        run: |
+          ./gradlew assembleUniversalFossRelease \
+            -Pandroid.injected.resValue.string.app_name="Metrolist Clone" \
+            --no-configuration-cache --console=plain --warning-mode summary
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
