@@ -57,6 +57,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -1163,42 +1164,16 @@ fun BottomSheetPlayer(
             ) {
                 Column {
                     if (useNewPlayerDesign) {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
+                        @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                        ButtonGroup(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = PlayerHorizontalPadding)
                         ) {
-                            val backInteractionSource = remember { MutableInteractionSource() }
-                            val nextInteractionSource = remember { MutableInteractionSource() }
-                            val playPauseInteractionSource = remember { MutableInteractionSource() }
-                            val isPlayPausePressed by playPauseInteractionSource.collectIsPressedAsState()
-
-                            val playPauseWeight by animateFloatAsState(
-                                targetValue = if (isPlayPausePressed) 2.1f else 1.5f,
-                                animationSpec = spring(),
-                                label = "playPauseWeight"
-                            )
-                            val sideButtonWeight by animateFloatAsState(
-                                targetValue = if (isPlayPausePressed) 0.35f else 0.45f,
-                                animationSpec = spring(),
-                                label = "sideButtonWeight"
-                            )
-
                             FilledIconButton(
                                 onClick = playerConnection::seekToPrevious,
                                 enabled = canSkipPrevious,
-                                shape = RoundedCornerShape(50),
-                                interactionSource = backInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
-                                modifier = Modifier
-                                    .height(64.dp)
-                                    .weight(sideButtonWeight)
-                                    .bouncy(backInteractionSource)
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_previous),
@@ -1206,9 +1181,6 @@ fun BottomSheetPlayer(
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
                             FilledIconButton(
                                 onClick = {
                                     if (isCasting) {
@@ -1224,15 +1196,7 @@ fun BottomSheetPlayer(
                                         playerConnection.togglePlayPause()
                                     }
                                 },
-                                shape = RoundedCornerShape(50),
-                                interactionSource = playPauseInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = textButtonColor,
-                                    contentColor = iconButtonColor,
-                                ),
-                                modifier = Modifier
-                                    .height(64.dp)
-                                    .weight(playPauseWeight)
+                                modifier = Modifier.weight(1.5f)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1252,22 +1216,10 @@ fun BottomSheetPlayer(
                                     )
                                 }
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
                             FilledIconButton(
                                 onClick = playerConnection::seekToNext,
                                 enabled = canSkipNext,
-                                shape = RoundedCornerShape(50),
-                                interactionSource = nextInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
-                                modifier = Modifier
-                                    .height(64.dp)
-                                    .weight(sideButtonWeight)
-                                    .bouncy(nextInteractionSource)
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_next),
