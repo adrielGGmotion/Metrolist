@@ -65,10 +65,17 @@ class WrappedAudioService(
                 initPlayer()
                 val songUri = getSongUri(songId)
                 withContext(Dispatchers.Main) {
-                    player?.setMediaItem(MediaItem.fromUri(songUri))
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(songUri)
+                        .setMediaId(songId ?: "fallback")
+                        .build()
+                    player?.setMediaItem(mediaItem)
                     player?.prepare()
-                    if (songId != null) {
+                    // Only seek for actual songs, not the fallback or summary.
+                    if (songId != null && songId != "2-p9DM2Xvsc") {
                         player?.seekTo(30_000) // Start 30 seconds in.
+                    } else {
+                        player?.seekTo(0)
                     }
                     player?.play()
                     player?.volume = if (_isMuted.value) 0f else 1f
