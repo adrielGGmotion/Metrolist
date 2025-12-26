@@ -10,6 +10,7 @@ import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.db.entities.SongWithStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -28,8 +29,8 @@ sealed class PlaylistCreationState {
 
 class WrappedManager(
     private val databaseDao: DatabaseDao,
-    private val scope: CoroutineScope
 ) {
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val _messagePair = MutableStateFlow<MessagePair?>(null)
     val messagePair = _messagePair.asStateFlow()
 
@@ -142,30 +143,28 @@ class WrappedManager(
         }
     }
 
-    fun loadData() {
-        scope.launch {
-            _isLoading.value = true
-            _accountInfo.value = YouTube.accountInfo().getOrNull()
+    suspend fun prepare() {
+        _isLoading.value = true
+        _accountInfo.value = YouTube.accountInfo().getOrNull()
 
-            val fromTimestamp = Calendar.getInstance().apply {
-                set(WrappedConstants.YEAR, Calendar.JANUARY, 1, 0, 0, 0)
-            }.timeInMillis
+        val fromTimestamp = Calendar.getInstance().apply {
+            set(WrappedConstants.YEAR, Calendar.JANUARY, 1, 0, 0, 0)
+        }.timeInMillis
 
-            val toTimestamp = Calendar.getInstance().apply {
-                set(WrappedConstants.YEAR, Calendar.DECEMBER, 31, 23, 59, 59)
-            }.timeInMillis
+        val toTimestamp = Calendar.getInstance().apply {
+            set(WrappedConstants.YEAR, Calendar.DECEMBER, 31, 23, 59, 59)
+        }.timeInMillis
 
-            _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 50, toTimeStamp = toTimestamp).first()
-            _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5, toTimeStamp = toTimestamp).first()
-            _uniqueSongCount.value = databaseDao.getUniqueSongCountInRange(fromTimestamp, toTimestamp).first()
-            _uniqueArtistCount.value = databaseDao.getUniqueArtistCountInRange(fromTimestamp, toTimestamp).first()
+        _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
+        _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
+        _uniqueSongCount.value = databaseDao.getUniqueSongCountInRange(fromTimestamp, toTimestamp).first()
+        _uniqueArtistCount.value = databaseDao.getUniqueArtistCountInRange(fromTimestamp, toTimestamp).first()
 
-            val totalPlayTimeMs = databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() ?: 0L
-            val totalMinutes = totalPlayTimeMs / 1000 / 60
-            _totalMinutes.value = totalMinutes
+        val totalPlayTimeMs = databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() ?: 0L
+        val totalMinutes = totalPlayTimeMs / 1000 / 60
+        _totalMinutes.value = totalMinutes
 
-            generatePlaylistMap()
-            _isLoading.value = false
-        }
+        generatePlaylistMap()
+        _isLoading.value = false
     }
 }

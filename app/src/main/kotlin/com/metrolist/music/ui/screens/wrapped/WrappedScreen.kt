@@ -32,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
@@ -85,17 +86,15 @@ fun WrappedScreen(navController: NavController) {
     val view = LocalView.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val manager = remember { WrappedManager(getDatabaseDao(context), scope) }
-    val connectivityManager = getSystemService(context, ConnectivityManager::class.java)
-    val audioService = remember { WrappedAudioService(context, scope, connectivityManager!!) }
+    val viewModel: WrappedViewModel = hiltViewModel()
+    val manager = viewModel.manager
+    val audioService = viewModel.audioService
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(Unit) {
         val window = (view.context as android.app.Activity).window
         val insetsController = WindowCompat.getInsetsController(window, view)
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
-
-        manager.loadData()
 
         val observer = LifecycleEventObserver { _, event ->
             when (event) {

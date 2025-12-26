@@ -14,6 +14,7 @@ import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,9 +23,9 @@ import kotlinx.coroutines.withContext
 
 class WrappedAudioService(
     private val context: Context,
-    private val scope: CoroutineScope,
-    private val connectivityManager: ConnectivityManager
 ) {
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private var player: ExoPlayer? = null
     private var currentPlayerId: String? = null
     private var playbackJob: Job? = null
@@ -52,9 +53,22 @@ class WrappedAudioService(
         player?.volume = if (_isMuted.value) 0f else 1f
     }
 
+    suspend fun prepare(songId: String?) {
+        initPlayer()
+        val songUri = getSongUri(songId)
+        withContext(Dispatchers.Main) {
+            val mediaItem = MediaItem.Builder()
+                .setUri(songUri)
+                .setMediaId(songId ?: "fallback")
+                .build()
+            player?.setMediaItem(mediaItem)
+            player?.prepare()
+        }
+    }
     fun playTrack(songId: String?) {
         if (player?.currentMediaItem?.mediaId == songId) {
             Log.d("WrappedAudioService", "Track $songId is already loaded or playing.")
+            if (player?.isPlaying == false) player?.play()
             return
         }
         currentPlayerId = songId
@@ -62,15 +76,8 @@ class WrappedAudioService(
 
         playbackJob = scope.launch {
             try {
-                initPlayer()
-                val songUri = getSongUri(songId)
+                prepare(songId)
                 withContext(Dispatchers.Main) {
-                    val mediaItem = MediaItem.Builder()
-                        .setUri(songUri)
-                        .setMediaId(songId ?: "fallback")
-                        .build()
-                    player?.setMediaItem(mediaItem)
-                    player?.prepare()
                     // Only seek for actual songs, not the fallback or summary.
                     if (songId != null && songId != "2-p9DM2Xvsc") {
                         player?.seekTo(30_000) // Start 30 seconds in.

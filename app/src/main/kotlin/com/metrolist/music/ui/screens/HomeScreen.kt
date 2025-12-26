@@ -44,6 +44,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -141,7 +143,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.min
 import kotlin.random.Random
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -182,6 +184,7 @@ fun HomeScreen(
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
 
     val shouldShowWrappedCard by viewModel.showWrappedCard.collectAsState()
+    val isPreloading by viewModel.isPreloading.collectAsState()
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -434,34 +437,47 @@ fun HomeScreen(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             ),
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                val bbhFont = try {
-                                    FontFamily(Font(R.font.bbh_bartle_regular))
-                                } catch (e: Exception) {
-                                    FontFamily.Default
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    val bbhFont = try {
+                                        FontFamily(Font(R.font.bbh_bartle_regular))
+                                    } catch (e: Exception) {
+                                        FontFamily.Default
+                                    }
+                                    Text(
+                                        text = "YOUR WRAPPED IS READY!",
+                                        style = MaterialTheme.typography.headlineLarge.copy(
+                                            fontFamily = bbhFont,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Time to see what you loved this year.",
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            textAlign = TextAlign.Center
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(onClick = {
+                                        scope.launch {
+                                            viewModel.prepareWrapped()
+                                            navController.navigate("wrapped")
+                                        }
+                                    }) {
+                                        Text("Let's go!")
+                                    }
                                 }
-                                Text(
-                                    text = "YOUR WRAPPED IS READY!",
-                                    style = MaterialTheme.typography.headlineLarge.copy(
-                                        fontFamily = bbhFont,
-                                        textAlign = TextAlign.Center
-                                    )
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Time to see what you loved this year.",
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        textAlign = TextAlign.Center
-                                    )
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(onClick = { navController.navigate("wrapped") }) {
-                                    Text("Let's go!")
+                                if (isPreloading) {
+                                    ContainedLoadingIndicator(modifier = Modifier.size(56.dp))
                                 }
                             }
                         }

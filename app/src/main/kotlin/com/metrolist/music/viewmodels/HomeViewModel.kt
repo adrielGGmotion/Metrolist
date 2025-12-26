@@ -32,6 +32,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.metrolist.music.constants.ShowWrappedCardKey
 import com.metrolist.music.constants.WrappedSeenKey
+import com.metrolist.music.ui.screens.wrapped.WrappedAudioService
+import com.metrolist.music.ui.screens.wrapped.WrappedManager
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,9 +53,12 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     val syncUtils: SyncUtils,
+    private val wrappedManager: WrappedManager,
+    private val wrappedAudioService: WrappedAudioService,
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
+    val isPreloading = MutableStateFlow(false)
 
     private val quickPicksEnum = context.dataStore.data.map {
         it[QuickPicksKey].toEnum(QuickPicks.QUICK_PICKS)
@@ -96,6 +101,16 @@ class HomeViewModel @Inject constructor(
             context.dataStore.edit {
                 it[WrappedSeenKey] = true
             }
+        }
+    }
+
+    fun prepareWrapped() {
+        viewModelScope.launch {
+            isPreloading.value = true
+            wrappedManager.prepare()
+            val firstTrackId = wrappedManager.trackMap.first().entries.first().value
+            wrappedAudioService.prepare(firstTrackId)
+            isPreloading.value = false
         }
     }
     // Track last processed cookie to avoid unnecessary updates
