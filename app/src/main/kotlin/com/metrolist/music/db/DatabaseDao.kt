@@ -426,6 +426,17 @@ interface DatabaseDao {
     @Query("SELECT SUM(playTime) FROM event WHERE timestamp >= :fromTimeStamp AND timestamp <= :toTimeStamp")
     fun getTotalPlayTimeInRange(fromTimeStamp: Long, toTimeStamp: Long): Flow<Long?>
 
+    @Query("SELECT COUNT(DISTINCT songId) FROM event WHERE timestamp >= :fromTimeStamp AND timestamp <= :toTimeStamp")
+    fun getUniqueSongCountInRange(fromTimeStamp: Long, toTimeStamp: Long): Flow<Int>
+
+    @Query("""
+        SELECT COUNT(DISTINCT artistId)
+        FROM event
+        JOIN song_artist_map ON event.songId = song_artist_map.songId
+        WHERE timestamp >= :fromTimeStamp AND timestamp <= :toTimeStamp
+    """)
+    fun getUniqueArtistCountInRange(fromTimeStamp: Long, toTimeStamp: Long): Flow<Int>
+
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query("""

@@ -45,6 +45,12 @@ class WrappedManager(
     private val _topArtists = MutableStateFlow<List<Artist>>(emptyList())
     val topArtists = _topArtists.asStateFlow()
 
+    private val _uniqueSongCount = MutableStateFlow(0)
+    val uniqueSongCount = _uniqueSongCount.asStateFlow()
+
+    private val _uniqueArtistCount = MutableStateFlow(0)
+    val uniqueArtistCount = _uniqueArtistCount.asStateFlow()
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
 
@@ -95,33 +101,41 @@ class WrappedManager(
     private fun generatePlaylistMap() {
         scope.launch {
             val topSongs = _topSongs.value
-            if (topSongs.size < 3) {
-                Log.w("WrappedManager", "Not enough top songs to generate a playlist map.")
+            val topArtists = _topArtists.value
+            if (topSongs.isEmpty()) {
+                Log.w("WrappedManager", "Cannot generate playlist map, top songs list is empty.")
                 _trackMap.value = emptyMap()
                 return@launch
             }
 
             val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
-            val trackA = topSongs[0].id
-            val trackB = topSongs[1].id
-            val trackC = topSongs[2].id
+            // Group A: Random Track (Excluding Top 1)
+            val topSong = topSongs.first()
+            val randomTrack = topSongs.filter { it.id != topSong.id }.randomOrNull()?.id ?: topSongs.getOrNull(1)?.id ?: topSong.id
+            playlistMap[WrappedScreenType.Welcome] = randomTrack
+            playlistMap[WrappedScreenType.MinutesTease] = randomTrack
+            playlistMap[WrappedScreenType.MinutesReveal] = randomTrack
 
-            // Group A
-            playlistMap[WrappedScreenType.Welcome] = trackA
-            playlistMap[WrappedScreenType.MinutesTease] = trackA
-            playlistMap[WrappedScreenType.MinutesReveal] = trackA
-            playlistMap[WrappedScreenType.TotalSongs] = trackA
+            // Group B: Top 1 Song
+            playlistMap[WrappedScreenType.TotalSongs] = topSong.id
+            playlistMap[WrappedScreenType.TopSongReveal] = topSong.id
+            playlistMap[WrappedScreenType.Top5Songs] = topSong.id
 
-            // Group B
-            playlistMap[WrappedScreenType.TopSongReveal] = trackB
-            playlistMap[WrappedScreenType.Top5Songs] = trackB
+            // Group C: Top Artist's Track (Unique)
+            val topArtistTrack = topArtists.firstOrNull()?.let { artist ->
+                databaseDao.artistSongs(
+                    artistId = artist.id,
+                    sortType = ArtistSongSortType.PLAY_TIME,
+                    descending = true
+                ).first().firstOrNull { it.id != topSong.id }?.id
+            } ?: randomTrack // Fallback to random track
+            playlistMap[WrappedScreenType.TotalArtists] = topArtistTrack
+            playlistMap[WrappedScreenType.TopArtistReveal] = topArtistTrack
+            playlistMap[WrappedScreenType.Top5Artists] = topArtistTrack
 
-            // Group C
-            playlistMap[WrappedScreenType.TotalArtists] = trackC
-            playlistMap[WrappedScreenType.TopArtistReveal] = trackC
-            playlistMap[WrappedScreenType.Top5Artists] = trackC
-            playlistMap[WrappedScreenType.End] = trackC
+            // Group D: Summary
+            playlistMap[WrappedScreenType.End] = "2-p9DM2Xvsc"
 
             Log.d("WrappedManager", "Generated Playlist Map: $playlistMap")
             _trackMap.value = playlistMap
@@ -143,6 +157,8 @@ class WrappedManager(
 
             _topSongs.value = databaseDao.mostPlayedSongsStats(fromTimestamp, limit = 50, toTimeStamp = toTimestamp).first()
             _topArtists.value = databaseDao.mostPlayedArtists(fromTimestamp, limit = 5, toTimeStamp = toTimestamp).first()
+            _uniqueSongCount.value = databaseDao.getUniqueSongCountInRange(fromTimestamp, toTimestamp).first()
+            _uniqueArtistCount.value = databaseDao.getUniqueArtistCountInRange(fromTimestamp, toTimestamp).first()
 
             val totalPlayTimeMs = databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() ?: 0L
             val totalMinutes = totalPlayTimeMs / 1000 / 60

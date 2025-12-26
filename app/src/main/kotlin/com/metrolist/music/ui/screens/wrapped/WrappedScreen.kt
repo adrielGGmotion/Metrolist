@@ -132,6 +132,8 @@ fun WrappedScreen(navController: NavController) {
     val isLoading by manager.isLoading.collectAsState()
     val topSongs by manager.topSongs.collectAsState()
     val topArtists by manager.topArtists.collectAsState()
+    val uniqueSongCount by manager.uniqueSongCount.collectAsState()
+    val uniqueArtistCount by manager.uniqueArtistCount.collectAsState()
     val isMuted by audioService.isMuted.collectAsState()
     val trackMap by manager.trackMap.collectAsState()
     val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
@@ -184,7 +186,7 @@ fun WrappedScreen(navController: NavController) {
                     isVisible = pagerState.currentPage == 2
                 )
                 is WrappedScreenType.TotalSongs -> WrappedTotalSongsScreen(
-                    topSongs = topSongs,
+                    uniqueSongCount = uniqueSongCount,
                     isVisible = pagerState.currentPage == 3
                 )
                 is WrappedScreenType.TopSongReveal -> WrappedTopSongScreen(
@@ -196,7 +198,7 @@ fun WrappedScreen(navController: NavController) {
                     isVisible = pagerState.currentPage == 5
                 )
                 is WrappedScreenType.TotalArtists -> WrappedTotalArtistsScreen(
-                    topArtists = topArtists,
+                    uniqueArtistCount = uniqueArtistCount,
                     isVisible = pagerState.currentPage == 6
                 )
                 is WrappedScreenType.TopArtistReveal -> WrappedTopArtistScreen(

@@ -35,16 +35,15 @@ import kotlin.random.Random
 
 @Composable
 fun WrappedTotalSongsScreen(
-    topSongs: List<SongWithStats>,
+    uniqueSongCount: Int,
     isVisible: Boolean
 ) {
     val animatedSongs = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
-    val totalSongs = topSongs.size
 
-    LaunchedEffect(isVisible, totalSongs) {
-        if (isVisible && totalSongs > 0) {
-            animatedSongs.animateTo(targetValue = totalSongs.toFloat(), animationSpec = tween(1500, easing = FastOutSlowInEasing))
+    LaunchedEffect(isVisible, uniqueSongCount) {
+        if (isVisible && uniqueSongCount > 0) {
+            animatedSongs.animateTo(targetValue = uniqueSongCount.toFloat(), animationSpec = tween(1500, easing = FastOutSlowInEasing))
         }
     }
 
@@ -83,8 +82,8 @@ fun WrappedTotalSongsScreen(
                     color = Color.White, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                     fontFamily = bbh_bartle, drawStyle = Stroke(with(density) { 2.dp.toPx() })
                 )
-                val textStyle = remember(totalSongs, maxWidth) {
-                    val finalText = totalSongs.toString()
+                val textStyle = remember(uniqueSongCount, maxWidth) {
+                    val finalText = uniqueSongCount.toString()
                     var style = baseStyle.copy(fontSize = 96.sp)
                     var textWidth = textMeasurer.measure(finalText, style).size.width
                     while (textWidth > constraints.maxWidth) {
