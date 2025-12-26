@@ -150,11 +150,10 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # This changes only the application identity, not the source code imports.
+      # Fix for .gradle.kts and using '=' for assignments
       - name: Surgical Package Rename
         run: |
-          sed -i 's/applicationId "com.metrolist.music"/applicationId "com.metrolist.music.clone"/g' app/build.gradle
-          sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.clone"/g' app/build.gradle
+          sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.clone"/g' app/build.gradle.kts
 
       - name: Build Clone APK
         run: |
