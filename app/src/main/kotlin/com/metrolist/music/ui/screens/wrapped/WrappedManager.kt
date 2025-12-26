@@ -143,7 +143,9 @@ class WrappedManager(
 
     suspend fun prepare() {
         if (isDataReady.value) return
+        Log.d("WrappedManager", "Starting Wrapped data preparation")
         _accountInfo.value = YouTube.accountInfo().getOrNull()
+        Log.d("WrappedManager", "Account info fetched")
 
         val fromTimestamp = Calendar.getInstance().apply {
             set(WrappedConstants.YEAR, Calendar.JANUARY, 1, 0, 0, 0)
@@ -153,18 +155,26 @@ class WrappedManager(
             set(WrappedConstants.YEAR, Calendar.DECEMBER, 31, 23, 59, 59)
         }.timeInMillis
 
+        Log.d("WrappedManager", "Fetching all songs stats")
         val allSongs = databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
         _topSongs.value = allSongs.take(5)
+        Log.d("WrappedManager", "Top 5 songs stats calculated")
         val allArtists = databaseDao.mostPlayedArtists(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
         _topArtists.value = allArtists.take(5)
+        Log.d("WrappedManager", "Top 5 artists calculated")
         _uniqueSongCount.value = databaseDao.getUniqueSongCountInRange(fromTimestamp, toTimestamp).first()
+        Log.d("WrappedManager", "Unique song count calculated")
         _uniqueArtistCount.value = databaseDao.getUniqueArtistCountInRange(fromTimestamp, toTimestamp).first()
+        Log.d("WrappedManager", "Unique artist count calculated")
 
         val totalPlayTimeMs = databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() ?: 0L
         val totalMinutes = totalPlayTimeMs / 1000 / 60
         _totalMinutes.value = totalMinutes
+        Log.d("WrappedManager", "Total minutes calculated")
 
         generatePlaylistMap()
+        Log.d("WrappedManager", "Playlist map generated")
         _isDataReady.value = true
+        Log.d("WrappedManager", "Wrapped data preparation finished")
     }
 }

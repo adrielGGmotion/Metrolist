@@ -278,16 +278,20 @@ class HomeViewModel @Inject constructor(
             if (isSyncEnabled) {
                 syncUtils.runAllSyncs()
             }
-        }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            if (showWrappedCard.first()) {
-                wrappedManager.prepare()
-                val trackMap = wrappedManager.trackMap.first()
-                if (trackMap.isNotEmpty()) {
-                    val firstTrackId = trackMap.entries.first().value
-                    wrappedAudioService.prepare(firstTrackId)
+            try {
+                if (showWrappedCard.first()) {
+                    android.util.Log.d("HomeViewModel", "Preparing Wrapped data")
+                    wrappedManager.prepare()
+                    val trackMap = wrappedManager.trackMap.first()
+                    if (trackMap.isNotEmpty()) {
+                        val firstTrackId = trackMap.entries.first().value
+                        wrappedAudioService.prepare(firstTrackId)
+                    }
+                    android.util.Log.d("HomeViewModel", "Wrapped data prepared")
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error preparing Wrapped data", e)
             }
         }
 
