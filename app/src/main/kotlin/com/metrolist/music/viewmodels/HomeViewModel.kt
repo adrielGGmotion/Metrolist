@@ -280,7 +280,7 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (showWrappedCard.first()) {
                 wrappedManager.prepare()
                 val trackMap = wrappedManager.trackMap.first()
