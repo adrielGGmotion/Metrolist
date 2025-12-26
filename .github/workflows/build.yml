@@ -150,12 +150,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Clone APK (Stable/Release performance)
+      - name: Modify Package Name and App Name
         run: |
-          ./gradlew assembleUniversalFossRelease \
-            -Pandroid.injected.applicationId=com.metrolist.music.clone \
-            -Pandroid.injected.resValue.string.app_name="Metrolist Clone" \
-            --no-configuration-cache --console=plain --warning-mode summary
+          find . -type f -name "build.gradle*" -exec sed -i 's/com.metrolist.music/com.metrolist.music.clone/g' {} +
+          find . -type f -name "strings.xml" -exec sed -i 's/Metrolist/Metrolist Clone/g' {} +
+
+      - name: Build Clone APK
+        run: ./gradlew assembleUniversalFossRelease --no-configuration-cache --console=plain --warning-mode summary
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
