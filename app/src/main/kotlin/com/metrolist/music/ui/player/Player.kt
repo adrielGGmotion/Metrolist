@@ -19,8 +19,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -1177,14 +1175,7 @@ fun BottomSheetPlayer(
                                 interactionSource = backInteractionSource,
                                 modifier = Modifier
                                     .height(64.dp)
-                                    .animateWidth(
-                                        interactionSource = backInteractionSource,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioHighBouncy,
-                                            stiffness = Spring.StiffnessLow
-                                        )
-                                    )
-                                    .bouncy(backInteractionSource),
+                                    .animateWidth(interactionSource = backInteractionSource),
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = sideButtonContainerColor,
                                     contentColor = sideButtonContentColor
@@ -1212,13 +1203,7 @@ fun BottomSheetPlayer(
                                 interactionSource = playPauseInteractionSource,
                                 modifier = Modifier
                                     .height(64.dp)
-                                    .animateWidth(
-                                        interactionSource = playPauseInteractionSource,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioHighBouncy,
-                                            stiffness = Spring.StiffnessLow
-                                        )
-                                    ),
+                                    .animateWidth(interactionSource = playPauseInteractionSource),
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = textButtonColor,
                                     contentColor = iconButtonColor
@@ -1247,13 +1232,7 @@ fun BottomSheetPlayer(
                                 interactionSource = nextInteractionSource,
                                 modifier = Modifier
                                     .height(64.dp)
-                                    .animateWidth(
-                                        interactionSource = nextInteractionSource,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioHighBouncy,
-                                            stiffness = Spring.StiffnessLow
-                                        )
-                                    ),
+                                    .animateWidth(interactionSource = nextInteractionSource),
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = sideButtonContainerColor,
                                     contentColor = sideButtonContentColor
