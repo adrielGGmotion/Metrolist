@@ -1165,8 +1165,10 @@ fun BottomSheetPlayer(
                 Column {
                     if (useNewPlayerDesign) {
                         ButtonGroup(
-                            modifier = Modifier.fillMaxWidth(),
-                            expandedRatio = 0.7f
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = PlayerHorizontalPadding),
+                            expandedRatio = 5.0f
                         ) {
                             val backInteractionSource = remember { MutableInteractionSource() }
                             FilledTonalIconButton(
