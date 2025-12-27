@@ -111,17 +111,17 @@ class WrappedManager(
                 if (artistTopSongs.isNotEmpty()) {
                     val artistTopSong = artistTopSongs.first()
                     if (artistTopSong.id == topSong.id) {
-                        // THIS IS THE FIX: The top song is by the top artist.
-                        // We MUST pick the artist's second song. If they only have one,
-                        // we play that one. We NEVER fall back to a random track here.
+                        // **NO-ESCAPE FALLBACK:** The top song is by the top artist.
+                        // We MUST pick the artist's second song. If it doesn't exist for ANY reason,
+                        // we play the top song again. We NEVER leave the artist's context.
                         artistTopSongs.getOrNull(1)?.id ?: artistTopSong.id
                     } else {
                         // No overlap, the artist's top song is fine.
                         artistTopSong.id
                     }
                 } else {
-                    // This should not happen, but as a last resort, use the fallback track.
-                    fallbackTrack
+                    // Data anomaly. No songs for the top artist. Play the top song as a last resort.
+                    topSong.id
                 }
             } ?: fallbackTrack
             playlistMap[WrappedScreenType.TotalArtists] = topArtistTrackId
