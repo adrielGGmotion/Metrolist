@@ -29,7 +29,6 @@ sealed class PlaylistCreationState {
     object Success : PlaylistCreationState()
 }
 
-
 class WrappedManager(
     private val databaseDao: DatabaseDao,
 ) {
@@ -112,17 +111,16 @@ class WrappedManager(
                 if (artistTopSongs.isNotEmpty()) {
                     val artistTopSong = artistTopSongs.first()
                     if (artistTopSong.id == topSong.id) {
-                        // Overlap: User's top song is by their top artist.
-                        // Use the artist's second song, or fall back to their first song
-                        // if they only have one. This guarantees we play a song by the correct artist.
+                        // THIS IS THE FIX: The top song is by the top artist.
+                        // We MUST pick the artist's second song. If they only have one,
+                        // we play that one. We NEVER fall back to a random track here.
                         artistTopSongs.getOrNull(1)?.id ?: artistTopSong.id
                     } else {
-                        // No overlap, use the artist's top song.
+                        // No overlap, the artist's top song is fine.
                         artistTopSong.id
                     }
                 } else {
-                    // Data anomaly: Artist exists but has no songs in the database.
-                    // Use the global fallback as a last resort.
+                    // This should not happen, but as a last resort, use the fallback track.
                     fallbackTrack
                 }
             } ?: fallbackTrack
