@@ -27,8 +27,7 @@ class WrappedAudioService(
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private var player: ExoPlayer? = null
-    private var prepareJob: Job? = null
-    private var currentPlayerId: String? = null
+    private var playbackJob: Job? = null
 
     private val _isMuted = MutableStateFlow(false)
     val isMuted = _isMuted.asStateFlow()
@@ -39,7 +38,7 @@ class WrappedAudioService(
                 addListener(object : Player.Listener {
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         Log.e("WrappedAudioService", "Player error", error)
-                        prepareJob?.cancel()
+                        playbackJob?.cancel()
                     }
                 })
             }
@@ -51,39 +50,41 @@ class WrappedAudioService(
         player?.volume = if (_isMuted.value) 0f else 1f
     }
 
-    fun prepareTrack(songId: String?) {
-        if (currentPlayerId == songId) return
-        prepareJob?.cancel()
-        prepareJob = scope.launch {
-            try {
-                initPlayer()
-                val songUri = getSongUri(songId)
-                withContext(Dispatchers.Main) {
-                    val mediaItem = MediaItem.Builder()
-                        .setUri(songUri)
-                        .setMediaId(songId ?: "fallback")
-                        .build()
-                    player?.setMediaItem(mediaItem)
-                    player?.prepare()
-                    currentPlayerId = songId
-                }
-            } catch (e: Exception) {
-                Log.e("WrappedAudioService", "Error preparing track $songId", e)
-            }
+    suspend fun prepareTrack(songId: String?) {
+        initPlayer()
+        val songUri = getSongUri(songId)
+        withContext(Dispatchers.Main) {
+            val mediaItem = MediaItem.Builder()
+                .setUri(songUri)
+                .setMediaId(songId ?: "fallback")
+                .build()
+            player?.setMediaItem(mediaItem)
+            player?.prepare()
         }
     }
 
-    fun playPreparedTrack() {
-        scope.launch {
-            prepareJob?.join()
-            withContext(Dispatchers.Main) {
-                if (currentPlayerId != null && currentPlayerId != "2-p9DM2Xvsc") {
-                    player?.seekTo(30_000)
-                } else {
-                    player?.seekTo(0)
+    fun playTrack(songId: String?) {
+        if (player?.currentMediaItem?.mediaId == songId) {
+            Log.d("WrappedAudioService", "Track $songId is already loaded or playing.")
+            if (player?.isPlaying == false) player?.play()
+            return
+        }
+        playbackJob?.cancel()
+
+        playbackJob = scope.launch {
+            try {
+                prepareTrack(songId)
+                withContext(Dispatchers.Main) {
+                    if (songId != null && songId != "2-p9DM2Xvsc") {
+                        player?.seekTo(30_000)
+                    } else {
+                        player?.seekTo(0)
+                    }
+                    player?.play()
+                    player?.volume = if (_isMuted.value) 0f else 1f
                 }
-                player?.play()
-                player?.volume = if (_isMuted.value) 0f else 1f
+            } catch (e: Exception) {
+                Log.e("WrappedAudioService", "Error during playback preparation", e)
             }
         }
     }
@@ -128,7 +129,7 @@ class WrappedAudioService(
     }
 
     fun release() {
-        prepareJob?.cancel()
+        playbackJob?.cancel()
         player?.release()
         player = null
         Log.d("WrappedAudioService", "Player released.")

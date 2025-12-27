@@ -138,9 +138,7 @@ fun WrappedScreen(navController: NavController) {
 
         snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
             val screen = screens.getOrNull(page)
-            val songId = state.trackMap[screen]
-            audioService.prepareTrack(songId)
-            audioService.playPreparedTrack()
+            audioService.playTrack(state.trackMap[screen])
         }
     }
 
