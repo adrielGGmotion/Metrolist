@@ -105,17 +105,27 @@ class WrappedManager(
 
             // Artist Part: Top artist's song with specific rule
             val topArtist = topArtists.firstOrNull()
+            val fromTimestamp = Calendar.getInstance().apply {
+                set(WrappedConstants.YEAR, Calendar.JANUARY, 1, 0, 0, 0)
+            }.timeInMillis
+            val toTimestamp = Calendar.getInstance().apply {
+                set(WrappedConstants.YEAR, Calendar.DECEMBER, 31, 23, 59, 59)
+            }.timeInMillis
+
             val artistSong = topArtist?.let { artist ->
                 val artistTopSongs = databaseDao.artistSongs(
                     artistId = artist.id,
                     sortType = ArtistSongSortType.PLAY_TIME,
-                    descending = true
+                    descending = true,
+                    fromTimeStamp = fromTimestamp,
+                    toTimeStamp = toTimestamp
                 ).first()
                 if (artistTopSongs.isNotEmpty()) {
                     val artistTopSong = artistTopSongs.first()
                     if (artistTopSong.id == topSong.id) {
-                        // Overlap: Use the artist's second song, or their first if it's the only one.
-                        artistTopSongs.getOrNull(1)?.id ?: artistTopSong.id
+                        // Overlap: Use the artist's second song.
+                        // If a second song doesn't exist, use a random song from their list.
+                        artistTopSongs.getOrNull(1)?.id ?: artistTopSongs.filter { it.id != topSong.id }.randomOrNull()?.id ?: artistTopSong.id
                     } else {
                         artistTopSong.id
                     }

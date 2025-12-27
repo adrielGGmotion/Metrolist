@@ -197,17 +197,50 @@ interface DatabaseDao {
         artistId: String,
         sortType: ArtistSongSortType,
         descending: Boolean,
-    ) = when (sortType) {
-        ArtistSongSortType.CREATE_DATE -> artistSongsByCreateDateAsc(artistId)
-        ArtistSongSortType.NAME ->
-            artistSongsByNameAsc(artistId).map { artistSongs ->
-                val collator = Collator.getInstance(Locale.getDefault())
-                collator.strength = Collator.PRIMARY
-                artistSongs.sortedWith(compareBy(collator) { it.song.title })
+        fromTimeStamp: Long? = null,
+        toTimeStamp: Long? = null,
+        limit: Int = -1
+    ): Flow<List<Song>> {
+        val songsFlow = when (sortType) {
+            ArtistSongSortType.CREATE_DATE -> artistSongsByCreateDateAsc(artistId)
+            ArtistSongSortType.NAME ->
+                artistSongsByNameAsc(artistId).map { artistSongs ->
+                    val collator = Collator.getInstance(Locale.getDefault())
+                    collator.strength = Collator.PRIMARY
+                    artistSongs.sortedWith(compareBy(collator) { it.song.title })
+                }
+            ArtistSongSortType.PLAY_TIME -> {
+                if (fromTimeStamp != null && toTimeStamp != null) {
+                    mostPlayedSongsByArtist(artistId, fromTimeStamp, toTimeStamp)
+                } else {
+                    artistSongsByPlayTimeAsc(artistId)
+                }
             }
+        }
 
-        ArtistSongSortType.PLAY_TIME -> artistSongsByPlayTimeAsc(artistId)
-    }.map { it.reversed(descending) }
+        return songsFlow.map { songs ->
+            val limitedSongs = if (limit > 0) songs.take(limit) else songs
+            limitedSongs.reversed(descending)
+        }
+    }
+
+    @Transaction
+    @RewriteQueriesToDropUnusedColumns
+    @Query(
+        """
+        SELECT s.*
+        FROM song s
+        JOIN (
+            SELECT e.songId, SUM(e.playTime) as totalPlayTime
+            FROM event e
+            JOIN song_artist_map sam ON e.songId = sam.songId
+            WHERE sam.artistId = :artistId AND e.timestamp >= :fromTimeStamp AND e.timestamp <= :toTimeStamp
+            GROUP BY e.songId
+        ) AS play_times ON s.id = play_times.songId
+        ORDER BY play_times.totalPlayTime DESC
+        """
+    )
+    fun mostPlayedSongsByArtist(artistId: String, fromTimeStamp: Long, toTimeStamp: Long): Flow<List<Song>>
 
     @Transaction
     @Query(
