@@ -38,7 +38,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun WrappedEndScreen(manager: WrappedManager) {
     var visible by remember { mutableStateOf(false) }
-    val playlistState by manager.playlistCreationState.collectAsState()
+    val state by manager.state.collectAsState()
+    val playlistState = state.playlistCreationState
 
     LaunchedEffect(Unit) {
         delay(200)

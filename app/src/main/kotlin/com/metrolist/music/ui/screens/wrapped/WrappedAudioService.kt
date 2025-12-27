@@ -27,8 +27,8 @@ class WrappedAudioService(
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private var player: ExoPlayer? = null
+    private var prepareJob: Job? = null
     private var currentPlayerId: String? = null
-    private var playbackJob: Job? = null
 
     private val _isMuted = MutableStateFlow(false)
     val isMuted = _isMuted.asStateFlow()
@@ -39,9 +39,7 @@ class WrappedAudioService(
                 addListener(object : Player.Listener {
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         Log.e("WrappedAudioService", "Player error", error)
-                        // By stopping the job, we allow the next page change to gracefully
-                        // recover by creating a new playback job.
-                        playbackJob?.cancel()
+                        prepareJob?.cancel()
                     }
                 })
             }
@@ -53,42 +51,39 @@ class WrappedAudioService(
         player?.volume = if (_isMuted.value) 0f else 1f
     }
 
-    suspend fun prepare(songId: String?) {
-        initPlayer()
-        val songUri = getSongUri(songId)
-        withContext(Dispatchers.Main) {
-            val mediaItem = MediaItem.Builder()
-                .setUri(songUri)
-                .setMediaId(songId ?: "fallback")
-                .build()
-            player?.setMediaItem(mediaItem)
-            player?.prepare()
-        }
-    }
-    fun playTrack(songId: String?) {
-        if (player?.currentMediaItem?.mediaId == songId) {
-            Log.d("WrappedAudioService", "Track $songId is already loaded or playing.")
-            if (player?.isPlaying == false) player?.play()
-            return
-        }
-        currentPlayerId = songId
-        playbackJob?.cancel() // Cancel any ongoing playback or preparation.
-
-        playbackJob = scope.launch {
+    fun prepareTrack(songId: String?) {
+        if (currentPlayerId == songId) return
+        prepareJob?.cancel()
+        prepareJob = scope.launch {
             try {
-                prepare(songId)
+                initPlayer()
+                val songUri = getSongUri(songId)
                 withContext(Dispatchers.Main) {
-                    // Only seek for actual songs, not the fallback or summary.
-                    if (songId != null && songId != "2-p9DM2Xvsc") {
-                        player?.seekTo(30_000) // Start 30 seconds in.
-                    } else {
-                        player?.seekTo(0)
-                    }
-                    player?.play()
-                    player?.volume = if (_isMuted.value) 0f else 1f
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(songUri)
+                        .setMediaId(songId ?: "fallback")
+                        .build()
+                    player?.setMediaItem(mediaItem)
+                    player?.prepare()
+                    currentPlayerId = songId
                 }
             } catch (e: Exception) {
-                Log.e("WrappedAudioService", "Error during playback preparation", e)
+                Log.e("WrappedAudioService", "Error preparing track $songId", e)
+            }
+        }
+    }
+
+    fun playPreparedTrack() {
+        scope.launch {
+            prepareJob?.join()
+            withContext(Dispatchers.Main) {
+                if (currentPlayerId != null && currentPlayerId != "2-p9DM2Xvsc") {
+                    player?.seekTo(30_000)
+                } else {
+                    player?.seekTo(0)
+                }
+                player?.play()
+                player?.volume = if (_isMuted.value) 0f else 1f
             }
         }
     }
@@ -133,9 +128,7 @@ class WrappedAudioService(
     }
 
     fun release() {
-        playbackJob?.cancel()
-        // Release is a synchronous operation on the main thread.
-        // It's crucial this is not in a coroutine to prevent leaks.
+        prepareJob?.cancel()
         player?.release()
         player = null
         Log.d("WrappedAudioService", "Player released.")

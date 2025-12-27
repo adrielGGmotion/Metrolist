@@ -184,7 +184,8 @@ fun HomeScreen(
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
 
     val shouldShowWrappedCard by viewModel.showWrappedCard.collectAsState()
-    val isWrappedDataReady by viewModel.wrappedManager.isDataReady.collectAsState()
+    val wrappedState by viewModel.wrappedManager.state.collectAsState()
+    val isWrappedDataReady = wrappedState.isDataReady
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)

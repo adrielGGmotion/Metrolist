@@ -127,24 +127,20 @@ fun WrappedScreen(navController: NavController) {
         )
     }
     val pagerState = rememberPagerState(pageCount = { screens.size })
-    val totalMinutes by manager.totalMinutes.collectAsState(initial = 0L)
-    val isDataReady by manager.isDataReady.collectAsState()
-    val topSongs by manager.topSongs.collectAsState()
-    val topArtists by manager.topArtists.collectAsState()
-    val uniqueSongCount by manager.uniqueSongCount.collectAsState()
-    val uniqueArtistCount by manager.uniqueArtistCount.collectAsState()
+    val state by manager.state.collectAsState()
     val isMuted by audioService.isMuted.collectAsState()
-    val trackMap by manager.trackMap.collectAsState()
-    val messagePair = rememberSaveable(totalMinutes, saver = messagePairSaver) {
-        WrappedRepository.getMessage(totalMinutes)
+    val messagePair = rememberSaveable(state.totalMinutes, saver = messagePairSaver) {
+        WrappedRepository.getMessage(state.totalMinutes)
     }
 
-    LaunchedEffect(pagerState, trackMap) {
-        if (trackMap.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(pagerState, state.trackMap) {
+        if (state.trackMap.isEmpty()) return@LaunchedEffect
 
         snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
             val screen = screens.getOrNull(page)
-            audioService.playTrack(trackMap[screen])
+            val songId = state.trackMap[screen]
+            audioService.prepareTrack(songId)
+            audioService.playPreparedTrack()
         }
     }
 
@@ -178,34 +174,34 @@ fun WrappedScreen(navController: NavController) {
                     messagePair = messagePair,
                     onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 2) } },
                     manager = manager,
-                    isDataReady = isDataReady
+                    isDataReady = state.isDataReady
                 )
                 is WrappedScreenType.MinutesReveal -> WrappedMinutesScreen(
-                    messagePair = messagePair, totalMinutes = totalMinutes,
+                    messagePair = messagePair, totalMinutes = state.totalMinutes,
                     isVisible = pagerState.currentPage == 2
                 )
                 is WrappedScreenType.TotalSongs -> WrappedTotalSongsScreen(
-                    uniqueSongCount = uniqueSongCount,
+                    uniqueSongCount = state.uniqueSongCount,
                     isVisible = pagerState.currentPage == 3
                 )
                 is WrappedScreenType.TopSongReveal -> WrappedTopSongScreen(
-                    topSong = topSongs.firstOrNull(),
+                    topSong = state.topSongs.firstOrNull(),
                     isVisible = pagerState.currentPage == 4
                 )
                 is WrappedScreenType.Top5Songs -> WrappedTop5SongsScreen(
-                    topSongs = topSongs.take(5),
+                    topSongs = state.topSongs.take(5),
                     isVisible = pagerState.currentPage == 5
                 )
                 is WrappedScreenType.TotalArtists -> WrappedTotalArtistsScreen(
-                    uniqueArtistCount = uniqueArtistCount,
+                    uniqueArtistCount = state.uniqueArtistCount,
                     isVisible = pagerState.currentPage == 6
                 )
                 is WrappedScreenType.TopArtistReveal -> WrappedTopArtistScreen(
-                    topArtist = topArtists.firstOrNull(),
+                    topArtist = state.topArtists.firstOrNull(),
                     isVisible = pagerState.currentPage == 7
                 )
                 is WrappedScreenType.Top5Artists -> WrappedTop5ArtistsScreen(
-                    topArtists = topArtists,
+                    topArtists = state.topArtists,
                     isVisible = pagerState.currentPage == 8
                 )
                 is WrappedScreenType.End -> WrappedEndScreen(manager = manager)
