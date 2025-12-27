@@ -445,9 +445,10 @@ fun HomeScreen(
                                 if (isWrappedDataReady) {
                                     Column(
                                         modifier = Modifier
-                                            .fillMaxWidth()
+                                            .fillMaxSize()
                                             .padding(16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
                                     ) {
                                         val bbhFont = try {
                                             FontFamily(Font(R.font.bbh_bartle_regular))

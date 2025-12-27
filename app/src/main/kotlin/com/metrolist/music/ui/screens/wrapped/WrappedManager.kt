@@ -109,7 +109,10 @@ class WrappedManager(
                 ).first()
                 val artistTopSong = artistTopSongs.firstOrNull()
                 if (artistTopSong?.id == topSong.id) {
-                    artistTopSongs.getOrNull(1)?.id ?: fallbackTrack
+                    // When the top artist's top song is the same as the user's top song,
+                    // pick the artist's second song. If the artist only has one song,
+                    // fall back to that single song, ensuring the music is always from the correct artist.
+                    artistTopSongs.getOrNull(1)?.id ?: artistTopSong.id
                 } else {
                     artistTopSong?.id ?: fallbackTrack
                 }
