@@ -44,6 +44,14 @@ class WrappedManager(
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
+                    val fromTimestamp = Calendar.getInstance().apply {
+                        set(WrappedConstants.YEAR, Calendar.JANUARY, 1, 0, 0, 0)
+                    }.timeInMillis
+                    val toTimestamp = Calendar.getInstance().apply {
+                        set(WrappedConstants.YEAR, Calendar.DECEMBER, 31, 23, 59, 59)
+                    }.timeInMillis
+                    val allSongs = databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
+
                     val playlistId = UUID.randomUUID().toString()
                     val newPlaylist = PlaylistEntity(
                         id = playlistId,
@@ -56,7 +64,7 @@ class WrappedManager(
 
                     val createdPlaylist = databaseDao.playlist(playlistId).first()
                     if (createdPlaylist != null) {
-                        val songIds = _state.value.topSongs.map { it.id }
+                        val songIds = allSongs.map { it.id }
                         databaseDao.addSongToPlaylist(createdPlaylist, songIds)
                     } else {
                         Log.e("WrappedManager", "Failed to retrieve created playlist with id: $playlistId")
@@ -79,33 +87,35 @@ class WrappedManager(
             return
         }
 
-        val playlistMap = mutableMapOf<WrappedScreenType, String>()
+        withContext(Dispatchers.IO) {
+            val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
-        val topSong = topSongs.first()
-        val randomTrack = topSongs.filter { it.id != topSong.id }.randomOrNull()?.id ?: topSongs.getOrNull(1)?.id ?: topSong.id
-        playlistMap[WrappedScreenType.Welcome] = randomTrack
-        playlistMap[WrappedScreenType.MinutesTease] = randomTrack
-        playlistMap[WrappedScreenType.MinutesReveal] = randomTrack
+            val topSong = topSongs.first()
+            val randomTrack = topSongs.filter { it.id != topSong.id }.randomOrNull()?.id ?: topSongs.getOrNull(1)?.id ?: topSong.id
+            playlistMap[WrappedScreenType.Welcome] = randomTrack
+            playlistMap[WrappedScreenType.MinutesTease] = randomTrack
+            playlistMap[WrappedScreenType.MinutesReveal] = randomTrack
 
-        playlistMap[WrappedScreenType.TotalSongs] = topSong.id
-        playlistMap[WrappedScreenType.TopSongReveal] = topSong.id
-        playlistMap[WrappedScreenType.Top5Songs] = topSong.id
+            playlistMap[WrappedScreenType.TotalSongs] = topSong.id
+            playlistMap[WrappedScreenType.TopSongReveal] = topSong.id
+            playlistMap[WrappedScreenType.Top5Songs] = topSong.id
 
-        val topArtistTrack = topArtists.firstOrNull()?.let { artist ->
-            databaseDao.artistSongs(
-                artistId = artist.id,
-                sortType = ArtistSongSortType.PLAY_TIME,
-                descending = true
-            ).first().firstOrNull { it.id != topSong.id }?.id
-        } ?: randomTrack
-        playlistMap[WrappedScreenType.TotalArtists] = topArtistTrack
-        playlistMap[WrappedScreenType.TopArtistReveal] = topArtistTrack
-        playlistMap[WrappedScreenType.Top5Artists] = topArtistTrack
+            val topArtistTrack = topArtists.firstOrNull()?.let { artist ->
+                databaseDao.artistSongs(
+                    artistId = artist.id,
+                    sortType = ArtistSongSortType.PLAY_TIME,
+                    descending = true
+                ).first().firstOrNull { it.id != topSong.id }?.id
+            } ?: randomTrack
+            playlistMap[WrappedScreenType.TotalArtists] = topArtistTrack
+            playlistMap[WrappedScreenType.TopArtistReveal] = topArtistTrack
+            playlistMap[WrappedScreenType.Top5Artists] = topArtistTrack
 
-        playlistMap[WrappedScreenType.End] = "2-p9DM2Xvsc"
+            playlistMap[WrappedScreenType.End] = "2-p9DM2Xvsc"
 
-        Log.d("WrappedManager", "Generated Playlist Map: $playlistMap")
-        _state.update { it.copy(trackMap = playlistMap) }
+            Log.d("WrappedManager", "Generated Playlist Map: $playlistMap")
+            _state.update { it.copy(trackMap = playlistMap) }
+        }
     }
 
     suspend fun prepare() {

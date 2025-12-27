@@ -17,8 +17,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.metrolist.music.ui.screens.wrapped.LocalWrappedManager
 import com.metrolist.music.ui.screens.wrapped.MessagePair
-import com.metrolist.music.ui.screens.wrapped.WrappedManager
 import com.metrolist.music.ui.theme.bbh_bartle
 import kotlinx.coroutines.delay
 
@@ -26,9 +26,9 @@ import kotlinx.coroutines.delay
 fun WrappedMinutesTease(
     messagePair: MessagePair?,
     onNavigateForward: () -> Unit,
-    manager: WrappedManager,
     isDataReady: Boolean
 ) {
+    val manager = LocalWrappedManager.current
     LaunchedEffect(Unit) {
         delay(3500)
         onNavigateForward()

@@ -5,7 +5,4 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class WrappedViewModel @Inject constructor(
-    val manager: WrappedManager,
-    val audioService: WrappedAudioService
-) : ViewModel()
+class WrappedViewModel @Inject constructor() : ViewModel()

@@ -13,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,7 +33,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
@@ -64,9 +64,19 @@ sealed class WrappedScreenType {
     object End : WrappedScreenType()
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WrappedScreen(navController: NavController) {
+    val context = LocalContext.current
+    val manager = remember { provideWrappedManager(context) }
+
+    CompositionLocalProvider(LocalWrappedManager provides manager) {
+        WrappedScreenContent(navController = navController)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun WrappedScreenContent(navController: NavController) {
     val onClose: () -> Unit = {
         navController.previousBackStackEntry?.savedStateHandle?.set("wrapped_seen", true)
         navController.popBackStack()
@@ -84,11 +94,9 @@ fun WrappedScreen(navController: NavController) {
         }
     )
     val view = LocalView.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val viewModel: WrappedViewModel = hiltViewModel()
-    val manager = viewModel.manager
-    val audioService = viewModel.audioService
+    val manager = LocalWrappedManager.current
+    val audioService = remember { WrappedAudioService(view.context) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(Unit) {
@@ -133,6 +141,10 @@ fun WrappedScreen(navController: NavController) {
         WrappedRepository.getMessage(state.totalMinutes)
     }
 
+    LaunchedEffect(Unit) {
+        manager.prepare()
+    }
+
     LaunchedEffect(pagerState, state.trackMap) {
         if (state.trackMap.isEmpty()) return@LaunchedEffect
 
@@ -171,7 +183,6 @@ fun WrappedScreen(navController: NavController) {
                 is WrappedScreenType.MinutesTease -> WrappedMinutesTease(
                     messagePair = messagePair,
                     onNavigateForward = { scope.launch { pagerState.animateScrollToPage(page = 2) } },
-                    manager = manager,
                     isDataReady = state.isDataReady
                 )
                 is WrappedScreenType.MinutesReveal -> WrappedMinutesScreen(
@@ -202,7 +213,7 @@ fun WrappedScreen(navController: NavController) {
                     topArtists = state.topArtists,
                     isVisible = pagerState.currentPage == 8
                 )
-                is WrappedScreenType.End -> WrappedEndScreen(manager = manager)
+                is WrappedScreenType.End -> WrappedEndScreen()
             }
         }
     }

@@ -31,12 +31,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
+import com.metrolist.music.ui.screens.wrapped.LocalWrappedManager
 import com.metrolist.music.ui.screens.wrapped.PlaylistCreationState
-import com.metrolist.music.ui.screens.wrapped.WrappedManager
 import kotlinx.coroutines.delay
 
 @Composable
-fun WrappedEndScreen(manager: WrappedManager) {
+fun WrappedEndScreen() {
+    val manager = LocalWrappedManager.current
     var visible by remember { mutableStateOf(false) }
     val state by manager.state.collectAsState()
     val playlistState = state.playlistCreationState
