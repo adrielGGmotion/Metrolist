@@ -439,7 +439,7 @@ fun HomeScreen(
                             ),
                         ) {
                             Box(
-                                modifier = Modifier.fillMaxWidth().height(200.dp),
+                                modifier = Modifier.fillMaxWidth().height(220.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isWrappedDataReady) {
