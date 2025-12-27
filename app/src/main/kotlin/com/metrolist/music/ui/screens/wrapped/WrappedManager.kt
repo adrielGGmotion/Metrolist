@@ -90,44 +90,45 @@ class WrappedManager(
         withContext(Dispatchers.IO) {
             val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
-            val topSong = topSongs.first()
-            val fallbackTrack = topSongs.getOrNull(1)?.id ?: topSong.id
-            playlistMap[WrappedScreenType.Welcome] = fallbackTrack
-            playlistMap[WrappedScreenType.MinutesTease] = fallbackTrack
-            playlistMap[WrappedScreenType.MinutesReveal] = fallbackTrack
+            // Intro Part: Random song from top 6-30
+            val introSongPool = topSongs.subList(5, topSongs.size)
+            val introSong = introSongPool.randomOrNull()?.id ?: topSongs.last().id
+            playlistMap[WrappedScreenType.Welcome] = introSong
+            playlistMap[WrappedScreenType.MinutesTease] = introSong
+            playlistMap[WrappedScreenType.MinutesReveal] = introSong
 
+            // Music Part: Top 1 song
+            val topSong = topSongs.first()
             playlistMap[WrappedScreenType.TotalSongs] = topSong.id
             playlistMap[WrappedScreenType.TopSongReveal] = topSong.id
             playlistMap[WrappedScreenType.Top5Songs] = topSong.id
 
+            // Artist Part: Top artist's song with specific rule
             val topArtist = topArtists.firstOrNull()
-            val topArtistTrackId = topArtist?.let { artist ->
+            val artistSong = topArtist?.let { artist ->
                 val artistTopSongs = databaseDao.artistSongs(
                     artistId = artist.id,
                     sortType = ArtistSongSortType.PLAY_TIME,
                     descending = true
                 ).first()
-
                 if (artistTopSongs.isNotEmpty()) {
                     val artistTopSong = artistTopSongs.first()
                     if (artistTopSong.id == topSong.id) {
-                        // **NO-ESCAPE FALLBACK:** The top song is by the top artist.
-                        // We MUST pick the artist's second song. If it doesn't exist for ANY reason,
-                        // we play the top song again. We NEVER leave the artist's context.
+                        // Overlap: Use the artist's second song, or their first if it's the only one.
                         artistTopSongs.getOrNull(1)?.id ?: artistTopSong.id
                     } else {
-                        // No overlap, the artist's top song is fine.
                         artistTopSong.id
                     }
                 } else {
-                    // Data anomaly. No songs for the top artist. Play the top song as a last resort.
+                    // Data anomaly: Fallback to the user's top song.
                     topSong.id
                 }
-            } ?: fallbackTrack
-            playlistMap[WrappedScreenType.TotalArtists] = topArtistTrackId
-            playlistMap[WrappedScreenType.TopArtistReveal] = topArtistTrackId
-            playlistMap[WrappedScreenType.Top5Artists] = topArtistTrackId
+            } ?: topSong.id // Fallback if no top artist.
+            playlistMap[WrappedScreenType.TotalArtists] = artistSong
+            playlistMap[WrappedScreenType.TopArtistReveal] = artistSong
+            playlistMap[WrappedScreenType.Top5Artists] = artistSong
 
+            // End Part
             playlistMap[WrappedScreenType.End] = "2-p9DM2Xvsc"
 
             Log.d("WrappedManager", "Generated Playlist Map: $playlistMap")
@@ -149,7 +150,7 @@ class WrappedManager(
 
         withContext(Dispatchers.IO) {
             val accountInfoDeferred = async { YouTube.accountInfo().getOrNull() }
-            val topSongsDeferred = async { databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = 5).first() }
+            val topSongsDeferred = async { databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = 30).first() }
             val topArtistsDeferred = async { databaseDao.mostPlayedArtists(fromTimestamp, toTimeStamp = toTimestamp, limit = 5).first() }
             val uniqueSongCountDeferred = async { databaseDao.getUniqueSongCountInRange(fromTimestamp, toTimestamp).first() }
             val uniqueArtistCountDeferred = async { databaseDao.getUniqueArtistCountInRange(fromTimestamp, toTimestamp).first() }
@@ -164,10 +165,11 @@ class WrappedManager(
                 totalPlayTimeMsDeferred
             )
 
+            val topSongsResult = results[1] as List<SongWithStats>
             _state.update {
                 it.copy(
                     accountInfo = results[0] as AccountInfo?,
-                    topSongs = results[1] as List<SongWithStats>,
+                    topSongs = topSongsResult,
                     topArtists = results[2] as List<Artist>,
                     uniqueSongCount = results[3] as Int,
                     uniqueArtistCount = results[4] as Int,
