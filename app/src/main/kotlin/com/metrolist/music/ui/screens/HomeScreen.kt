@@ -472,7 +472,7 @@ fun HomeScreen(
                                         Button(onClick = {
                                             navController.navigate("wrapped")
                                         }) {
-                                            Text("Let's go!")
+                                            Text("Open")
                                         }
                                     }
                                 } else {

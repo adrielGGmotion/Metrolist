@@ -91,25 +91,34 @@ class WrappedManager(
             val playlistMap = mutableMapOf<WrappedScreenType, String>()
 
             val topSong = topSongs.first()
-            val randomTrack = topSongs.filter { it.id != topSong.id }.randomOrNull()?.id ?: topSongs.getOrNull(1)?.id ?: topSong.id
-            playlistMap[WrappedScreenType.Welcome] = randomTrack
-            playlistMap[WrappedScreenType.MinutesTease] = randomTrack
-            playlistMap[WrappedScreenType.MinutesReveal] = randomTrack
+            val fallbackTrack = topSongs.getOrNull(1)?.id ?: topSong.id
+            playlistMap[WrappedScreenType.Welcome] = fallbackTrack
+            playlistMap[WrappedScreenType.MinutesTease] = fallbackTrack
+            playlistMap[WrappedScreenType.MinutesReveal] = fallbackTrack
 
             playlistMap[WrappedScreenType.TotalSongs] = topSong.id
             playlistMap[WrappedScreenType.TopSongReveal] = topSong.id
             playlistMap[WrappedScreenType.Top5Songs] = topSong.id
 
-            val topArtistTrack = topArtists.firstOrNull()?.let { artist ->
-                databaseDao.artistSongs(
-                    artistId = artist.id,
+            val topArtist = topArtists.firstOrNull()
+            val topArtistTrackId = if (topArtist != null) {
+                val artistTopSongs = databaseDao.artistSongs(
+                    artistId = topArtist.id,
                     sortType = ArtistSongSortType.PLAY_TIME,
                     descending = true
-                ).first().firstOrNull { it.id != topSong.id }?.id
-            } ?: randomTrack
-            playlistMap[WrappedScreenType.TotalArtists] = topArtistTrack
-            playlistMap[WrappedScreenType.TopArtistReveal] = topArtistTrack
-            playlistMap[WrappedScreenType.Top5Artists] = topArtistTrack
+                ).first()
+                val artistTopSong = artistTopSongs.firstOrNull()
+                if (artistTopSong?.id == topSong.id) {
+                    artistTopSongs.getOrNull(1)?.id ?: fallbackTrack
+                } else {
+                    artistTopSong?.id ?: fallbackTrack
+                }
+            } else {
+                fallbackTrack
+            }
+            playlistMap[WrappedScreenType.TotalArtists] = topArtistTrackId
+            playlistMap[WrappedScreenType.TopArtistReveal] = topArtistTrackId
+            playlistMap[WrappedScreenType.Top5Artists] = topArtistTrackId
 
             playlistMap[WrappedScreenType.End] = "2-p9DM2Xvsc"
 
