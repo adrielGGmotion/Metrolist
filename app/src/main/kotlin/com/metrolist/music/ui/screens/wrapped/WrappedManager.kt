@@ -29,6 +29,7 @@ sealed class PlaylistCreationState {
     object Success : PlaylistCreationState()
 }
 
+
 class WrappedManager(
     private val databaseDao: DatabaseDao,
 ) {
@@ -101,24 +102,30 @@ class WrappedManager(
             playlistMap[WrappedScreenType.Top5Songs] = topSong.id
 
             val topArtist = topArtists.firstOrNull()
-            val topArtistTrackId = if (topArtist != null) {
+            val topArtistTrackId = topArtist?.let { artist ->
                 val artistTopSongs = databaseDao.artistSongs(
-                    artistId = topArtist.id,
+                    artistId = artist.id,
                     sortType = ArtistSongSortType.PLAY_TIME,
                     descending = true
                 ).first()
-                val artistTopSong = artistTopSongs.firstOrNull()
-                if (artistTopSong?.id == topSong.id) {
-                    // When the top artist's top song is the same as the user's top song,
-                    // pick the artist's second song. If the artist only has one song,
-                    // fall back to that single song, ensuring the music is always from the correct artist.
-                    artistTopSongs.getOrNull(1)?.id ?: artistTopSong.id
+
+                if (artistTopSongs.isNotEmpty()) {
+                    val artistTopSong = artistTopSongs.first()
+                    if (artistTopSong.id == topSong.id) {
+                        // Overlap: User's top song is by their top artist.
+                        // Use the artist's second song, or fall back to their first song
+                        // if they only have one. This guarantees we play a song by the correct artist.
+                        artistTopSongs.getOrNull(1)?.id ?: artistTopSong.id
+                    } else {
+                        // No overlap, use the artist's top song.
+                        artistTopSong.id
+                    }
                 } else {
-                    artistTopSong?.id ?: fallbackTrack
+                    // Data anomaly: Artist exists but has no songs in the database.
+                    // Use the global fallback as a last resort.
+                    fallbackTrack
                 }
-            } else {
-                fallbackTrack
-            }
+            } ?: fallbackTrack
             playlistMap[WrappedScreenType.TotalArtists] = topArtistTrackId
             playlistMap[WrappedScreenType.TopArtistReveal] = topArtistTrackId
             playlistMap[WrappedScreenType.Top5Artists] = topArtistTrackId

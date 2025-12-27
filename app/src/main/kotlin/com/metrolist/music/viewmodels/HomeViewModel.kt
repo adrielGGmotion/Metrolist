@@ -283,7 +283,8 @@ class HomeViewModel @Inject constructor(
                 if (showWrappedCard.first()) {
                     android.util.Log.d("HomeViewModel", "Preparing Wrapped data")
                     wrappedManager.prepare()
-                    val trackMap = wrappedManager.state.first().trackMap
+                    val state = wrappedManager.state.first() // Correctly get the state object
+                    val trackMap = state.trackMap
                     if (trackMap.isNotEmpty()) {
                         val firstTrackId = trackMap.entries.first().value
                         wrappedAudioService.prepareTrack(firstTrackId)
