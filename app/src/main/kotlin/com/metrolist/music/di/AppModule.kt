@@ -13,9 +13,7 @@ import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import com.metrolist.music.constants.MaxSongCacheSizeKey
 import com.metrolist.music.db.InternalDatabase
-import com.metrolist.music.db.MIGRATION_1_2
 import com.metrolist.music.db.MusicDatabase
-import androidx.room.Room
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import dagger.Module
@@ -41,23 +39,9 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideDao(
-        database: InternalDatabase,
-    ) = database.dao
-
-    @Singleton
-    @Provides
-    fun provideInternalDatabase(
-        @ApplicationContext context: Context,
-    ): InternalDatabase = Room
-        .databaseBuilder(context, InternalDatabase::class.java, InternalDatabase.DB_NAME)
-        .build()
-
-    @Singleton
-    @Provides
     fun provideDatabase(
-        internalDatabase: InternalDatabase,
-    ): MusicDatabase = MusicDatabase(internalDatabase)
+        @ApplicationContext context: Context,
+    ): MusicDatabase = InternalDatabase.newInstance(context)
 
     @Singleton
     @Provides
