@@ -44,7 +44,6 @@ import androidx.navigation.navArgument
 import com.metrolist.music.R
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.PureBlackKey
-import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetMenu
 import com.metrolist.music.ui.component.LocalMenuState
@@ -82,6 +81,8 @@ import com.metrolist.music.ui.screens.wrapped.WrappedScreen
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
+
+
 import android.app.Activity
 import androidx.compose.material3.SnackbarHostState
 
@@ -97,15 +98,7 @@ fun NavGraphBuilder.navigationBuilder(
         HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
     }
     composable(Screens.Search.route) {
-        val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
-        val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
-        val isSystemInDarkTheme = isSystemInDarkTheme()
-        val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
-            if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
-        }
-        val pureBlack = remember(pureBlackEnabled, useDarkTheme) {
-            pureBlackEnabled && useDarkTheme
-        }
+        val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
         SearchScreen(
             navController = navController,
             pureBlack = pureBlack
