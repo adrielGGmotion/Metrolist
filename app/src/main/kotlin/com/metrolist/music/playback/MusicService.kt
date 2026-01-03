@@ -253,6 +253,8 @@ class MusicService :
 
     lateinit var player: ExoPlayer
     private lateinit var mediaSession: MediaLibrarySession
+    private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
+    private var mediaController: MediaController? = null
 
     // Custom Audio Processor
     private val customEqualizerAudioProcessor = CustomEqualizerAudioProcessor()
@@ -374,8 +376,21 @@ class MusicService :
 
         // Keep a connected controller so that notification works
         val sessionToken = SessionToken(this, ComponentName(this, MusicService::class.java))
-        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        controllerFuture.addListener({ controllerFuture.get() }, MoreExecutors.directExecutor())
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture?.addListener(
+            {
+                controllerFuture?.let {
+                    if (it.isDone) {
+                        try {
+                            mediaController = it.get()
+                        } catch (e: Exception) {
+                            Log.e("MusicService", "Error getting MediaController", e)
+                        }
+                    }
+                }
+            },
+            MoreExecutors.directExecutor()
+        )
 
         connectivityManager = getSystemService()!!
         connectivityObserver = NetworkConnectivityObserver(this)
@@ -1897,6 +1912,9 @@ class MusicService :
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
+        controllerFuture?.let {
+            MediaController.releaseFuture(it)
+        }
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
@@ -1945,81 +1963,92 @@ class MusicService :
 
     // --- WIDGET UPDATE HELPER ---
     private fun updateWidgetUI(isPlaying: Boolean) {
-        val context = this
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, HelloWidget::class.java))
-        if (ids.isEmpty()) return
+        try {
+            val context = this
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, HelloWidget::class.java))
+            if (ids.isEmpty()) return
 
-        scope.launch(Dispatchers.IO) {
-            val song = currentSong.value?.song
-            val songTitle = song?.title ?: "No Song Playing"
+            scope.launch(Dispatchers.IO) {
+                val song = currentSong.value?.song
+                val songTitle = song?.title ?: "No Song Playing"
 
-            val views = RemoteViews(packageName, R.layout.widget_hello)
-            views.setTextViewText(R.id.txt_song_title, songTitle)
+                val views = RemoteViews(packageName, R.layout.widget_hello)
+                views.setTextViewText(R.id.txt_song_title, songTitle)
 
-            val playIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-            views.setImageViewResource(R.id.btn_play, playIcon)
+                val playIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+                views.setImageViewResource(R.id.btn_play, playIcon)
 
-            // --- COIL 3 IMAGE LOADING (SAFE MODE) ---
-            if (song?.thumbnailUrl != null) {
-                try {
-                    val loader = ImageLoader(context)
-                    val request = ImageRequest.Builder(context)
-                        .data(song.thumbnailUrl)
-                        .size(300, 300)
-                        .build()
+                // --- COIL 3 IMAGE LOADING (SAFE MODE) ---
+                if (song?.thumbnailUrl != null) {
+                    try {
+                        val loader = ImageLoader(context)
+                        val request = ImageRequest.Builder(context)
+                            .data(song.thumbnailUrl)
+                            .size(300, 300)
+                            .build()
 
-                    val result = loader.execute(request)
+                        val result = loader.execute(request)
 
-                    if (result is SuccessResult) {
-                        val originalBitmap = result.image.toBitmap()
-                        val safeBitmap = if (originalBitmap.config == Bitmap.Config.HARDWARE) {
-                            originalBitmap.copy(Bitmap.Config.ARGB_8888, false)
-                        } else {
-                            originalBitmap
+                        if (result is SuccessResult) {
+                            val originalBitmap = result.image.toBitmap()
+                            val safeBitmap = if (originalBitmap.config == Bitmap.Config.HARDWARE) {
+                                originalBitmap.copy(Bitmap.Config.ARGB_8888, false)
+                            } else {
+                                originalBitmap
+                            }
+                            views.setImageViewBitmap(R.id.img_album_art, safeBitmap)
                         }
-                        views.setImageViewBitmap(R.id.img_album_art, safeBitmap)
+                    } catch (e: Exception) {
+                        Log.w("MusicService", "Failed to load album art for widget", e)
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            } else {
-                views.setImageViewResource(R.id.img_album_art, android.R.drawable.ic_menu_gallery)
-            }
-
-            // --- FIXED: Renamed 'flags' to 'piFlags' to avoid conflict ---
-            val piFlags = if (android.os.Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE else PendingIntent.FLAG_UPDATE_CURRENT
-
-            fun getPending(action: String): PendingIntent {
-                val i = Intent(context, MusicService::class.java).apply { this.action = action }
-                return if (android.os.Build.VERSION.SDK_INT >= 26) {
-                    PendingIntent.getForegroundService(context, 0, i, piFlags)
                 } else {
-                    PendingIntent.getService(context, 0, i, piFlags)
+                    views.setImageViewResource(
+                        R.id.img_album_art,
+                        android.R.drawable.ic_menu_gallery
+                    )
                 }
+
+                // --- FIXED: Renamed 'flags' to 'piFlags' to avoid conflict ---
+                val piFlags =
+                    if (android.os.Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE else PendingIntent.FLAG_UPDATE_CURRENT
+
+                fun getPending(action: String): PendingIntent {
+                    val i = Intent(context, MusicService::class.java).apply { this.action = action }
+                    return if (android.os.Build.VERSION.SDK_INT >= 26) {
+                        PendingIntent.getForegroundService(context, 0, i, piFlags)
+                    } else {
+                        PendingIntent.getService(context, 0, i, piFlags)
+                    }
+                }
+
+                views.setOnClickPendingIntent(R.id.btn_prev, getPending(HelloWidget.ACTION_PREV))
+                views.setOnClickPendingIntent(
+                    R.id.btn_play,
+                    getPending(HelloWidget.ACTION_PLAY_PAUSE)
+                )
+                views.setOnClickPendingIntent(R.id.btn_next, getPending(HelloWidget.ACTION_NEXT))
+                views.setOnClickPendingIntent(R.id.btn_like, getPending(HelloWidget.ACTION_LIKE))
+
+                // --- APP OPEN LOGIC ---
+                val openAppIntent = Intent(context, MainActivity::class.java).apply {
+                    // Now this works because 'flags' refers to the Intent, not the variable above
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+
+                val openAppPendingIntent = PendingIntent.getActivity(
+                    context,
+                    0,
+                    openAppIntent,
+                    piFlags // Use the renamed variable here
+                )
+
+                views.setOnClickPendingIntent(R.id.img_album_art, openAppPendingIntent)
+
+                appWidgetManager.updateAppWidget(ids, views)
             }
-
-            views.setOnClickPendingIntent(R.id.btn_prev, getPending(HelloWidget.ACTION_PREV))
-            views.setOnClickPendingIntent(R.id.btn_play, getPending(HelloWidget.ACTION_PLAY_PAUSE))
-            views.setOnClickPendingIntent(R.id.btn_next, getPending(HelloWidget.ACTION_NEXT))
-            views.setOnClickPendingIntent(R.id.btn_like, getPending(HelloWidget.ACTION_LIKE))
-
-            // --- APP OPEN LOGIC ---
-            val openAppIntent = Intent(context, MainActivity::class.java).apply {
-                // Now this works because 'flags' refers to the Intent, not the variable above
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-
-            val openAppPendingIntent = PendingIntent.getActivity(
-                context,
-                0,
-                openAppIntent,
-                piFlags // Use the renamed variable here
-            )
-
-            views.setOnClickPendingIntent(R.id.img_album_art, openAppPendingIntent)
-
-            appWidgetManager.updateAppWidget(ids, views)
+        } catch (e: Exception) {
+            Log.w("MusicService", "Widget update failed - unsupported device?")
         }
     }
 
