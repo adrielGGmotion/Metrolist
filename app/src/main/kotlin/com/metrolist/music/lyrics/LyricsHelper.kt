@@ -7,8 +7,7 @@ package com.metrolist.music.lyrics
 
 import android.content.Context
 import android.util.LruCache
-import com.metrolist.music.constants.PreferredLyricsProvider
-import com.metrolist.music.constants.PreferredLyricsProviderKey
+import com.metrolist.music.constants.*
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.MediaMetadata
@@ -35,60 +34,42 @@ constructor(
     @ApplicationContext private val context: Context,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
-    private var lyricsProviders =
-        listOf(
-            BetterLyricsProvider,
-            SimpMusicLyricsProvider,
-            LrcLibLyricsProvider,
-            KuGouLyricsProvider,
-            YouTubeSubtitleLyricsProvider,
-            YouTubeLyricsProvider
-        )
-
-    val preferred =
-        context.dataStore.data
-            .map {
-                it[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.LRCLIB)
-            }.distinctUntilChanged()
-            .map {
-                lyricsProviders = when (it) {
-                    PreferredLyricsProvider.LRCLIB -> listOf(
-                        BetterLyricsProvider,
-                        LrcLibLyricsProvider,
-                        SimpMusicLyricsProvider,
-                        KuGouLyricsProvider,
-                        YouTubeSubtitleLyricsProvider,
-                        YouTubeLyricsProvider
-                    )
-                    PreferredLyricsProvider.KUGOU -> listOf(
-                        BetterLyricsProvider,
-                        KuGouLyricsProvider,
-                        SimpMusicLyricsProvider,
-                        LrcLibLyricsProvider,
-                        YouTubeSubtitleLyricsProvider,
-                        YouTubeLyricsProvider
-                    )
-                    PreferredLyricsProvider.BETTER_LYRICS -> listOf(
-                        BetterLyricsProvider,
-                        SimpMusicLyricsProvider,
-                        LrcLibLyricsProvider,
-                        KuGouLyricsProvider,
-                        YouTubeSubtitleLyricsProvider,
-                        YouTubeLyricsProvider
-                    )
-                    PreferredLyricsProvider.SIMPMUSIC -> listOf(
-                        BetterLyricsProvider,
-                        SimpMusicLyricsProvider,
-                        LrcLibLyricsProvider,
-                        KuGouLyricsProvider,
-                        YouTubeSubtitleLyricsProvider,
-                        YouTubeLyricsProvider
-                    )
-                }
-            }
-
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
     private var currentLyricsJob: Job? = null
+
+    private suspend fun getProviders(): List<LyricsProvider> {
+        val preferences = context.dataStore.data.first()
+        val providerList = mutableListOf<LyricsProvider>()
+        if (preferences[EnableAppleMusicKey] != false) {
+            providerList.add(AppleMusicLyricsProvider)
+        }
+        if (preferences[EnableBetterLyricsKey] != false) {
+            providerList.add(BetterLyricsProvider)
+        }
+        if (preferences[EnableSimpMusicKey] != false) {
+            providerList.add(SimpMusicLyricsProvider)
+        }
+        if (preferences[EnableLrcLibKey] != false) {
+            providerList.add(LrcLibLyricsProvider)
+        }
+        if (preferences[EnableKugouKey] != false) {
+            providerList.add(KuGouLyricsProvider)
+        }
+        providerList.add(YouTubeSubtitleLyricsProvider)
+        providerList.add(YouTubeLyricsProvider)
+
+        val preferred = preferences[PreferredLyricsProviderKey].toEnum(PreferredLyricsProvider.APPLE_MUSIC)
+        return providerList.sortedBy { provider ->
+            when (provider.name) {
+                "Apple Music" -> preferred != PreferredLyricsProvider.APPLE_MUSIC
+                "BetterLyrics" -> preferred != PreferredLyricsProvider.BETTER_LYRICS
+                "SimpMusic" -> preferred != PreferredLyricsProvider.SIMPMUSIC
+                "LrcLib" -> preferred != PreferredLyricsProvider.LRCLIB
+                "KuGou" -> preferred != PreferredLyricsProvider.KUGOU
+                else -> true
+            }
+        }
+    }
 
     suspend fun getLyrics(mediaMetadata: MediaMetadata): String {
         currentLyricsJob?.cancel()
@@ -114,7 +95,7 @@ constructor(
 
         val scope = CoroutineScope(SupervisorJob())
         val deferred = scope.async {
-            for (provider in lyricsProviders) {
+            for (provider in getProviders()) {
                 if (provider.isEnabled(context)) {
                     try {
                         val result = provider.getLyrics(
@@ -177,7 +158,7 @@ constructor(
 
         val allResult = mutableListOf<LyricsResult>()
         currentLyricsJob = CoroutineScope(SupervisorJob()).launch {
-            lyricsProviders.forEach { provider ->
+            getProviders().forEach { provider ->
                 if (provider.isEnabled(context)) {
                     try {
                         provider.getAllLyrics(mediaId, songTitle, songArtists, duration, album) { lyrics ->

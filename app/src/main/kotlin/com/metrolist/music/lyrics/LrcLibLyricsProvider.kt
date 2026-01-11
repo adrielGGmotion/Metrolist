@@ -9,12 +9,15 @@ import android.content.Context
 import com.metrolist.lrclib.LrcLib
 import com.metrolist.music.constants.EnableLrcLibKey
 import com.metrolist.music.utils.dataStore
-import com.metrolist.music.utils.get
+import kotlinx.coroutines.flow.first
 
 object LrcLibLyricsProvider : LyricsProvider {
     override val name = "LrcLib"
 
-    override fun isEnabled(context: Context): Boolean = context.dataStore[EnableLrcLibKey] ?: true
+    override suspend fun isEnabled(context: Context): Boolean {
+        val preferences = context.dataStore.data.first()
+        return preferences[EnableLrcLibKey] ?: true
+    }
 
     override suspend fun getLyrics(
         id: String,

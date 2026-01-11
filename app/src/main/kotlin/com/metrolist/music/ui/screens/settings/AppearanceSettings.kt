@@ -338,6 +338,7 @@ fun AppearanceSettings(
                     LyricsAnimationStyle.SLIDE -> stringResource(R.string.slide)
                     LyricsAnimationStyle.KARAOKE -> stringResource(R.string.karaoke)
                     LyricsAnimationStyle.APPLE -> stringResource(R.string.apple_music_style)
+                    LyricsAnimationStyle.APPLE_ENHANCED -> stringResource(R.string.apple_music_enhanced_style)
                 }
             }
         )
@@ -1161,6 +1162,7 @@ fun AppearanceSettings(
                                 LyricsAnimationStyle.SLIDE -> stringResource(R.string.slide)
                                 LyricsAnimationStyle.KARAOKE -> stringResource(R.string.karaoke)
                                 LyricsAnimationStyle.APPLE -> stringResource(R.string.apple_music_style)
+                                LyricsAnimationStyle.APPLE_ENHANCED -> stringResource(R.string.apple_music_enhanced_style)
                             }
                         )
                     },

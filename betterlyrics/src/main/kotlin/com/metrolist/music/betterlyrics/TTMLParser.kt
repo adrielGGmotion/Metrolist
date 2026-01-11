@@ -166,14 +166,40 @@ object TTMLParser {
                 val seconds = (timeMs % 60000) / 1000
                 val centiseconds = (timeMs % 1000) / 10
                 
-                appendLine(String.format("[%02d:%02d.%02d]%s", minutes, seconds, centiseconds, line.text))
+                // Line timestamp
+                append(String.format("[%02d:%02d.%02d]", minutes, seconds, centiseconds))
                 
+                // Add word-level timestamps in Apple Music format if available
                 if (line.words.isNotEmpty()) {
-                    val wordsData = line.words.joinToString("|") { word ->
-                        "${word.text}:${word.startTime}:${word.endTime}"
+                    line.words.forEachIndexed { index, word ->
+                        // Format: <MM:SS.mmm>word
+                        val wordStartMs = (word.startTime * 1000).toLong()
+                        val wordMinutes = wordStartMs / 60000
+                        val wordSeconds = (wordStartMs % 60000) / 1000
+                        val wordMillis = wordStartMs % 1000
+                        
+                        append(String.format("<%02d:%02d.%03d>", wordMinutes, wordSeconds, wordMillis))
+                        append(word.text)
+                        
+                        // Add space between words (except after last word)
+                        if (index < line.words.size - 1) {
+                            append(" ")
+                        }
                     }
-                    appendLine("<$wordsData>")
+                    
+                    // Add end timestamp for the last word using its endTime
+                    val lastWord = line.words.last()
+                    val endMs = (lastWord.endTime * 1000).toLong()
+                    val endMinutes = endMs / 60000
+                    val endSeconds = (endMs % 60000) / 1000
+                    val endMillis = endMs % 1000
+                    append(String.format("<%02d:%02d.%03d>", endMinutes, endSeconds, endMillis))
+                } else {
+                    // No word timings, just output the text
+                    append(line.text)
                 }
+                
+                appendLine()
             }
         }
     }
