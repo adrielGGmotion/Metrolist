@@ -967,10 +967,21 @@ fun Lyrics(
         }
     }
 
-    // Reset selection mode if lyrics change
+    // Reset state when lyrics change
     LaunchedEffect(lyricsContent) {
         isSelectionModeActive = false
         selectedIndices.clear()
+        // Reset scroll-related state for new lyrics
+        previousScrollTargetMinIndex = -1
+        previousScrollTargetMaxIndex = -1
+        initialScrollDone = false
+        shouldScrollToFirstLine = true
+        lastKnownActiveLineIndex = 0
+        pendingResync = false
+        // Cancel any ongoing scroll animation
+        currentScrollJob?.cancel()
+        currentScrollJob = null
+        isAnimating = false
     }
 
     LaunchedEffect(midpointIndex) {
@@ -1097,7 +1108,11 @@ fun Lyrics(
             delay(100) // Small delay to let position settle
             val targetIndex = if (currentLineIndex >= 0) currentLineIndex else lastKnownActiveLineIndex
             if (targetIndex >= 0) {
-                performSmoothPageScroll(targetIndex, targetIndex, 500, forceScroll = true)
+                // Cancel any existing scroll and start a new one
+                currentScrollJob?.cancel()
+                currentScrollJob = scope.launch {
+                    performSmoothPageScroll(targetIndex, targetIndex, 500, forceScroll = true)
+                }
             }
         } else if (isSeeking) {
             pendingResync = true
@@ -1251,6 +1266,9 @@ fun Lyrics(
                                 ): Offset {
                                     if (source == NestedScrollSource.UserInput) {
                                         isAutoScrollEnabled = false
+                                        // Cancel any ongoing auto-scroll animation
+                                        currentScrollJob?.cancel()
+                                        isAnimating = false
                                     }
                                     if (!isSelectionModeActive) { // Only update preview time if not selecting
                                         lastPreviewTime = System.currentTimeMillis()
@@ -1263,6 +1281,9 @@ fun Lyrics(
                                     available: Velocity
                                 ): Velocity {
                                     isAutoScrollEnabled = false
+                                    // Cancel any ongoing auto-scroll animation
+                                    currentScrollJob?.cancel()
+                                    isAnimating = false
                                     if (!isSelectionModeActive) { // Only update preview time if not selecting
                                         lastPreviewTime = System.currentTimeMillis()
                                     }
@@ -1470,6 +1491,9 @@ fun Lyrics(
                             ): Offset {
                                 if (source == NestedScrollSource.UserInput) {
                                     isAutoScrollEnabled = false
+                                    // Cancel any ongoing auto-scroll animation
+                                    currentScrollJob?.cancel()
+                                    isAnimating = false
                                 }
                                 if (!isSelectionModeActive) { // Only update preview time if not selecting
                                     lastPreviewTime = System.currentTimeMillis()
@@ -1482,6 +1506,9 @@ fun Lyrics(
                                 available: Velocity
                             ): Velocity {
                                 isAutoScrollEnabled = false
+                                // Cancel any ongoing auto-scroll animation
+                                currentScrollJob?.cancel()
+                                isAnimating = false
                                 if (!isSelectionModeActive) { // Only update preview time if not selecting
                                     lastPreviewTime = System.currentTimeMillis()
                                 }
