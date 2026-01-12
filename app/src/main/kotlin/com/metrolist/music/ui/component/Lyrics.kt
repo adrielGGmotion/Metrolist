@@ -978,6 +978,10 @@ fun Lyrics(
         shouldScrollToFirstLine = true
         lastKnownActiveLineIndex = 0
         pendingResync = false
+        // Re-enable auto-scroll for new lyrics
+        isAutoScrollEnabled = true
+        // Reset preview time so auto-scroll works immediately
+        lastPreviewTime = 0L
         // Cancel any ongoing scroll animation
         currentScrollJob?.cancel()
         currentScrollJob = null
