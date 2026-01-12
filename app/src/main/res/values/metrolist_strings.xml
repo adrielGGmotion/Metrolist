@@ -126,6 +126,8 @@
     <string name="lyrics_auto_scroll">Auto scroll lyrics</string>
     <string name="lyrics_glow_effect">Enable glowing lyrics effect</string>
     <string name="lyrics_glow_effect_desc">Add glowing animation and bounce effect to active lyrics</string>
+    <string name="lyrics_higher_anchor">Higher lyrics anchor</string>
+    <string name="lyrics_higher_anchor_desc">Position active lyrics higher on screen for better visibility</string>
     <string name="enable_better_lyrics">Enable Better Lyrics</string>
     <string name="enable_better_lyrics_desc">Use Better Lyrics provider for word-by-word synced lyrics</string>
     <string name="enable_simpmusic">Enable SimpMusic Lyrics</string>

@@ -140,6 +140,7 @@ import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsHigherAnchorKey
 import com.metrolist.music.constants.LyricsAnimationStyle
 import com.metrolist.music.constants.LyricsAnimationStyleKey
 import com.metrolist.music.constants.LyricsTextSizeKey
@@ -527,6 +528,7 @@ fun Lyrics(
     val romanizeCyrillicByLine by rememberPreference(LyricsRomanizeCyrillicByLineKey, false)
     val romanizeChineseLyrics by rememberPreference(LyricsRomanizeChineseKey, true)
     val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, false)
+    val lyricsHigherAnchor by rememberPreference(LyricsHigherAnchorKey, false)
     val lyricsAnimationStyle by rememberEnumPreference(LyricsAnimationStyleKey, LyricsAnimationStyle.APPLE)
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
@@ -896,7 +898,9 @@ fun Lyrics(
                 val groupCenter = groupTop + (groupBottom - groupTop) / 2
 
                 val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
-                val anchor = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * 0.35f)
+                // Use 0.35f (higher) when lyricsHigherAnchor is enabled, otherwise 0.5f (centered)
+                val anchorPosition = if (lyricsHigherAnchor) 0.35f else 0.5f
+                val anchor = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * anchorPosition)
                 val offset = groupCenter - anchor
 
                 if (abs(offset) > 1f) {
