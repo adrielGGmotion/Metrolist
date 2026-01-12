@@ -72,6 +72,7 @@ import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.LyricsLineSpacingKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
+import com.metrolist.music.constants.LyricsStandbyEffectKey
 import com.metrolist.music.constants.MiniPlayerOutlineKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
@@ -197,6 +198,7 @@ fun AppearanceSettings(
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = false)
     val (lyricsHigherAnchor, onLyricsHigherAnchorChange) = rememberPreference(LyricsHigherAnchorKey, defaultValue = false)
+    val (lyricsStandbyEffect, onLyricsStandbyEffectChange) = rememberPreference(LyricsStandbyEffectKey, defaultValue = false)
 
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
         SliderStyleKey,
@@ -1211,6 +1213,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onLyricsHigherAnchorChange(!lyricsHigherAnchor) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.lyrics_standby_effect)) },
+                    description = { Text(stringResource(R.string.lyrics_standby_effect_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = lyricsStandbyEffect,
+                            onCheckedChange = onLyricsStandbyEffectChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsStandbyEffect) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLyricsStandbyEffectChange(!lyricsStandbyEffect) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),

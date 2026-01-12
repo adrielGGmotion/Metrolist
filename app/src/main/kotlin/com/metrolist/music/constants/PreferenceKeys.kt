@@ -347,6 +347,7 @@ val LyricsRomanizeCyrillicByLineKey = booleanPreferencesKey("lyricsRomanizeCyril
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
 val LyricsHigherAnchorKey = booleanPreferencesKey("lyricsHigherAnchor")
+val LyricsStandbyEffectKey = booleanPreferencesKey("lyricsStandbyEffect")
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")
 enum class LyricsAnimationStyle {

@@ -64,11 +64,14 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.WavyProgressIndicatorDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -141,6 +144,7 @@ import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
+import com.metrolist.music.constants.LyricsStandbyEffectKey
 import com.metrolist.music.constants.LyricsAnimationStyle
 import com.metrolist.music.constants.LyricsAnimationStyleKey
 import com.metrolist.music.constants.LyricsTextSizeKey
@@ -272,6 +276,137 @@ private sealed class LyricsContent {
     data class Hierarchical(val lines: List<LyricLine>) : LyricsContent()
     object Empty : LyricsContent()
     object NotFound : LyricsContent()
+}
+
+private const val STANDBY_THRESHOLD_MS = 3000L
+private const val STANDBY_HIDE_BEFORE_MS = 400L
+
+/**
+ * Data class to hold standby indicator state
+ */
+private data class StandbyState(
+    val isVisible: Boolean = false,
+    val progress: Float = 0f,
+    val insertAfterIndex: Int = -1
+)
+
+/**
+ * Calculates the standby state based on current playback position and lyrics lines
+ */
+@Composable
+private fun rememberStandbyState(
+    lines: List<LyricLine>,
+    currentPosition: Long,
+    activeLineIndices: Set<Int>
+): StandbyState {
+    if (lines.isEmpty()) return StandbyState()
+    
+    // Find the next line that will become active
+    val nextLineIndex = lines.indexOfFirst { line ->
+        val startTimeMs = (line.startTime * 1000).toLong()
+        startTimeMs > currentPosition
+    }
+    
+    if (nextLineIndex == -1) return StandbyState()
+    
+    val nextLine = lines[nextLineIndex]
+    val nextLineStartMs = (nextLine.startTime * 1000).toLong()
+    val timeUntilNextLine = nextLineStartMs - currentPosition
+    
+    // Find the previous line (the one that just ended or is about to end)
+    val prevLineIndex = if (nextLineIndex > 0) nextLineIndex - 1 else -1
+    val prevLineEndMs = if (prevLineIndex >= 0) {
+        (lines[prevLineIndex].endTime * 1000).toLong()
+    } else {
+        0L
+    }
+    
+    // Calculate the gap between previous line end and next line start
+    val gapDuration = nextLineStartMs - prevLineEndMs
+    
+    // Only show standby if:
+    // 1. No active lines currently
+    // 2. Gap is more than threshold
+    // 3. We're past the previous line's end time
+    // 4. We're more than STANDBY_HIDE_BEFORE_MS away from next line
+    val shouldShow = activeLineIndices.isEmpty() &&
+            gapDuration > STANDBY_THRESHOLD_MS &&
+            currentPosition >= prevLineEndMs &&
+            timeUntilNextLine > STANDBY_HIDE_BEFORE_MS
+    
+    if (!shouldShow) return StandbyState()
+    
+    // Calculate progress (0 to 1) within the standby period
+    val standbyDuration = gapDuration - STANDBY_HIDE_BEFORE_MS
+    val timeInStandby = currentPosition - prevLineEndMs
+    val progress = (timeInStandby.toFloat() / standbyDuration.toFloat()).coerceIn(0f, 1f)
+    
+    return StandbyState(
+        isVisible = true,
+        progress = progress,
+        insertAfterIndex = prevLineIndex
+    )
+}
+
+/**
+ * Standby indicator composable that shows a wavy progress indicator during long intervals
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun StandbyIndicator(
+    progress: Float,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val animatedAlpha by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "standbyAlpha"
+    )
+    
+    val animatedScale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+        label = "standbyScale"
+    )
+    
+    // Bounce animation
+    val bounceOffset = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            bounceOffset.animateTo(
+                targetValue = -8f,
+                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+            )
+            bounceOffset.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+    
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+            .graphicsLayer {
+                alpha = animatedAlpha
+                scaleX = animatedScale
+                scaleY = animatedScale
+                translationY = bounceOffset.value
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        CircularWavyProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.size(36.dp),
+            color = color.copy(alpha = 0.8f),
+            trackColor = color.copy(alpha = 0.2f),
+            amplitude = WavyProgressIndicatorDefaults.indicatorAmplitude,
+            wavelength = WavyProgressIndicatorDefaults.CircularWavelength,
+            waveSpeed = WavyProgressIndicatorDefaults.CircularWavelength
+        )
+    }
 }
 
 @Composable
@@ -1025,6 +1160,14 @@ fun Lyrics(
                 val lines = (lyricsContent as LyricsContent.Hierarchical).lines
                 var lastPrimarySpeaker: SpeakerRole by remember { mutableStateOf(SpeakerRole.V1) }
                 val hasV2 = remember(lines) { lines.any { it.speaker is SpeakerRole.V2 } }
+                
+                // Standby effect state
+                val lyricsStandbyEffect by rememberPreference(LyricsStandbyEffectKey, false)
+                val standbyState = rememberStandbyState(
+                    lines = lines,
+                    currentPosition = currentPlaybackPosition,
+                    activeLineIndices = activeLineIndices
+                )
 
                 LazyColumn(
                     state = lazyListState,
@@ -1064,6 +1207,19 @@ fun Lyrics(
                         })
                 ) {
                     itemsIndexed(lines, key = { index, item -> "$index-${item.startTime}" }) { index, line ->
+                        // Show standby indicator after the specified line
+                        if (lyricsStandbyEffect && standbyState.isVisible && standbyState.insertAfterIndex == index - 1) {
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(animationSpec = tween(300)) + expandVertically(animationSpec = tween(300)),
+                                exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200))
+                            ) {
+                                StandbyIndicator(
+                                    progress = standbyState.progress,
+                                    color = expressiveAccent
+                                )
+                            }
+                        }
                         val isBgLine = line.speaker is SpeakerRole.BG
                         
                         // For BG lines, use parentSpeaker for alignment; otherwise use the line's speaker
