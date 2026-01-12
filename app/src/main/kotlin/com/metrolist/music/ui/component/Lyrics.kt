@@ -352,124 +352,68 @@ private fun rememberStandbyState(
 
 /**
  * Standby indicator composable that shows a wavy progress indicator during long intervals
- * with smooth space-opening animation and grow-before-exit effect
+ * with smooth space-opening animation and graceful exit effect
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StandbyIndicator(
     progress: Float,
     color: Color,
-    isVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Track visibility for exit animation
-    var wasVisible by remember { mutableStateOf(false) }
-    var isExiting by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(isVisible) {
-        if (wasVisible && !isVisible) {
-            // Starting exit animation
-            isExiting = true
-        } else if (isVisible) {
-            isExiting = false
-        }
-        wasVisible = isVisible
-    }
-    
-    // Animate the container height for smooth space opening
-    val targetHeight = if (isVisible || isExiting) 80.dp else 0.dp
-    val animatedHeight by animateDpAsState(
-        targetValue = targetHeight,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "standbyHeight"
-    )
-    
-    // Scale animation - grows up before disappearing
-    val targetScale = when {
-        isExiting -> 1.3f  // Grow up before exit
-        isVisible -> 1f
-        else -> 0.5f
-    }
-    val animatedScale by animateFloatAsState(
-        targetValue = targetScale,
-        animationSpec = if (isExiting) {
-            tween(durationMillis = 200, easing = FastOutSlowInEasing)
-        } else {
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium
-            )
-        },
-        finishedListener = {
-            if (isExiting) {
-                isExiting = false
-            }
-        },
-        label = "standbyScale"
-    )
-    
-    // Alpha animation
-    val targetAlpha = when {
-        isExiting -> 0f
-        isVisible -> 1f
-        else -> 0f
-    }
-    val animatedAlpha by animateFloatAsState(
-        targetValue = targetAlpha,
-        animationSpec = if (isExiting) {
-            tween(durationMillis = 250, delayMillis = 100, easing = FastOutSlowInEasing)
-        } else {
-            tween(durationMillis = 400, easing = FastOutSlowInEasing)
-        },
-        label = "standbyAlpha"
-    )
-    
-    // Gentle bounce animation while visible
+    // Gentle bounce animation using Animatable
     val bounceOffset = remember { Animatable(0f) }
-    LaunchedEffect(isVisible) {
-        if (isVisible) {
+    val pulseScale = remember { Animatable(1f) }
+    
+    LaunchedEffect(Unit) {
+        // Bounce animation loop
+        launch {
             while (true) {
                 bounceOffset.animateTo(
-                    targetValue = -6f,
-                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+                    targetValue = -8f,
+                    animationSpec = tween(700, easing = FastOutSlowInEasing)
                 )
                 bounceOffset.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+                    animationSpec = tween(700, easing = FastOutSlowInEasing)
                 )
             }
-        } else {
-            bounceOffset.snapTo(0f)
+        }
+        // Pulse scale animation loop
+        launch {
+            while (true) {
+                pulseScale.animateTo(
+                    targetValue = 1.08f,
+                    animationSpec = tween(900, easing = FastOutSlowInEasing)
+                )
+                pulseScale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(900, easing = FastOutSlowInEasing)
+                )
+            }
         }
     }
-    
-    // Only render if there's something to show
-    if (animatedHeight > 0.dp || animatedAlpha > 0f) {
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(animatedHeight)
-                .graphicsLayer {
-                    alpha = animatedAlpha
-                    scaleX = animatedScale
-                    scaleY = animatedScale
-                    translationY = bounceOffset.value
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            CircularWavyProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.size(36.dp),
-                color = color.copy(alpha = 0.8f),
-                trackColor = color.copy(alpha = 0.2f),
-                amplitude = WavyProgressIndicatorDefaults.indicatorAmplitude,
-                wavelength = WavyProgressIndicatorDefaults.CircularWavelength,
-                waveSpeed = WavyProgressIndicatorDefaults.CircularWavelength
-            )
-        }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp)
+            .graphicsLayer {
+                translationY = bounceOffset.value
+                scaleX = pulseScale.value
+                scaleY = pulseScale.value
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        CircularWavyProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.size(36.dp),
+            color = color.copy(alpha = 0.85f),
+            trackColor = color.copy(alpha = 0.15f),
+            amplitude = WavyProgressIndicatorDefaults.indicatorAmplitude,
+            wavelength = WavyProgressIndicatorDefaults.CircularWavelength,
+            waveSpeed = WavyProgressIndicatorDefaults.CircularWavelength
+        )
     }
 }
 
@@ -1272,11 +1216,40 @@ fun Lyrics(
                 ) {
                     itemsIndexed(lines, key = { index, item -> "$index-${item.startTime}" }) { index, line ->
                         // Show standby indicator after the specified line
-                        if (lyricsStandbyEffect && standbyState.insertAfterIndex == index - 1) {
+                        val showStandbyHere = lyricsStandbyEffect && 
+                            standbyState.isVisible && 
+                            standbyState.insertAfterIndex == index - 1
+                        
+                        AnimatedVisibility(
+                            visible = showStandbyHere,
+                            enter = fadeIn(animationSpec = tween(400, easing = FastOutSlowInEasing)) +
+                                    expandVertically(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        ),
+                                        expandFrom = Alignment.CenterVertically
+                                    ) +
+                                    scaleIn(
+                                        initialScale = 0.6f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        )
+                                    ),
+                            exit = scaleOut(
+                                        targetScale = 1.2f,
+                                        animationSpec = tween(200, easing = FastOutSlowInEasing)
+                                    ) +
+                                    fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
+                                    shrinkVertically(
+                                        animationSpec = tween(350, easing = FastOutSlowInEasing),
+                                        shrinkTowards = Alignment.CenterVertically
+                                    )
+                        ) {
                             StandbyIndicator(
                                 progress = standbyState.progress,
-                                color = expressiveAccent,
-                                isVisible = standbyState.isVisible
+                                color = expressiveAccent
                             )
                         }
                         val isBgLine = line.speaker is SpeakerRole.BG
