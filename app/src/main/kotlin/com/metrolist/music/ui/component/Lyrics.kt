@@ -195,6 +195,7 @@ import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -213,7 +214,8 @@ private fun calculateTargetBlur(
     stepBlur: Dp,
     maxBlur: Dp
 ): Dp {
-    if (isScrolling) {
+    // Blur should disappear when scrolling or when lyrics aren't synced
+    if (isScrolling || !isSynced) {
         return 0.dp
     }
 
@@ -906,8 +908,11 @@ fun Lyrics(
     
     // Professional animation states for smooth Metrolist-style transitions
     var isAnimating by remember { mutableStateOf(false) }
+    var currentScrollJob by remember { mutableStateOf<Job?>(null) }
     var isAutoScrollEnabled by rememberSaveable { mutableStateOf(true) }
     var blurFocalPoint by rememberSaveable { mutableIntStateOf(0) }
+    // Track if we need to re-sync after seeking
+    var pendingResync by remember { mutableStateOf(false) }
 
     // Handle back button press - close selection mode instead of exiting screen
     BackHandler(enabled = isSelectionModeActive) {
@@ -1025,10 +1030,18 @@ fun Lyrics(
         }
     }
 
-    suspend fun performSmoothPageScroll(minIndex: Int, maxIndex: Int, duration: Int = 1500) {
+    suspend fun performSmoothPageScroll(minIndex: Int, maxIndex: Int, duration: Int = 1500, forceScroll: Boolean = false) {
         // Guard against invalid indices to prevent crashes
         if (minIndex < 0 || maxIndex < 0) return
-        if (isAnimating) return
+        // If already animating and not forcing, skip this scroll request
+        // This prevents interrupting ongoing animations
+        if (isAnimating && !forceScroll) return
+        
+        // Cancel any pending scroll job if forcing a new scroll
+        if (forceScroll) {
+            currentScrollJob?.cancel()
+        }
+        
         isAnimating = true
         try {
             val minItemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == minIndex }
@@ -1041,8 +1054,8 @@ fun Lyrics(
                 val groupCenter = groupTop + (groupBottom - groupTop) / 2
 
                 val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
-                // Use 0.35f (higher) when lyricsHigherAnchor is enabled, otherwise 0.5f (centered)
-                val anchorPosition = if (lyricsHigherAnchor) 0.35f else 0.5f
+                // Use 0.25f (higher) when lyricsHigherAnchor is enabled, otherwise 0.5f (centered)
+                val anchorPosition = if (lyricsHigherAnchor) 0.25f else 0.5f
                 val anchor = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * anchorPosition)
                 val offset = groupCenter - anchor
 
@@ -1056,11 +1069,41 @@ fun Lyrics(
                 // One or both items are not visible. We scroll to the midpoint index to bring them into view.
                 val midpointIndex = ((minIndex.toFloat() + maxIndex.toFloat()) / 2f).roundToInt().coerceAtLeast(0)
                 lazyListState.scrollToItem(midpointIndex)
+                // After scrolling to item, do a smooth centering animation
+                delay(50) // Small delay to let the layout settle
+                val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == midpointIndex }
+                if (itemInfo != null) {
+                    val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
+                    val anchorPosition = if (lyricsHigherAnchor) 0.25f else 0.5f
+                    val anchor = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * anchorPosition)
+                    val itemCenter = itemInfo.offset + itemInfo.size / 2
+                    val offset = itemCenter - anchor
+                    if (abs(offset) > 1f) {
+                        lazyListState.animateScrollBy(
+                            value = offset,
+                            animationSpec = tween(durationMillis = duration / 2)
+                        )
+                    }
+                }
             }
         } finally {
             isAnimating = false
         }
     }
+    // Handle seeking: when user stops seeking, trigger a resync scroll
+    LaunchedEffect(isSeeking) {
+        if (!isSeeking && pendingResync && isAutoScrollEnabled && isSynced) {
+            pendingResync = false
+            delay(100) // Small delay to let position settle
+            val targetIndex = if (currentLineIndex >= 0) currentLineIndex else lastKnownActiveLineIndex
+            if (targetIndex >= 0) {
+                performSmoothPageScroll(targetIndex, targetIndex, 500, forceScroll = true)
+            }
+        } else if (isSeeking) {
+            pendingResync = true
+        }
+    }
+
     LaunchedEffect(scrollTargetMinIndex, scrollTargetMaxIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
         if (!isSynced || !isAutoScrollEnabled) return@LaunchedEffect
 
@@ -1073,12 +1116,20 @@ fun Lyrics(
                 val currentLine = lines.getOrNull(scrollTargetMinIndex)
 
                 if (previousScrollTargetMinIndex == -1 && currentLine != null) {
-                    performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800)
+                    currentScrollJob = scope.launch {
+                        performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800)
+                    }
                 } else if (previousLine != null && currentLine != null) {
                     val previousLineEndTimeMs = (previousLine.endTime * 1000).toLong()
                     val scrollThresholdTimeMs = (currentLine.startTime * 1000).toLong() + 200
                     val scheduledScrollTimeMs = maxOf(previousLineEndTimeMs, scrollThresholdTimeMs)
                     val delayDuration = scheduledScrollTimeMs - currentPlaybackPosition
+                    
+                    // Calculate the animation duration based on word duration
+                    // Use shorter animation if the word is short to ensure it completes
+                    val wordDuration = (currentLine.endTime - currentLine.startTime) * 1000
+                    val animDuration = minOf(1500, maxOf(500, (wordDuration * 0.8f).toInt()))
+                    
                     if (delayDuration > 0) {
                         delay(delayDuration)
                     }
@@ -1088,7 +1139,9 @@ fun Lyrics(
                     val currentMinAfterDelay = activeLineIndices.minOrNull() ?: -1
                     val currentMaxAfterDelay = activeLineIndices.maxOrNull() ?: -1
                     if (isActive && originalMin == currentMinAfterDelay && originalMax == currentMaxAfterDelay) {
-                        performSmoothPageScroll(originalMin, originalMax, 1500)
+                        currentScrollJob = scope.launch {
+                            performSmoothPageScroll(originalMin, originalMax, animDuration)
+                        }
                     }
                 }
                 previousScrollTargetMinIndex = scrollTargetMinIndex
@@ -1101,18 +1154,22 @@ fun Lyrics(
 
             if ((midpointIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
                 shouldScrollToFirstLine = false
-                performSmoothPageScroll(midpointIndex, midpointIndex, 800)
+                currentScrollJob = scope.launch {
+                    performSmoothPageScroll(midpointIndex, midpointIndex, 800)
+                }
                 if (!isAppMinimized) {
                     initialScrollDone = true
                 }
             } else {
                 deferredCurrentLineIndex = midpointIndex
                 if (isSeeking) {
-                    val seekCenterIndex = kotlin.math.max(0, midpointIndex - 1)
-                    performSmoothPageScroll(seekCenterIndex, seekCenterIndex, 500)
+                    // Don't scroll during seeking, will resync after
+                    pendingResync = true
                 } else if ((lastPreviewTime == 0L || midpointIndex != previousMidpointIndex) && scrollLyrics) {
                     if (midpointIndex != previousMidpointIndex) {
-                        performSmoothPageScroll(midpointIndex, midpointIndex, 1500)
+                        currentScrollJob = scope.launch {
+                            performSmoothPageScroll(midpointIndex, midpointIndex, 1500)
+                        }
                     }
                 }
             }
@@ -1594,7 +1651,7 @@ fun Lyrics(
                                     withStyle(style = SpanStyle(color = wordColor, fontWeight = wordWeight)) {
                                         append(word.text)
                                     }
-                                    if (wordIndex < item.words.size - 1) append(" ")
+                                    if (wordIndex < item.words.size - 1 && !word.text.endsWith(" ")) append(" ")
                                 }
                             }
                             Text(
@@ -1651,7 +1708,7 @@ fun Lyrics(
                                     withStyle(style = SpanStyle(color = wordColor, fontWeight = wordWeight, shadow = wordShadow)) {
                                         append(word.text)
                                     }
-                                    if (wordIndex < item.words.size - 1) append(" ")
+                                    if (wordIndex < item.words.size - 1 && !word.text.endsWith(" ")) append(" ")
                                 }
                             }
                             Text(
@@ -1698,7 +1755,7 @@ fun Lyrics(
                                     withStyle(style = SpanStyle(color = wordColor, fontWeight = wordWeight, shadow = wordShadow)) {
                                         append(word.text)
                                     }
-                                    if (wordIndex < item.words.size - 1) append(" ")
+                                    if (wordIndex < item.words.size - 1 && !word.text.endsWith(" ")) append(" ")
                                 }
                             }
                             Text(
@@ -1754,7 +1811,7 @@ fun Lyrics(
                                             append(word.text)
                                         }
                                     }
-                                    if (wordIndex < item.words.size - 1) append(" ")
+                                    if (wordIndex < item.words.size - 1 && !word.text.endsWith(" ")) append(" ")
                                 }
                             }
                             Text(text = styledText, fontSize = lyricsTextSize.sp, textAlign = alignment, lineHeight = (lyricsTextSize * lyricsLineSpacing).sp)
@@ -1821,11 +1878,11 @@ fun Lyrics(
                                             append(word.text)
                                         }
                                     }
-                                    if (wordIndex < item.words.size - 1) append(" ")
+                                    if (wordIndex < item.words.size - 1 && !word.text.endsWith(" ")) append(" ")
                                 }
                             }
                             Text(text = styledText, fontSize = lyricsTextSize.sp, textAlign = alignment, lineHeight = (lyricsTextSize * lyricsLineSpacing).sp)
-                        } else if (hasWordTimings && item.words != null && lyricsAnimationStyle == LyricsAnimationStyle.APPLE) {
+                        } else if (hasWordTimings && lyricsAnimationStyle == LyricsAnimationStyle.APPLE) {
                             val styledText = buildAnnotatedString {
                                 item.words.forEachIndexed { wordIndex, word ->
                                     val wordStartMs = (word.startTime * 1000).toLong()
@@ -1875,7 +1932,7 @@ fun Lyrics(
                                     withStyle(style = SpanStyle(color = wordColor, fontWeight = wordWeight, shadow = wordShadow)) {
                                         append(word.text)
                                     }
-                                    if (wordIndex < item.words.size - 1) append(" ")
+                                    if (wordIndex < item.words.size - 1 && !word.text.endsWith(" ")) append(" ")
                                 }
                             }
                             Text(text = styledText, fontSize = lyricsTextSize.sp, textAlign = alignment, lineHeight = (lyricsTextSize * lyricsLineSpacing).sp)
@@ -2020,12 +2077,14 @@ fun Lyrics(
             exit = slideOutVertically { it } + fadeOut()
         ) {
             FilledTonalButton(onClick = {
+                // Enable auto-scroll first so the scroll animation works properly
+                isAutoScrollEnabled = true
                 scope.launch {
                     // Use last known active line if current line is -1 (no active line)
                     val targetIndex = if (currentLineIndex >= 0) currentLineIndex else lastKnownActiveLineIndex
-                    performSmoothPageScroll(targetIndex, targetIndex, 1500)
+                    // Force scroll to ensure it happens even if another animation is in progress
+                    performSmoothPageScroll(targetIndex, targetIndex, 800, forceScroll = true)
                 }
-                isAutoScrollEnabled = true
             }) {
                 Icon(
                     painter = painterResource(id = R.drawable.sync),
