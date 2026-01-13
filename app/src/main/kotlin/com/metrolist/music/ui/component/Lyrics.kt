@@ -1139,10 +1139,8 @@ fun Lyrics(
                 val currentLine = lines.getOrNull(scrollTargetMinIndex)
 
                 if (previousScrollTargetMinIndex == -1 && currentLine != null) {
-                    // Cancel any ongoing scroll before starting a new one
-                    currentScrollJob?.cancel()
                     currentScrollJob = scope.launch {
-                        performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800, forceScroll = true)
+                        performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800)
                     }
                 } else if (previousLine != null && currentLine != null) {
                     val previousLineEndTimeMs = (previousLine.endTime * 1000).toLong()
@@ -1164,10 +1162,8 @@ fun Lyrics(
                     val currentMinAfterDelay = activeLineIndices.minOrNull() ?: -1
                     val currentMaxAfterDelay = activeLineIndices.maxOrNull() ?: -1
                     if (isActive && originalMin == currentMinAfterDelay && originalMax == currentMaxAfterDelay) {
-                        // Cancel any ongoing scroll before starting a new one
-                        currentScrollJob?.cancel()
                         currentScrollJob = scope.launch {
-                            performSmoothPageScroll(originalMin, originalMax, animDuration, forceScroll = true)
+                            performSmoothPageScroll(originalMin, originalMax, animDuration)
                         }
                     }
                 }
@@ -1181,10 +1177,8 @@ fun Lyrics(
 
             if ((midpointIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
                 shouldScrollToFirstLine = false
-                // Cancel any ongoing scroll before starting a new one
-                currentScrollJob?.cancel()
                 currentScrollJob = scope.launch {
-                    performSmoothPageScroll(midpointIndex, midpointIndex, 800, forceScroll = true)
+                    performSmoothPageScroll(midpointIndex, midpointIndex, 800)
                 }
                 if (!isAppMinimized) {
                     initialScrollDone = true
@@ -1196,10 +1190,8 @@ fun Lyrics(
                     pendingResync = true
                 } else if ((lastPreviewTime == 0L || midpointIndex != previousMidpointIndex) && scrollLyrics) {
                     if (midpointIndex != previousMidpointIndex) {
-                        // Cancel any ongoing scroll before starting a new one
-                        currentScrollJob?.cancel()
                         currentScrollJob = scope.launch {
-                            performSmoothPageScroll(midpointIndex, midpointIndex, 1500, forceScroll = true)
+                            performSmoothPageScroll(midpointIndex, midpointIndex, 1500)
                         }
                     }
                 }
