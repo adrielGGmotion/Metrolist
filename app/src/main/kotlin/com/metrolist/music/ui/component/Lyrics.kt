@@ -145,6 +145,7 @@ import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsAppleEnhancedGlowKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
 import com.metrolist.music.constants.LyricsStandbyEffectKey
 import com.metrolist.music.constants.LyricsAnimationStyle
@@ -211,11 +212,12 @@ private fun calculateTargetBlur(
     activeLineIndices: Set<Int>,
     focalPoint: Int,
     isSynced: Boolean,
+    isAutoScrollEnabled: Boolean,
     stepBlur: Dp,
     maxBlur: Dp
 ): Dp {
-    // Blur should disappear when scrolling or when lyrics aren't synced
-    if (isScrolling || !isSynced) {
+    // Blur should disappear when scrolling, when lyrics aren't synced, or when auto-scroll is disabled
+    if (isScrolling || !isSynced || !isAutoScrollEnabled) {
         return 0.dp
     }
 
@@ -249,6 +251,7 @@ private fun rememberAnimatedBlur(
     activeLineIndices: Set<Int>,
     blurFocalPoint: Int,
     isSynced: Boolean,
+    isAutoScrollEnabled: Boolean,
     stepBlur: Dp,
     maxBlur: Dp,
     animationSpec: AnimationSpec<Dp>,
@@ -262,6 +265,7 @@ private fun rememberAnimatedBlur(
         activeLineIndices = activeLineIndices,
         focalPoint = blurFocalPoint,
         isSynced = isSynced,
+        isAutoScrollEnabled = isAutoScrollEnabled,
         stepBlur = stepBlur,
         maxBlur = maxBlur
     )
@@ -429,7 +433,7 @@ fun HierarchicalLyricsLine(
     activeColor: Color,
     isBgLine: Boolean = false,
 ) {
-    val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, false)
+    val lyricsAppleEnhancedGlow by rememberPreference(LyricsAppleEnhancedGlowKey, true)
     val textMeasurer = rememberTextMeasurer()
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
@@ -463,7 +467,7 @@ fun HierarchicalLyricsLine(
     ) {
 
 
-        if (lyricsGlowEffect) {
+        if (lyricsAppleEnhancedGlow) {
              // Identify words that deserve "High Intensity" glow
              val highIntensityWords = remember(line.words) {
                  val highIntensitySet = mutableSetOf<com.metrolist.music.lyrics.Word>()
@@ -1123,7 +1127,7 @@ fun Lyrics(
         }
     }
 
-    LaunchedEffect(scrollTargetMinIndex, scrollTargetMaxIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
+    LaunchedEffect(scrollTargetMinIndex, scrollTargetMaxIndex, midpointIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
         if (!isSynced || !isAutoScrollEnabled) return@LaunchedEffect
 
         if (lyricsContent is LyricsContent.Hierarchical) {
@@ -1135,8 +1139,10 @@ fun Lyrics(
                 val currentLine = lines.getOrNull(scrollTargetMinIndex)
 
                 if (previousScrollTargetMinIndex == -1 && currentLine != null) {
+                    // Cancel any ongoing scroll before starting a new one
+                    currentScrollJob?.cancel()
                     currentScrollJob = scope.launch {
-                        performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800)
+                        performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800, forceScroll = true)
                     }
                 } else if (previousLine != null && currentLine != null) {
                     val previousLineEndTimeMs = (previousLine.endTime * 1000).toLong()
@@ -1158,8 +1164,10 @@ fun Lyrics(
                     val currentMinAfterDelay = activeLineIndices.minOrNull() ?: -1
                     val currentMaxAfterDelay = activeLineIndices.maxOrNull() ?: -1
                     if (isActive && originalMin == currentMinAfterDelay && originalMax == currentMaxAfterDelay) {
+                        // Cancel any ongoing scroll before starting a new one
+                        currentScrollJob?.cancel()
                         currentScrollJob = scope.launch {
-                            performSmoothPageScroll(originalMin, originalMax, animDuration)
+                            performSmoothPageScroll(originalMin, originalMax, animDuration, forceScroll = true)
                         }
                     }
                 }
@@ -1173,8 +1181,10 @@ fun Lyrics(
 
             if ((midpointIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
                 shouldScrollToFirstLine = false
+                // Cancel any ongoing scroll before starting a new one
+                currentScrollJob?.cancel()
                 currentScrollJob = scope.launch {
-                    performSmoothPageScroll(midpointIndex, midpointIndex, 800)
+                    performSmoothPageScroll(midpointIndex, midpointIndex, 800, forceScroll = true)
                 }
                 if (!isAppMinimized) {
                     initialScrollDone = true
@@ -1186,8 +1196,10 @@ fun Lyrics(
                     pendingResync = true
                 } else if ((lastPreviewTime == 0L || midpointIndex != previousMidpointIndex) && scrollLyrics) {
                     if (midpointIndex != previousMidpointIndex) {
+                        // Cancel any ongoing scroll before starting a new one
+                        currentScrollJob?.cancel()
                         currentScrollJob = scope.launch {
-                            performSmoothPageScroll(midpointIndex, midpointIndex, 1500)
+                            performSmoothPageScroll(midpointIndex, midpointIndex, 1500, forceScroll = true)
                         }
                     }
                 }
@@ -1396,6 +1408,7 @@ fun Lyrics(
                                 activeLineIndices = activeLineIndices,
                                 blurFocalPoint = blurFocalPoint,
                                 isSynced = true, // Hierarchical is always synced
+                                isAutoScrollEnabled = isAutoScrollEnabled,
                                 stepBlur = stepBlur,
                                 maxBlur = maxBlur,
                                 animationSpec = blurAnimationSpec,

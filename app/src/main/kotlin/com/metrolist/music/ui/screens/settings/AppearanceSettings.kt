@@ -71,6 +71,7 @@ import com.metrolist.music.constants.LyricsAnimationStyleKey
 import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.LyricsLineSpacingKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsAppleEnhancedGlowKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
 import com.metrolist.music.constants.LyricsStandbyEffectKey
 import com.metrolist.music.constants.MiniPlayerOutlineKey
@@ -197,6 +198,7 @@ fun AppearanceSettings(
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 24f)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = false)
+    val (lyricsAppleEnhancedGlow, onLyricsAppleEnhancedGlowChange) = rememberPreference(LyricsAppleEnhancedGlowKey, defaultValue = true)
     val (lyricsHigherAnchor, onLyricsHigherAnchorChange) = rememberPreference(LyricsHigherAnchorKey, defaultValue = false)
     val (lyricsStandbyEffect, onLyricsStandbyEffectChange) = rememberPreference(LyricsStandbyEffectKey, defaultValue = false)
 
@@ -1139,7 +1141,7 @@ fun AppearanceSettings(
 
         Material3SettingsGroup(
             title = stringResource(R.string.lyrics),
-            items = listOf(
+            items = listOfNotNull(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),
                     title = { Text(stringResource(R.string.lyrics_text_position)) },
@@ -1193,6 +1195,30 @@ fun AppearanceSettings(
                     },
                     onClick = { onLyricsGlowEffectChange(!lyricsGlowEffect) }
                 ),
+                // Only show Apple Music Enhanced glow toggle when that style is selected
+                if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED) {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.lyrics),
+                        title = { Text(stringResource(R.string.lyrics_apple_enhanced_glow)) },
+                        description = { Text(stringResource(R.string.lyrics_apple_enhanced_glow_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = lyricsAppleEnhancedGlow,
+                                onCheckedChange = onLyricsAppleEnhancedGlowChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (lyricsAppleEnhancedGlow) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onLyricsAppleEnhancedGlowChange(!lyricsAppleEnhancedGlow) }
+                    )
+                } else null,
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),
                     title = { Text(stringResource(R.string.lyrics_higher_anchor)) },

@@ -126,6 +126,8 @@
     <string name="lyrics_auto_scroll">Auto scroll lyrics</string>
     <string name="lyrics_glow_effect">Enable glowing lyrics effect</string>
     <string name="lyrics_glow_effect_desc">Add glowing animation and bounce effect to active lyrics</string>
+    <string name="lyrics_apple_enhanced_glow">Apple Music Enhanced glow</string>
+    <string name="lyrics_apple_enhanced_glow_desc">Add glow effect to Apple Music Enhanced word-by-word lyrics</string>
     <string name="lyrics_higher_anchor">Higher lyrics anchor</string>
     <string name="lyrics_higher_anchor_desc">Position active lyrics higher on screen for better visibility</string>
     <string name="lyrics_standby_effect">Standby indicator</string>
