@@ -72,6 +72,8 @@ import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.LyricsLineSpacingKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
 import com.metrolist.music.constants.LyricsAppleEnhancedGlowKey
+import com.metrolist.music.constants.LyricsAppleEnhancedBlurKey
+import com.metrolist.music.constants.LyricsAppleEnhancedBlurAmountKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
 import com.metrolist.music.constants.LyricsStandbyEffectKey
 import com.metrolist.music.constants.MiniPlayerOutlineKey
@@ -199,6 +201,8 @@ fun AppearanceSettings(
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = false)
     val (lyricsAppleEnhancedGlow, onLyricsAppleEnhancedGlowChange) = rememberPreference(LyricsAppleEnhancedGlowKey, defaultValue = true)
+    val (lyricsAppleEnhancedBlur, onLyricsAppleEnhancedBlurChange) = rememberPreference(LyricsAppleEnhancedBlurKey, defaultValue = true)
+    val (lyricsAppleEnhancedBlurAmount, onLyricsAppleEnhancedBlurAmountChange) = rememberPreference(LyricsAppleEnhancedBlurAmountKey, defaultValue = 15f)
     val (lyricsHigherAnchor, onLyricsHigherAnchorChange) = rememberPreference(LyricsHigherAnchorKey, defaultValue = false)
     val (lyricsStandbyEffect, onLyricsStandbyEffectChange) = rememberPreference(LyricsStandbyEffectKey, defaultValue = false)
 
@@ -1217,6 +1221,55 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onLyricsAppleEnhancedGlowChange(!lyricsAppleEnhancedGlow) }
+                    )
+                } else null,
+                // Only show Apple Music Enhanced blur toggle when that style is selected
+                if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED) {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.lyrics),
+                        title = { Text(stringResource(R.string.lyrics_apple_enhanced_blur)) },
+                        description = { Text(stringResource(R.string.lyrics_apple_enhanced_blur_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = lyricsAppleEnhancedBlur,
+                                onCheckedChange = onLyricsAppleEnhancedBlurChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (lyricsAppleEnhancedBlur) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onLyricsAppleEnhancedBlurChange(!lyricsAppleEnhancedBlur) }
+                    )
+                } else null,
+                // Only show blur amount slider when blur is enabled and Apple Music Enhanced style is selected
+                if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED && lyricsAppleEnhancedBlur) {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.lyrics),
+                        title = { Text(stringResource(R.string.lyrics_apple_enhanced_blur_amount)) },
+                        description = {
+                            Column {
+                                Text(stringResource(R.string.lyrics_apple_enhanced_blur_amount_desc))
+                                Slider(
+                                    value = lyricsAppleEnhancedBlurAmount,
+                                    onValueChange = onLyricsAppleEnhancedBlurAmountChange,
+                                    valueRange = 5f..30f,
+                                    steps = 4,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                                Text(
+                                    text = "${lyricsAppleEnhancedBlurAmount.roundToInt()} dp",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.align(Alignment.End)
+                                )
+                            }
+                        },
+                        onClick = { }
                     )
                 } else null,
                 Material3SettingsItem(

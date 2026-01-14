@@ -145,6 +145,8 @@ import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsAppleEnhancedBlurKey
+import com.metrolist.music.constants.LyricsAppleEnhancedBlurAmountKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
 import com.metrolist.music.constants.LyricsStandbyEffectKey
 import com.metrolist.music.constants.LyricsAnimationStyle
@@ -211,13 +213,20 @@ private fun calculateTargetBlur(
     focalPoint: Int,
     isSynced: Boolean,
     stepBlur: Dp,
-    maxBlur: Dp
+    maxBlur: Dp,
+    hasTimeOverlapWithActive: Boolean = false
 ): Dp {
     if (isScrolling) {
         return 0.dp
     }
 
     if (activeLineIndices.contains(currentIndex)) {
+        return 0.dp
+    }
+    
+    // Don't blur lines that have time overlap with active lines
+    // This handles cases like parenthesis text on the same line
+    if (hasTimeOverlapWithActive) {
         return 0.dp
     }
 
@@ -250,7 +259,8 @@ private fun rememberAnimatedBlur(
     stepBlur: Dp,
     maxBlur: Dp,
     animationSpec: AnimationSpec<Dp>,
-    isAnimating: Boolean
+    isAnimating: Boolean,
+    hasTimeOverlapWithActive: Boolean = false
 ): Dp {
     val isUserScrolling = lazyListState.isScrollInProgress && !isAnimating
 
@@ -261,7 +271,8 @@ private fun rememberAnimatedBlur(
         focalPoint = blurFocalPoint,
         isSynced = isSynced,
         stepBlur = stepBlur,
-        maxBlur = maxBlur
+        maxBlur = maxBlur,
+        hasTimeOverlapWithActive = hasTimeOverlapWithActive
     )
 
     val animatedBlur by animateDpAsState(
@@ -359,40 +370,68 @@ private fun rememberStandbyState(
 private fun StandbyIndicator(
     progress: Float,
     color: Color,
+    isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
     // Gentle bounce animation using Animatable
     val bounceOffset = remember { Animatable(0f) }
     val pulseScale = remember { Animatable(1f) }
     
-    LaunchedEffect(Unit) {
-        // Bounce animation loop
-        launch {
-            while (true) {
-                bounceOffset.animateTo(
-                    targetValue = -8f,
-                    animationSpec = tween(700, easing = FastOutSlowInEasing)
-                )
-                bounceOffset.animateTo(
-                    targetValue = 0f,
-                    animationSpec = tween(700, easing = FastOutSlowInEasing)
-                )
+    // Control animations based on isPlaying state
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            // Bounce animation loop - only runs when playing
+            launch {
+                while (isActive) {
+                    bounceOffset.animateTo(
+                        targetValue = -8f,
+                        animationSpec = tween(700, easing = FastOutSlowInEasing)
+                    )
+                    bounceOffset.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(700, easing = FastOutSlowInEasing)
+                    )
+                }
             }
-        }
-        // Pulse scale animation loop
-        launch {
-            while (true) {
-                pulseScale.animateTo(
-                    targetValue = 1.08f,
-                    animationSpec = tween(900, easing = FastOutSlowInEasing)
-                )
-                pulseScale.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(900, easing = FastOutSlowInEasing)
-                )
+            // Pulse scale animation loop - only runs when playing
+            launch {
+                while (isActive) {
+                    pulseScale.animateTo(
+                        targetValue = 1.08f,
+                        animationSpec = tween(900, easing = FastOutSlowInEasing)
+                    )
+                    pulseScale.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(900, easing = FastOutSlowInEasing)
+                    )
+                }
             }
+        } else {
+            // When paused, smoothly animate back to resting position
+            bounceOffset.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            )
+            pulseScale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            )
         }
     }
+
+    // Animate wave speed based on playing state
+    val waveSpeed by animateDpAsState(
+        targetValue = if (isPlaying) WavyProgressIndicatorDefaults.CircularWavelength else 0.dp,
+        animationSpec = tween(300),
+        label = "waveSpeed"
+    )
+
+    // Animate amplitude multiplier based on playing state (0 when paused, 1 when playing)
+    val amplitudeMultiplier by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0f,
+        animationSpec = tween(300),
+        label = "amplitudeMultiplier"
+    )
 
     Box(
         modifier = modifier
@@ -410,9 +449,9 @@ private fun StandbyIndicator(
             modifier = Modifier.size(36.dp),
             color = color.copy(alpha = 0.85f),
             trackColor = color.copy(alpha = 0.15f),
-            amplitude = WavyProgressIndicatorDefaults.indicatorAmplitude,
+            amplitude = { fraction -> WavyProgressIndicatorDefaults.indicatorAmplitude(fraction) * amplitudeMultiplier },
             wavelength = WavyProgressIndicatorDefaults.CircularWavelength,
-            waveSpeed = WavyProgressIndicatorDefaults.CircularWavelength
+            waveSpeed = waveSpeed
         )
     }
 }
@@ -681,6 +720,7 @@ fun Lyrics(
     val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val lyrics = remember(lyricsEntity) { lyricsEntity?.lyrics?.trim() }
+    val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
 
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
@@ -826,8 +866,12 @@ fun Lyrics(
 
     val isSynced = lyricsContent is LyricsContent.Standard && lyrics?.startsWith("[") == true || lyricsContent is LyricsContent.Hierarchical
 
+    // Blur preferences for Apple Music Enhanced
+    val lyricsAppleEnhancedBlur by rememberPreference(LyricsAppleEnhancedBlurKey, true)
+    val lyricsAppleEnhancedBlurAmount by rememberPreference(LyricsAppleEnhancedBlurAmountKey, 15f)
+    
     val stepBlur = 3.dp
-    val maxBlur = 15.dp
+    val maxBlur = lyricsAppleEnhancedBlurAmount.dp
     val blurAnimationSpec = tween<Dp>(400)
 
     // Use Material 3 expressive accents and keep glow/text colors unified
@@ -1249,7 +1293,8 @@ fun Lyrics(
                         ) {
                             StandbyIndicator(
                                 progress = standbyState.progress,
-                                color = expressiveAccent
+                                color = expressiveAccent,
+                                isPlaying = isPlaying
                             )
                         }
                         val isBgLine = line.speaker is SpeakerRole.BG
@@ -1306,8 +1351,28 @@ fun Lyrics(
                             label = "bgScale"
                         )
 
-                        // Only apply blur for Apple Music (Enhanced) style
-                        val animatedBlur = if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED) {
+                        // Check if current line has time overlap with any active line
+                        // This prevents blurring lines that are meant to be displayed together
+                        // (e.g., parenthesis text on the same visual line)
+                        val hasTimeOverlapWithActive = remember(activeLineIndices, line.startTime, line.endTime) {
+                            if (activeLineIndices.isEmpty()) false
+                            else {
+                                val currentStart = line.startTime
+                                val currentEnd = line.endTime
+                                activeLineIndices.any { activeIdx ->
+                                    if (activeIdx >= 0 && activeIdx < lines.size) {
+                                        val activeLine = lines[activeIdx]
+                                        val activeStart = activeLine.startTime
+                                        val activeEnd = activeLine.endTime
+                                        // Check for time overlap (lines that play at the same time)
+                                        currentStart < activeEnd && currentEnd > activeStart
+                                    } else false
+                                }
+                            }
+                        }
+                        
+                        // Only apply blur for Apple Music (Enhanced) style when blur is enabled
+                        val animatedBlur = if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED && lyricsAppleEnhancedBlur) {
                             rememberAnimatedBlur(
                                 lazyListState = lazyListState,
                                 currentIndex = index,
@@ -1317,7 +1382,8 @@ fun Lyrics(
                                 stepBlur = stepBlur,
                                 maxBlur = maxBlur,
                                 animationSpec = blurAnimationSpec,
-                                isAnimating = isAnimating
+                                isAnimating = isAnimating,
+                                hasTimeOverlapWithActive = hasTimeOverlapWithActive
                             )
                         } else {
                             0.dp

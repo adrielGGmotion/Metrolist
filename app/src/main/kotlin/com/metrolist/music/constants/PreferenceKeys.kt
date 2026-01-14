@@ -347,6 +347,8 @@ val LyricsRomanizeCyrillicByLineKey = booleanPreferencesKey("lyricsRomanizeCyril
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
 val LyricsAppleEnhancedGlowKey = booleanPreferencesKey("lyricsAppleEnhancedGlow")
+val LyricsAppleEnhancedBlurKey = booleanPreferencesKey("lyricsAppleEnhancedBlur")
+val LyricsAppleEnhancedBlurAmountKey = floatPreferencesKey("lyricsAppleEnhancedBlurAmount")
 val LyricsHigherAnchorKey = booleanPreferencesKey("lyricsHigherAnchor")
 val LyricsStandbyEffectKey = booleanPreferencesKey("lyricsStandbyEffect")
 
