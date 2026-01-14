@@ -1351,21 +1351,37 @@ fun Lyrics(
                             label = "bgScale"
                         )
 
-                        // Check if current line has time overlap with any active line
+                        // Check if current line has SIGNIFICANT time overlap with any active line
                         // This prevents blurring lines that are meant to be displayed together
                         // (e.g., parenthesis text on the same visual line)
+                        // Only consider it overlap if:
+                        // 1. The current line starts DURING the active line (not just touching at boundaries)
+                        // 2. Or the lines have substantial overlap (more than just sequential timing)
                         val hasTimeOverlapWithActive = remember(activeLineIndices, line.startTime, line.endTime) {
                             if (activeLineIndices.isEmpty()) false
                             else {
                                 val currentStart = line.startTime
                                 val currentEnd = line.endTime
+                                val currentDuration = currentEnd - currentStart
                                 activeLineIndices.any { activeIdx ->
                                     if (activeIdx >= 0 && activeIdx < lines.size) {
                                         val activeLine = lines[activeIdx]
                                         val activeStart = activeLine.startTime
                                         val activeEnd = activeLine.endTime
-                                        // Check for time overlap (lines that play at the same time)
-                                        currentStart < activeEnd && currentEnd > activeStart
+                                        
+                                        // Calculate actual overlap duration
+                                        val overlapStart = maxOf(currentStart, activeStart)
+                                        val overlapEnd = minOf(currentEnd, activeEnd)
+                                        val overlapDuration = (overlapEnd - overlapStart).coerceAtLeast(0f)
+                                        
+                                        // Consider it a significant overlap only if:
+                                        // - The overlap is at least 50% of the current line's duration, OR
+                                        // - The current line starts within the active line's time range (not at the boundary)
+                                        val hasSignificantOverlap = overlapDuration > 0 && 
+                                            (overlapDuration >= currentDuration * 0.5f || 
+                                             (currentStart > activeStart && currentStart < activeEnd - 0.1f))
+                                        
+                                        hasSignificantOverlap
                                     } else false
                                 }
                             }
