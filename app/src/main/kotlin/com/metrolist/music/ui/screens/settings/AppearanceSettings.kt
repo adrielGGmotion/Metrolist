@@ -76,6 +76,7 @@ import com.metrolist.music.constants.LyricsAppleEnhancedBlurKey
 import com.metrolist.music.constants.LyricsAppleEnhancedBlurAmountKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
 import com.metrolist.music.constants.LyricsStandbyEffectKey
+import com.metrolist.music.constants.LyricsFullscreenHideQuickSettingsKey
 import com.metrolist.music.constants.MiniPlayerOutlineKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
@@ -205,6 +206,7 @@ fun AppearanceSettings(
     val (lyricsAppleEnhancedBlurAmount, onLyricsAppleEnhancedBlurAmountChange) = rememberPreference(LyricsAppleEnhancedBlurAmountKey, defaultValue = 15f)
     val (lyricsHigherAnchor, onLyricsHigherAnchorChange) = rememberPreference(LyricsHigherAnchorKey, defaultValue = false)
     val (lyricsStandbyEffect, onLyricsStandbyEffectChange) = rememberPreference(LyricsStandbyEffectKey, defaultValue = false)
+    val (lyricsFullscreenHideQuickSettings, onLyricsFullscreenHideQuickSettingsChange) = rememberPreference(LyricsFullscreenHideQuickSettingsKey, defaultValue = false)
 
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
         SliderStyleKey,
@@ -1313,6 +1315,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onLyricsStandbyEffectChange(!lyricsStandbyEffect) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.fullscreen),
+                    title = { Text(stringResource(R.string.lyrics_fullscreen_hide_quick_settings)) },
+                    description = { Text(stringResource(R.string.lyrics_fullscreen_hide_quick_settings_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = lyricsFullscreenHideQuickSettings,
+                            onCheckedChange = onLyricsFullscreenHideQuickSettingsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsFullscreenHideQuickSettings) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLyricsFullscreenHideQuickSettingsChange(!lyricsFullscreenHideQuickSettings) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),

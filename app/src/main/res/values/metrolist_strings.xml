@@ -136,6 +136,8 @@
     <string name="lyrics_higher_anchor_desc">Position active lyrics higher on screen for better visibility</string>
     <string name="lyrics_standby_effect">Standby indicator</string>
     <string name="lyrics_standby_effect_desc">Show a wavy loading indicator during long intervals between lyrics</string>
+    <string name="lyrics_fullscreen_hide_quick_settings">Hide quick settings in fullscreen</string>
+    <string name="lyrics_fullscreen_hide_quick_settings_desc">Hide the Android status bar and quick settings when lyrics fullscreen mode is active</string>
     <string name="enable_better_lyrics">Enable Better Lyrics</string>
     <string name="enable_better_lyrics_desc">Use Better Lyrics provider for word-by-word synced lyrics</string>
     <string name="enable_simpmusic">Enable SimpMusic Lyrics</string>

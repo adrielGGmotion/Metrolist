@@ -138,6 +138,9 @@ import com.metrolist.music.constants.SliderStyle
 import com.metrolist.music.constants.SliderStyleKey
 import com.metrolist.music.constants.SquigglySliderKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.constants.LyricsFullscreenHideQuickSettingsKey
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.metrolist.music.db.entities.LyricsEntity
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.toggleRepeatMode
@@ -536,6 +539,30 @@ fun BottomSheetPlayer(
 
     var isFullScreen by rememberSaveable {
         mutableStateOf(false)
+    }
+
+    val lyricsFullscreenHideQuickSettings by rememberPreference(LyricsFullscreenHideQuickSettingsKey, defaultValue = false)
+
+    // Hide/show status bar based on fullscreen state and preference
+    DisposableEffect(isFullScreen, lyricsFullscreenHideQuickSettings) {
+        val window = (context as? android.app.Activity)?.window
+        if (window != null && lyricsFullscreenHideQuickSettings) {
+            val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+            if (isFullScreen) {
+                insetsController.hide(WindowInsetsCompat.Type.statusBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.statusBars())
+            }
+        }
+        
+        onDispose {
+            // Restore status bar when leaving the player
+            if (window != null && lyricsFullscreenHideQuickSettings) {
+                val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.statusBars())
+            }
+        }
     }
 
     // Position update - only for local playback
