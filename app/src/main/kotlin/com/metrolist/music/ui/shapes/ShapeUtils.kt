@@ -69,6 +69,8 @@ class RoundedPolygonShape(private val polygon: RoundedPolygon) : Shape {
         path.transform(matrix)
         return Outline.Generic(path)
     }
+}
+
 // Helper to create a Heart Shape
 fun createHeartShape(): Shape = object : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {

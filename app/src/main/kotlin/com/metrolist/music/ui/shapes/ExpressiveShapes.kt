@@ -7,6 +7,7 @@ import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.star
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 object ExpressiveShapes {
     // Standard Geom / Expressive from MaterialShapes
     val Slanted: Shape = MaterialShapes.Slanted.toComposeShape()
