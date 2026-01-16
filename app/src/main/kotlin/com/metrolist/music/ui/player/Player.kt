@@ -541,14 +541,21 @@ fun BottomSheetPlayer(
         mutableStateOf(false)
     }
 
+    // Reset fullscreen state when player is minimized
+    LaunchedEffect(state.isExpanded) {
+        if (!state.isExpanded) {
+            isFullScreen = false
+        }
+    }
+
     val lyricsFullscreenHideQuickSettings by rememberPreference(LyricsFullscreenHideQuickSettingsKey, defaultValue = false)
 
-    // Hide/show status bar based on fullscreen state and preference
-    DisposableEffect(isFullScreen, lyricsFullscreenHideQuickSettings) {
+    // Hide/show status bar based on fullscreen state, expansion state and preference
+    DisposableEffect(isFullScreen, state.isExpanded, lyricsFullscreenHideQuickSettings) {
         val window = (context as? android.app.Activity)?.window
         if (window != null && lyricsFullscreenHideQuickSettings) {
             val insetsController = WindowInsetsControllerCompat(window, window.decorView)
-            if (isFullScreen) {
+            if (isFullScreen && state.isExpanded) {
                 insetsController.hide(WindowInsetsCompat.Type.statusBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
@@ -557,7 +564,7 @@ fun BottomSheetPlayer(
         }
         
         onDispose {
-            // Restore status bar when leaving the player
+            // Restore status bar when leaving the player or if preference changes
             if (window != null && lyricsFullscreenHideQuickSettings) {
                 val insetsController = WindowInsetsControllerCompat(window, window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.statusBars())
