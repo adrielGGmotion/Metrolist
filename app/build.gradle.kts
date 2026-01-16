@@ -133,7 +133,10 @@ android {
     kotlin {
         jvmToolchain(21)
         compilerOptions {
-            freeCompilerArgs.add("-Xannotation-default-target=param-property")
+            freeCompilerArgs.addAll(
+                "-Xjvm-default=all",
+                "-Xannotation-default-target=param-property"
+            )
             jvmTarget.set(JvmTarget.JVM_21)
         }
     }
@@ -242,6 +245,7 @@ dependencies {
     implementation(libs.glance)
     implementation(libs.glance.appwidget)
     implementation(libs.glance.material3)
+    implementation(libs.graphics.shapes)
 
     implementation(libs.apache.lang3)
 

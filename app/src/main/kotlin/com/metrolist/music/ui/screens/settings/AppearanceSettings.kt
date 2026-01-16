@@ -880,6 +880,17 @@ fun AppearanceSettings(
             }
         )
 
+        Material3SettingsGroup(
+            title = "Shapes",
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text("Shapes Gallery") },
+                    onClick = { navController.navigate("shapes_gallery") }
+                )
+            )
+        )
+
         Spacer(modifier = Modifier.height(27.dp))
 
         val (pureBlackMiniPlayer, onPureBlackMiniPlayerChange) = rememberPreference(

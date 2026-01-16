@@ -117,5 +117,8 @@
 -keep class com.google.android.gms.cast.** { *; }
 -keep class androidx.mediarouter.** { *; }
 
+## Compose Foundation Lazy Grid
+-keep class androidx.compose.foundation.lazy.grid.LazyGridScope$DefaultImpls { *; }
+
 ## JSoup re2j optional dependency
 -dontwarn com.google.re2j.**

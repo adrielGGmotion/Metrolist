@@ -299,6 +299,10 @@ fun NavGraphBuilder.navigationBuilder(
         SettingsScreen(navController, scrollBehavior, latestVersionName)
     }
 
+    composable("shapes_gallery") {
+        ShapesGalleryScreen(navController)
+    }
+
     composable("settings/appearance") {
         AppearanceSettings(navController, scrollBehavior, activity, snackbarHostState)
     }
