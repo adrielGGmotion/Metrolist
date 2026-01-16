@@ -33,7 +33,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.metrolist.music.ui.shapes.CookieShapes
 import com.metrolist.music.ui.shapes.ExpressiveShapes
 import com.metrolist.music.ui.shapes.GeometricShapes
 
@@ -48,21 +47,33 @@ fun ShapesGalleryScreen(navController: NavController) {
         ShapeItem("Circle", GeometricShapes.Circle),
         ShapeItem("Square", GeometricShapes.Square),
         ShapeItem("Pill", GeometricShapes.Pill),
-        ShapeItem("PillStar", GeometricShapes.PillStar),
         ShapeItem("Rectangle", GeometricShapes.Rectangle),
+        ShapeItem("Slanted", ExpressiveShapes.Slanted),
+        ShapeItem("Oval", ExpressiveShapes.Oval),
+        ShapeItem("SemiCircle", ExpressiveShapes.SemiCircle),
+        ShapeItem("Arch", ExpressiveShapes.Arch),
+        ShapeItem("Fan", ExpressiveShapes.Fan),
+        ShapeItem("Arrow", ExpressiveShapes.Arrow),
         ShapeItem("Triangle", GeometricShapes.Triangle),
         ShapeItem("Pentagon", GeometricShapes.Pentagon),
         ShapeItem("Hexagon", GeometricShapes.Hexagon),
         ShapeItem("Octagon", GeometricShapes.Octagon),
-        ShapeItem("Star (Default)", GeometricShapes.star())
+        ShapeItem("Diamond", ExpressiveShapes.Diamond),
+        ShapeItem("Clamshell", ExpressiveShapes.Clamshell),
+        ShapeItem("Gem", ExpressiveShapes.Gem),
+        ShapeItem("Heart", ExpressiveShapes.Heart),
+        ShapeItem("Bun", ExpressiveShapes.Bun),
+        ShapeItem("Ghostish", ExpressiveShapes.Ghostish),
+        ShapeItem("Puffy", ExpressiveShapes.Puffy),
+        ShapeItem("Puffy Diamond", ExpressiveShapes.PuffyDiamond),
     )
 
     val cookieShapes = listOf(
-        ShapeItem("Cookie 4", CookieShapes.Cookie4Sided),
-        ShapeItem("Cookie 6", CookieShapes.Cookie6Sided),
-        ShapeItem("Cookie 7", CookieShapes.Cookie7Sided),
-        ShapeItem("Cookie 9", CookieShapes.Cookie9Sided),
-        ShapeItem("Cookie 12", CookieShapes.Cookie12Sided)
+        ShapeItem("Cookie 4", ExpressiveShapes.Cookie4Sided),
+        ShapeItem("Cookie 6", ExpressiveShapes.Cookie6Sided),
+        ShapeItem("Cookie 7", ExpressiveShapes.Cookie7Sided),
+        ShapeItem("Cookie 9", ExpressiveShapes.Cookie9Sided),
+        ShapeItem("Cookie 12", ExpressiveShapes.Cookie12Sided)
     )
 
     val expressiveShapes = listOf(
@@ -73,7 +84,10 @@ fun ShapesGalleryScreen(navController: NavController) {
         ShapeItem("Soft Burst", ExpressiveShapes.SoftBurst),
         ShapeItem("Boom", ExpressiveShapes.Boom),
         ShapeItem("Soft Boom", ExpressiveShapes.SoftBoom),
-        ShapeItem("Sunny", ExpressiveShapes.Sunny)
+        ShapeItem("Sunny", ExpressiveShapes.Sunny),
+        ShapeItem("Very Sunny", ExpressiveShapes.VerySunny),
+        ShapeItem("Pixel Circle", ExpressiveShapes.PixelCircle),
+        ShapeItem("Pixel Triangle", ExpressiveShapes.PixelTriangle),
     )
 
     Scaffold(

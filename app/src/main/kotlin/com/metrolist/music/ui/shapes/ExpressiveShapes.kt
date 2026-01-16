@@ -1,62 +1,55 @@
 package com.metrolist.music.ui.shapes
 
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.star
 
 object ExpressiveShapes {
+    // Standard Geom / Expressive from MaterialShapes
+    val Slanted: Shape = MaterialShapes.Slanted.toComposeShape()
+    val Arch: Shape = MaterialShapes.Arch.toComposeShape()
+    val Fan: Shape = MaterialShapes.Fan.toComposeShape()
+    val Arrow: Shape = MaterialShapes.Arrow.toComposeShape()
+    val SemiCircle: Shape = MaterialShapes.SemiCircle.toComposeShape()
+    val Oval: Shape = MaterialShapes.Oval.toComposeShape()
+    val Pill: Shape = MaterialShapes.Pill.toComposeShape()
+    
+    val Diamond: Shape = MaterialShapes.Diamond.toComposeShape()
+    val Clamshell: Shape = MaterialShapes.ClamShell.toComposeShape()
+    val Gem: Shape = MaterialShapes.Gem.toComposeShape()
+    val Puffy: Shape = MaterialShapes.Puffy.toComposeShape()
+    val PuffyDiamond: Shape = MaterialShapes.PuffyDiamond.toComposeShape()
+    val Ghostish: Shape = MaterialShapes.Ghostish.toComposeShape()
+    val Bun: Shape = MaterialShapes.Bun.toComposeShape()
+    
+    // Pixel Shapes
+    val PixelCircle: Shape = MaterialShapes.PixelCircle.toComposeShape()
+    val PixelTriangle: Shape = MaterialShapes.PixelTriangle.toComposeShape()
+
     // Clovers
-    val Clover4Leaf: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 4,
-        innerRadius = 0.2f, // Deeper indentation
-        rounding = CornerRounding(radius = 0.4f)
-    ).toComposeShape()
+    val Clover4Leaf: Shape = MaterialShapes.Clover4Leaf.toComposeShape()
+    val Clover8Leaf: Shape = MaterialShapes.Clover8Leaf.toComposeShape()
 
-    val Clover8Leaf: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 8,
-        innerRadius = 0.6f,
-        rounding = CornerRounding(radius = 0.3f)
-    ).toComposeShape()
+    // Cookies
+    val Cookie4Sided: Shape = MaterialShapes.Cookie4Sided.toComposeShape()
+    val Cookie6Sided: Shape = MaterialShapes.Cookie6Sided.toComposeShape()
+    val Cookie7Sided: Shape = MaterialShapes.Cookie7Sided.toComposeShape()
+    val Cookie9Sided: Shape = MaterialShapes.Cookie9Sided.toComposeShape()
+    val Cookie12Sided: Shape = MaterialShapes.Cookie12Sided.toComposeShape()
 
-    // Flower
-    val Flower: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 8,
-        innerRadius = 0.7f,
-        rounding = CornerRounding(radius = 0.5f, smoothing = 0.5f)
-    ).toComposeShape()
-
-    // Bursts
-    val Burst: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 12,
-        innerRadius = 0.8f
-    ).toComposeShape()
+    // Bursts & Stars
+    val Flower: Shape = MaterialShapes.Flower.toComposeShape()
+    val Burst: Shape = MaterialShapes.Burst.toComposeShape()
+    val SoftBurst: Shape = MaterialShapes.SoftBurst.toComposeShape()
+    val Boom: Shape = MaterialShapes.Boom.toComposeShape()
+    val SoftBoom: Shape = MaterialShapes.SoftBoom.toComposeShape()
     
-    val SoftBurst: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 12,
-        innerRadius = 0.8f,
-        rounding = CornerRounding(0.1f)
-    ).toComposeShape()
-    
-    val Boom: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 15,
-        innerRadius = 0.6f
-    ).toComposeShape()
-    
-    val SoftBoom: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 15,
-        innerRadius = 0.6f,
-        rounding = CornerRounding(0.2f)
-    ).toComposeShape()
+    val Sunny: Shape = MaterialShapes.Sunny.toComposeShape()
+    val VerySunny: Shape = MaterialShapes.VerySunny.toComposeShape()
 
-    // Sunny
-    val Sunny: Shape = RoundedPolygon.star(
-        numVerticesPerRadius = 8,
-        innerRadius = 0.8f
-    ).toComposeShape()
-
-    // Note: Some complex shapes like Heart, Ghostish, etc. require custom path data or complex polygon construction
-    // which are not standard factory methods. For now, we implement the ones easily reproducible with star/polygon parameters.
-    // If exact Material 3 implementation is needed, we would need to replicate the control points from the source.
-    // For this task, we will stick to the reusable algorithmic shapes.
+    // Custom
+    val Heart: Shape = createHeartShape()
 }
