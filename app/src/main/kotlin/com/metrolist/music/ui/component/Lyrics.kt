@@ -277,7 +277,7 @@ private fun rememberAnimatedBlur(
 
     val animatedBlur by animateDpAsState(
         targetValue = targetBlur,
-        animationSpec = animationSpec,
+        animationSpec = if (targetBlur == 0.dp) tween(100) else animationSpec,
         label = "blur"
     )
 
@@ -673,10 +673,11 @@ fun HierarchicalLyricsLine(
 
                             // 2. Draw the current line with a smooth leading-edge gradient
                             if (horizontalClip > 0) {
-                                // Dynamic gradient width: capped at 16f and half of the filled part of the word
-                                // This prevents the word from being "barely visible" at the start
-                                val baseGradientWidth = 16f
-                                val effectiveGradientWidth = baseGradientWidth.coerceAtMost((horizontalClip - activeWordStartX) * 0.5f)
+                                // Dynamic gradient width: capped at 8f and 30% of the filled part of the word
+                                // This ensures words are mostly opaque from the start of filling
+                                val baseGradientWidth = 8f
+                                val filledDistance = (horizontalClip - activeWordStartX).coerceAtLeast(0f)
+                                val effectiveGradientWidth = baseGradientWidth.coerceAtMost(filledDistance * 0.3f)
                                 
                                 // Ensure the gradient is only at the leading edge and not visible when finished
                                 val isWordFinished = wordProgress >= 0.995f
@@ -1626,7 +1627,7 @@ fun Lyrics(
                             index == displayedCurrentLineIndex -> 1f
                             else -> 0.2f
                         },
-                        animationSpec = tween(durationMillis = 400)
+                        animationSpec = if (index == displayedCurrentLineIndex) tween(100) else tween(durationMillis = 600)
                     )
                     val scale by animateFloatAsState(
                         targetValue = if (index == displayedCurrentLineIndex) 1.05f else 1f,
@@ -1681,8 +1682,7 @@ fun Lyrics(
 
                                     val wordAlpha = when {
                                         !isActiveLine -> 0.7f
-                                        hasWordPassed -> 1f
-                                        isWordActive -> 0.5f + (0.5f * transitionProgress)
+                                        hasWordPassed || isWordActive -> 1f
                                         else -> 0.35f
                                     }
 
@@ -1725,8 +1725,7 @@ fun Lyrics(
 
                                     val wordAlpha = when {
                                         !isActiveLine -> 0.55f
-                                        hasWordPassed -> 1f
-                                        isWordActive -> 0.4f + (0.6f * fadeProgress)
+                                        hasWordPassed || isWordActive -> 1f
                                         else -> 0.4f
                                     }
                                     val wordColor = expressiveAccent.copy(alpha = wordAlpha)
@@ -1948,8 +1947,7 @@ fun Lyrics(
 
                                     val wordAlpha = when {
                                         !isActiveLine -> 0.55f
-                                        hasWordPassed -> 1f
-                                        isWordActive -> 0.55f + (0.45f * smoothProgress)
+                                        hasWordPassed || isWordActive -> 1f
                                         else -> 0.4f
                                     }
                                     val wordColor = expressiveAccent.copy(alpha = wordAlpha)
