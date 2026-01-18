@@ -145,6 +145,7 @@ import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsAppleEnhancedGlowKey
 import com.metrolist.music.constants.LyricsAppleEnhancedBlurKey
 import com.metrolist.music.constants.LyricsAppleEnhancedBlurAmountKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
@@ -466,7 +467,7 @@ fun HierarchicalLyricsLine(
     activeColor: Color,
     isBgLine: Boolean = false,
 ) {
-    val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, false)
+    val lyricsGlowEffect by rememberPreference(LyricsAppleEnhancedGlowKey, false)
     val textMeasurer = rememberTextMeasurer()
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
@@ -1164,10 +1165,10 @@ fun Lyrics(
             if (shouldScroll) {
                 performSmoothPageScroll(targetMin, targetMax, 1000)
                 initialScrollDone = true
-                if (isSyncRequested) lastHandledScrollTrigger = forceScrollTrigger
                 previousScrollTargetMinIndex = targetMin
                 previousScrollTargetMaxIndex = targetMax
             }
+            if (isSyncRequested) lastHandledScrollTrigger = forceScrollTrigger
         } else {
             // Standard lyrics - midpoint calculation
             val effectiveMidpoint = if (midpointIndex != -1) midpointIndex else lastKnownActiveLineIndex
@@ -1178,7 +1179,6 @@ fun Lyrics(
             if (shouldScrollStandard) {
                 performSmoothPageScroll(effectiveMidpoint, effectiveMidpoint, 1000)
                 initialScrollDone = true
-                if (isSyncRequested) lastHandledScrollTrigger = forceScrollTrigger
                 shouldScrollToFirstLine = effectiveMidpoint <= 0
                 previousScrollTargetMinIndex = effectiveMidpoint
                 previousScrollTargetMaxIndex = effectiveMidpoint
@@ -1187,6 +1187,7 @@ fun Lyrics(
                 val seekCenterIndex = kotlin.math.max(0, effectiveMidpoint - 1)
                 performSmoothPageScroll(seekCenterIndex, seekCenterIndex, 500)
             }
+            if (isSyncRequested) lastHandledScrollTrigger = forceScrollTrigger
         }
     }
 
@@ -1489,7 +1490,7 @@ fun Lyrics(
                                     isActive = isActiveLine,
                                     currentPosition = currentPlaybackPosition,
                                     textAlign = textAlign,
-                                    inactiveColor = expressiveAccent.copy(alpha = if (isBgLine) 0.4f else 0.5f),
+                                    inactiveColor = expressiveAccent.copy(alpha = if (isActiveLine) (if (isBgLine) 0.3f else 0.4f) else (if (isBgLine) 0.05f else 0.1f)),
                                     activeColor = expressiveAccent.copy(alpha = if (isBgLine) 0.85f else 1f),
                                     isBgLine = isBgLine,
                                 )
@@ -1624,10 +1625,10 @@ fun Lyrics(
                     val alpha by animateFloatAsState(
                         targetValue = when {
                             !isSynced || (isSelectionModeActive && isSelected) -> 1f
-                            index == displayedCurrentLineIndex -> 1f
-                            else -> 0.2f
+                            index == currentLineIndex -> 1f
+                            else -> 0.1f
                         },
-                        animationSpec = if (index == displayedCurrentLineIndex) tween(100) else tween(durationMillis = 600)
+                        animationSpec = if (index == currentLineIndex) tween(100) else tween(durationMillis = 600)
                     )
                     val scale by animateFloatAsState(
                         targetValue = if (index == displayedCurrentLineIndex) 1.05f else 1f,
