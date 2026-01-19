@@ -30,6 +30,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -59,7 +61,7 @@ open class DiscordWebSocket(
     private var heartbeatInterval = 0L
     private var resumeGatewayUrl: String? = null
     private var heartbeatJob: Job? = null
-    private var connected = false
+    private val _connected = MutableStateFlow(false)
     private var client: HttpClient = HttpClient {
         install(WebSockets)
     }
@@ -75,7 +77,7 @@ open class DiscordWebSocket(
         get() = SupervisorJob() + Dispatchers.Default
 
     fun connect() {
-        if (connected) {
+        if (_connected.value) {
             logger.info("Gateway already connected.")
             return
         }
@@ -85,7 +87,7 @@ open class DiscordWebSocket(
                 val url = resumeGatewayUrl ?: gatewayUrl
                 logger.info("Connecting to Discord Gateway at $url")
                 websocket = client.webSocketSession(url)
-                connected = true
+                _connected.value = true
                 logger.info("Successfully connected to Discord Gateway.")
                 currentReconnectDelay = INITIAL_RECONNECT_DELAY
                 // start receiving messages
@@ -113,7 +115,7 @@ open class DiscordWebSocket(
             return
         }
         heartbeatJob?.cancel()
-        connected = false
+        _connected.value = false
         reconnectionJob = launch {
             delay(currentReconnectDelay)
             logger.info("Attempting to reconnect...")
@@ -125,7 +127,7 @@ open class DiscordWebSocket(
 
     private suspend fun handleClose() {
         heartbeatJob?.cancel()
-        connected = false
+        _connected.value = false
         val close = websocket?.closeReason?.await()
         logger.warning("Gateway closed with code: ${close?.code}, reason: ${close?.message}, can_reconnect: ${close?.code?.toInt() == 4000}")
         if (close?.code?.toInt() == 4000) {
@@ -157,7 +159,7 @@ open class DiscordWebSocket(
                 sessionId = ready.sessionId
                 resumeGatewayUrl = ready.resumeGatewayUrl + "/?v=10&encoding=json"
                 logger.info("Gateway READY: resume_gateway_url updated to $resumeGatewayUrl, session_id updated to $sessionId")
-                connected = true
+                _connected.value = true
                 return
             }
 
@@ -234,7 +236,7 @@ open class DiscordWebSocket(
     }
 
     private fun isSocketConnectedToAccount(): Boolean {
-        return connected && websocket?.isActive == true
+        return _connected.value && websocket?.isActive == true
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -262,7 +264,7 @@ open class DiscordWebSocket(
         this.cancel()
         resumeGatewayUrl = null
         sessionId = null
-        connected = false
+        _connected.value = false
         runBlocking {
             websocket?.close()
             logger.severe("Gateway: Connection to gateway closed")
@@ -270,10 +272,7 @@ open class DiscordWebSocket(
     }
 
     suspend fun sendActivity(presence: Presence) {
-        // TODO : Figure out a better way to wait for socket to be connected to account
-        while (!isSocketConnectedToAccount()) {
-            delay(10.milliseconds)
-        }
+        _connected.first { it }
         logger.info("Gateway: Sending $PRESENCE_UPDATE")
         send(
             op = PRESENCE_UPDATE,
