@@ -107,6 +107,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -654,19 +655,61 @@ fun HierarchicalLyricsLine(
                             }
 
                             if (horizontalClip > 0) {
-                                val pathForClipping = androidx.compose.ui.graphics.Path()
-                                val currentLineIndex = measuredText.getLineForOffset(totalCharOffsetStart)
-                                for (i in 0 until currentLineIndex) {
-                                    pathForClipping.addRect(Rect(0f, measuredText.getLineTop(i), size.width, measuredText.getLineBottom(i)))
-                                }
-                                pathForClipping.addRect(Rect(0f, measuredText.getLineTop(currentLineIndex), horizontalClip, measuredText.getLineBottom(currentLineIndex)))
+                                drawContext.canvas.saveLayer(
+                                    Rect(0f, 0f, size.width, size.height),
+                                    androidx.compose.ui.graphics.Paint()
+                                )
 
-                                drawContext.canvas.save()
-                                drawContext.canvas.clipPath(pathForClipping)
                                 drawText(
                                     textLayoutResult = measuredText,
                                     color = activeColor
                                 )
+
+                                val maskPaint = androidx.compose.ui.graphics.Paint().apply {
+                                    blendMode = androidx.compose.ui.graphics.BlendMode.DstOut
+                                    color = Color.Black
+                                }
+
+                                val currentLineIndex = measuredText.getLineForOffset(totalCharOffsetStart)
+                                val lineCount = measuredText.lineCount
+                                
+                                // Mask out future lines
+                                for (i in (currentLineIndex + 1) until lineCount) {
+                                    drawContext.canvas.drawRect(
+                                        Rect(0f, measuredText.getLineTop(i), size.width, measuredText.getLineBottom(i)),
+                                        maskPaint
+                                    )
+                                }
+
+                                val lineTop = measuredText.getLineTop(currentLineIndex)
+                                val lineBottom = measuredText.getLineBottom(currentLineIndex)
+                                val fadeWidth = 60f
+
+                                // Mask out the future part of the current line
+                                if (horizontalClip < size.width) {
+                                    drawContext.canvas.drawRect(
+                                        Rect(horizontalClip, lineTop, size.width, lineBottom),
+                                        maskPaint
+                                    )
+                                }
+
+                                val gradientStart = (horizontalClip - fadeWidth).coerceAtLeast(0f)
+                                val gradientEnd = horizontalClip
+
+                                if (gradientEnd > gradientStart) {
+                                    val gradient = Brush.horizontalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black),
+                                        startX = gradientStart,
+                                        endX = gradientEnd
+                                    )
+                                    gradient.applyTo(size, maskPaint, 1f)
+
+                                    drawContext.canvas.drawRect(
+                                        Rect(gradientStart, lineTop, gradientEnd, lineBottom),
+                                        maskPaint
+                                    )
+                                }
+
                                 drawContext.canvas.restore()
                             }
                         }
@@ -1035,10 +1078,15 @@ fun Lyrics(
             when (lyricsContent) {
                 is LyricsContent.Standard -> {
                     val newIndex = findCurrentLineIndex(lyricsContent.lines, adjustedPosition)
-                    activeLineIndices = if (newIndex != -1) setOf(newIndex) else emptySet()
-                    // Track last known active line for resync
                     if (newIndex != -1) {
+                        activeLineIndices = setOf(newIndex)
                         lastKnownActiveLineIndex = newIndex
+                    } else {
+                        activeLineIndices = emptySet()
+                        val lastPassedIndex = lyricsContent.lines.indexOfLast { it.time <= adjustedPosition }
+                        if (lastPassedIndex != -1) {
+                            lastKnownActiveLineIndex = lastPassedIndex
+                        }
                     }
                 }
                 is LyricsContent.Hierarchical -> {
@@ -1050,8 +1098,12 @@ fun Lyrics(
                         adjustedPosition in startTimeMs until endTimeMs
                     }.toSet()
                     activeLineIndices = indices
-                    // Track last known active line for resync
-                    indices.maxOrNull()?.let { lastKnownActiveLineIndex = it }
+                    indices.maxOrNull()?.let { lastKnownActiveLineIndex = it } ?: run {
+                        val lastPassedIndex = lines.indexOfLast { (it.endTime * 1000).toLong() <= adjustedPosition }
+                        if (lastPassedIndex != -1) {
+                            lastKnownActiveLineIndex = lastPassedIndex
+                        }
+                    }
                 }
                 else -> {
                     activeLineIndices = emptySet()
@@ -1069,7 +1121,12 @@ fun Lyrics(
         }
     }
 
-    suspend fun performSmoothPageScroll(minIndex: Int, maxIndex: Int, duration: Int = 1500) {
+    suspend fun performSmoothPageScroll(
+        minIndex: Int,
+        maxIndex: Int,
+        duration: Int = 1500,
+        animationSpec: AnimationSpec<Float>? = null
+    ) {
         // Guard against invalid indices to prevent crashes
         if (minIndex < 0 || maxIndex < 0) return
         if (isAnimating) return
@@ -1093,7 +1150,7 @@ fun Lyrics(
                 if (abs(offset) > 1f) {
                     lazyListState.animateScrollBy(
                         value = offset,
-                        animationSpec = tween(durationMillis = duration)
+                        animationSpec = animationSpec ?: tween(durationMillis = duration)
                     )
                 }
             } else {
@@ -1105,19 +1162,26 @@ fun Lyrics(
             isAnimating = false
         }
     }
+
     LaunchedEffect(scrollTargetMinIndex, scrollTargetMaxIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
         if (!isSynced || !isAutoScrollEnabled) return@LaunchedEffect
 
         if (lyricsContent is LyricsContent.Hierarchical) {
-            if (scrollTargetMinIndex == -1) return@LaunchedEffect
+            val effectiveMin = if (scrollTargetMinIndex != -1) scrollTargetMinIndex else lastKnownActiveLineIndex
+            val effectiveMax = if (scrollTargetMaxIndex != -1) scrollTargetMaxIndex else lastKnownActiveLineIndex
+            
+            if (effectiveMin == -1) return@LaunchedEffect
 
-            if (scrollTargetMinIndex != previousScrollTargetMinIndex || scrollTargetMaxIndex != previousScrollTargetMaxIndex) {
+            if (effectiveMin != previousScrollTargetMinIndex || effectiveMax != previousScrollTargetMaxIndex || !initialScrollDone) {
                 val lines = lyricsContent.lines
                 val previousLine = lines.getOrNull(previousScrollTargetMaxIndex)
-                val currentLine = lines.getOrNull(scrollTargetMinIndex)
+                val currentLine = lines.getOrNull(effectiveMin)
 
-                if (previousScrollTargetMinIndex == -1 && currentLine != null) {
-                    performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800)
+                if ((previousScrollTargetMinIndex == -1 || !initialScrollDone) && currentLine != null) {
+                    performSmoothPageScroll(effectiveMin, effectiveMax, 800)
+                    if (!isAppMinimized) {
+                        initialScrollDone = true
+                    }
                 } else if (previousLine != null && currentLine != null) {
                     val previousLineEndTimeMs = (previousLine.endTime * 1000).toLong()
                     val scrollThresholdTimeMs = (currentLine.startTime * 1000).toLong() + 200
@@ -1127,44 +1191,45 @@ fun Lyrics(
                         delay(delayDuration)
                     }
 
-                    val originalMin = scrollTargetMinIndex
-                    val originalMax = scrollTargetMaxIndex
                     val currentMinAfterDelay = activeLineIndices.minOrNull() ?: -1
                     val currentMaxAfterDelay = activeLineIndices.maxOrNull() ?: -1
-                    if (isActive && originalMin == currentMinAfterDelay && originalMax == currentMaxAfterDelay) {
-                        performSmoothPageScroll(originalMin, originalMax, 1500)
+                    
+                    if (isActive && effectiveMin == currentMinAfterDelay && effectiveMax == currentMaxAfterDelay) {
+                        performSmoothPageScroll(effectiveMin, effectiveMax, 1500)
                     }
                 }
-                previousScrollTargetMinIndex = scrollTargetMinIndex
-                previousScrollTargetMaxIndex = scrollTargetMaxIndex
+                previousScrollTargetMinIndex = effectiveMin
+                previousScrollTargetMaxIndex = effectiveMax
             }
         } else {
-            // Standard lyrics only have one active line, so min=max=midpoint
-            if (midpointIndex == -1) return@LaunchedEffect
+            // Standard lyrics
+            val effectiveMidpointIndex = if (midpointIndex != -1) midpointIndex else lastKnownActiveLineIndex
+            if (effectiveMidpointIndex == -1) return@LaunchedEffect
+
             val previousMidpointIndex = ((previousScrollTargetMinIndex.toFloat() + previousScrollTargetMaxIndex.toFloat()) / 2f).roundToInt()
 
-            if ((midpointIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
+            if ((effectiveMidpointIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
                 shouldScrollToFirstLine = false
-                performSmoothPageScroll(midpointIndex, midpointIndex, 800)
+                performSmoothPageScroll(effectiveMidpointIndex, effectiveMidpointIndex, 800)
                 if (!isAppMinimized) {
                     initialScrollDone = true
                 }
             } else {
-                deferredCurrentLineIndex = midpointIndex
+                deferredCurrentLineIndex = effectiveMidpointIndex
                 if (isSeeking) {
-                    val seekCenterIndex = kotlin.math.max(0, midpointIndex - 1)
+                    val seekCenterIndex = kotlin.math.max(0, effectiveMidpointIndex - 1)
                     performSmoothPageScroll(seekCenterIndex, seekCenterIndex, 500)
-                } else if ((lastPreviewTime == 0L || midpointIndex != previousMidpointIndex) && scrollLyrics) {
-                    if (midpointIndex != previousMidpointIndex) {
-                        performSmoothPageScroll(midpointIndex, midpointIndex, 1500)
+                } else if ((lastPreviewTime == 0L || effectiveMidpointIndex != previousMidpointIndex) && scrollLyrics) {
+                    if (effectiveMidpointIndex != previousMidpointIndex) {
+                        performSmoothPageScroll(effectiveMidpointIndex, effectiveMidpointIndex, 1500)
                     }
                 }
             }
-            if (midpointIndex > 0) {
+            if (effectiveMidpointIndex > 0) {
                 shouldScrollToFirstLine = true
             }
-            previousScrollTargetMinIndex = scrollTargetMinIndex
-            previousScrollTargetMaxIndex = scrollTargetMaxIndex
+            previousScrollTargetMinIndex = effectiveMidpointIndex
+            previousScrollTargetMaxIndex = effectiveMidpointIndex
         }
     }
 
@@ -2105,7 +2170,12 @@ fun Lyrics(
                 scope.launch {
                     // Use last known active line if current line is -1 (no active line)
                     val targetIndex = if (currentLineIndex >= 0) currentLineIndex else lastKnownActiveLineIndex
-                    performSmoothPageScroll(targetIndex, targetIndex, 1500)
+                    performSmoothPageScroll(
+                        minIndex = targetIndex,
+                        maxIndex = targetIndex,
+                        duration = 1000,
+                        animationSpec = tween(durationMillis = 1000, easing = CubicBezierEasing(0.2f, 0.0f, 0f, 1.0f))
+                    )
                 }
                 isAutoScrollEnabled = true
             }) {
