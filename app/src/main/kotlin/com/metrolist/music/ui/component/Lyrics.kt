@@ -145,7 +145,6 @@ import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
-import com.metrolist.music.constants.LyricsAppleEnhancedGlowKey
 import com.metrolist.music.constants.LyricsAppleEnhancedBlurKey
 import com.metrolist.music.constants.LyricsAppleEnhancedBlurAmountKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
@@ -278,7 +277,7 @@ private fun rememberAnimatedBlur(
 
     val animatedBlur by animateDpAsState(
         targetValue = targetBlur,
-        animationSpec = if (targetBlur == 0.dp) tween(100) else animationSpec,
+        animationSpec = animationSpec,
         label = "blur"
     )
 
@@ -467,7 +466,7 @@ fun HierarchicalLyricsLine(
     activeColor: Color,
     isBgLine: Boolean = false,
 ) {
-    val lyricsGlowEffect by rememberPreference(LyricsAppleEnhancedGlowKey, false)
+    val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, false)
     val textMeasurer = rememberTextMeasurer()
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
@@ -625,7 +624,6 @@ fun HierarchicalLyricsLine(
                         if (activeWordIndex != -1) {
                             val wordToProcess = activeWord ?: line.words.last()
                             val activeWordStartOffset = line.words.take(activeWordIndex).sumOf { it.text.length }
-                            val activeWordStartX = measuredText.getHorizontalPosition(activeWordStartOffset, true)
 
                             val wordProgress = if (isActive) {
                                 val wordStartTime = (wordToProcess.startTime * 1000f)
@@ -655,57 +653,21 @@ fun HierarchicalLyricsLine(
                                 clipStart + (clipEnd - clipStart) * subCharProgress
                             }
 
-                            val currentLineIndex = measuredText.getLineForOffset(totalCharOffsetStart)
-                            
-                            // 1. Draw all lines before the current line fully in active color
-                            if (currentLineIndex > 0) {
-                                clipRect(
-                                    left = 0f,
-                                    top = 0f,
-                                    right = size.width,
-                                    bottom = measuredText.getLineBottom(currentLineIndex - 1)
-                                ) {
-                                    drawText(
-                                        textLayoutResult = measuredText,
-                                        color = activeColor
-                                    )
-                                }
-                            }
-
-                            // 2. Draw the current line with a smooth leading-edge gradient
                             if (horizontalClip > 0) {
-                                // Dynamic gradient width: capped at 8f and 30% of the filled part of the word
-                                // This ensures words are mostly opaque from the start of filling
-                                val baseGradientWidth = 8f
-                                val filledDistance = (horizontalClip - activeWordStartX).coerceAtLeast(0f)
-                                val effectiveGradientWidth = baseGradientWidth.coerceAtMost(filledDistance * 0.3f)
-                                
-                                // Ensure the gradient is only at the leading edge and not visible when finished
-                                val isWordFinished = wordProgress >= 0.995f
-                                val opaqueEnd = if (isWordFinished) horizontalClip else (horizontalClip - effectiveGradientWidth)
-                                
-                                val activeBrush = Brush.horizontalGradient(
-                                    *listOf(
-                                        0f to activeColor,
-                                        (opaqueEnd / size.width).coerceIn(0f, 1f) to activeColor,
-                                        (horizontalClip / size.width).coerceIn(0f, 1f) to Color.Transparent,
-                                        1f to Color.Transparent
-                                    ).toTypedArray(),
-                                    startX = 0f,
-                                    endX = size.width
-                                )
-
-                                clipRect(
-                                    left = 0f,
-                                    top = measuredText.getLineTop(currentLineIndex),
-                                    right = size.width,
-                                    bottom = measuredText.getLineBottom(currentLineIndex)
-                                ) {
-                                    drawText(
-                                        textLayoutResult = measuredText,
-                                        brush = activeBrush
-                                    )
+                                val pathForClipping = androidx.compose.ui.graphics.Path()
+                                val currentLineIndex = measuredText.getLineForOffset(totalCharOffsetStart)
+                                for (i in 0 until currentLineIndex) {
+                                    pathForClipping.addRect(Rect(0f, measuredText.getLineTop(i), size.width, measuredText.getLineBottom(i)))
                                 }
+                                pathForClipping.addRect(Rect(0f, measuredText.getLineTop(currentLineIndex), horizontalClip, measuredText.getLineBottom(currentLineIndex)))
+
+                                drawContext.canvas.save()
+                                drawContext.canvas.clipPath(pathForClipping)
+                                drawText(
+                                    textLayoutResult = measuredText,
+                                    color = activeColor
+                                )
+                                drawContext.canvas.restore()
                             }
                         }
                     }
@@ -989,8 +951,6 @@ fun Lyrics(
     // Professional animation states for smooth Metrolist-style transitions
     var isAnimating by remember { mutableStateOf(false) }
     var isAutoScrollEnabled by rememberSaveable { mutableStateOf(true) }
-    var forceScrollTrigger by remember { mutableIntStateOf(0) }
-    var lastHandledScrollTrigger by remember { mutableIntStateOf(0) }
     var blurFocalPoint by rememberSaveable { mutableIntStateOf(0) }
 
     // Handle back button press - close selection mode instead of exiting screen
@@ -1145,49 +1105,66 @@ fun Lyrics(
             isAnimating = false
         }
     }
-    LaunchedEffect(scrollTargetMinIndex, scrollTargetMaxIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled, forceScrollTrigger) {
+    LaunchedEffect(scrollTargetMinIndex, scrollTargetMaxIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
         if (!isSynced || !isAutoScrollEnabled) return@LaunchedEffect
 
-        // Determine effective target indices, falling back to last known active line if currently between lines
-        // This fixes "Initial Focus" and "Multi-Line Stalls" by ensuring we always have a target.
-        val targetMin = if (scrollTargetMinIndex != -1) scrollTargetMinIndex else lastKnownActiveLineIndex
-        val targetMax = if (scrollTargetMaxIndex != -1) scrollTargetMaxIndex else lastKnownActiveLineIndex
-
-        if (targetMin == -1) return@LaunchedEffect
-
-        val isSyncRequested = forceScrollTrigger > lastHandledScrollTrigger
-        val isTargetChanged = targetMin != previousScrollTargetMinIndex || targetMax != previousScrollTargetMaxIndex
-        val shouldScroll = !initialScrollDone || isTargetChanged || isSyncRequested
-
         if (lyricsContent is LyricsContent.Hierarchical) {
-            // Scroll immediately if it's the first scroll or if the target has changed
-            // Removing the delay fixes "Timing Lag" and ensures "Re-Sync" is responsive.
-            if (shouldScroll) {
-                performSmoothPageScroll(targetMin, targetMax, 1000)
-                initialScrollDone = true
-                previousScrollTargetMinIndex = targetMin
-                previousScrollTargetMaxIndex = targetMax
-            }
-            if (isSyncRequested) lastHandledScrollTrigger = forceScrollTrigger
-        } else {
-            // Standard lyrics - midpoint calculation
-            val effectiveMidpoint = if (midpointIndex != -1) midpointIndex else lastKnownActiveLineIndex
-            
-            val isStandardTargetChanged = effectiveMidpoint != previousScrollTargetMinIndex
-            val shouldScrollStandard = !initialScrollDone || (effectiveMidpoint == 0 && shouldScrollToFirstLine) || isStandardTargetChanged || isSyncRequested
+            if (scrollTargetMinIndex == -1) return@LaunchedEffect
 
-            if (shouldScrollStandard) {
-                performSmoothPageScroll(effectiveMidpoint, effectiveMidpoint, 1000)
-                initialScrollDone = true
-                shouldScrollToFirstLine = effectiveMidpoint <= 0
-                previousScrollTargetMinIndex = effectiveMidpoint
-                previousScrollTargetMaxIndex = effectiveMidpoint
-                deferredCurrentLineIndex = effectiveMidpoint
-            } else if (isSeeking) {
-                val seekCenterIndex = kotlin.math.max(0, effectiveMidpoint - 1)
-                performSmoothPageScroll(seekCenterIndex, seekCenterIndex, 500)
+            if (scrollTargetMinIndex != previousScrollTargetMinIndex || scrollTargetMaxIndex != previousScrollTargetMaxIndex) {
+                val lines = lyricsContent.lines
+                val previousLine = lines.getOrNull(previousScrollTargetMaxIndex)
+                val currentLine = lines.getOrNull(scrollTargetMinIndex)
+
+                if (previousScrollTargetMinIndex == -1 && currentLine != null) {
+                    performSmoothPageScroll(scrollTargetMinIndex, scrollTargetMaxIndex, 800)
+                } else if (previousLine != null && currentLine != null) {
+                    val previousLineEndTimeMs = (previousLine.endTime * 1000).toLong()
+                    val scrollThresholdTimeMs = (currentLine.startTime * 1000).toLong() + 200
+                    val scheduledScrollTimeMs = maxOf(previousLineEndTimeMs, scrollThresholdTimeMs)
+                    val delayDuration = scheduledScrollTimeMs - currentPlaybackPosition
+                    if (delayDuration > 0) {
+                        delay(delayDuration)
+                    }
+
+                    val originalMin = scrollTargetMinIndex
+                    val originalMax = scrollTargetMaxIndex
+                    val currentMinAfterDelay = activeLineIndices.minOrNull() ?: -1
+                    val currentMaxAfterDelay = activeLineIndices.maxOrNull() ?: -1
+                    if (isActive && originalMin == currentMinAfterDelay && originalMax == currentMaxAfterDelay) {
+                        performSmoothPageScroll(originalMin, originalMax, 1500)
+                    }
+                }
+                previousScrollTargetMinIndex = scrollTargetMinIndex
+                previousScrollTargetMaxIndex = scrollTargetMaxIndex
             }
-            if (isSyncRequested) lastHandledScrollTrigger = forceScrollTrigger
+        } else {
+            // Standard lyrics only have one active line, so min=max=midpoint
+            if (midpointIndex == -1) return@LaunchedEffect
+            val previousMidpointIndex = ((previousScrollTargetMinIndex.toFloat() + previousScrollTargetMaxIndex.toFloat()) / 2f).roundToInt()
+
+            if ((midpointIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
+                shouldScrollToFirstLine = false
+                performSmoothPageScroll(midpointIndex, midpointIndex, 800)
+                if (!isAppMinimized) {
+                    initialScrollDone = true
+                }
+            } else {
+                deferredCurrentLineIndex = midpointIndex
+                if (isSeeking) {
+                    val seekCenterIndex = kotlin.math.max(0, midpointIndex - 1)
+                    performSmoothPageScroll(seekCenterIndex, seekCenterIndex, 500)
+                } else if ((lastPreviewTime == 0L || midpointIndex != previousMidpointIndex) && scrollLyrics) {
+                    if (midpointIndex != previousMidpointIndex) {
+                        performSmoothPageScroll(midpointIndex, midpointIndex, 1500)
+                    }
+                }
+            }
+            if (midpointIndex > 0) {
+                shouldScrollToFirstLine = true
+            }
+            previousScrollTargetMinIndex = scrollTargetMinIndex
+            previousScrollTargetMaxIndex = scrollTargetMaxIndex
         }
     }
 
@@ -1490,7 +1467,7 @@ fun Lyrics(
                                     isActive = isActiveLine,
                                     currentPosition = currentPlaybackPosition,
                                     textAlign = textAlign,
-                                    inactiveColor = expressiveAccent.copy(alpha = if (isActiveLine) (if (isBgLine) 0.3f else 0.4f) else (if (isBgLine) 0.05f else 0.1f)),
+                                    inactiveColor = expressiveAccent.copy(alpha = if (isBgLine) 0.4f else 0.5f),
                                     activeColor = expressiveAccent.copy(alpha = if (isBgLine) 0.85f else 1f),
                                     isBgLine = isBgLine,
                                 )
@@ -1625,10 +1602,10 @@ fun Lyrics(
                     val alpha by animateFloatAsState(
                         targetValue = when {
                             !isSynced || (isSelectionModeActive && isSelected) -> 1f
-                            index == currentLineIndex -> 1f
-                            else -> 0.1f
+                            index == displayedCurrentLineIndex -> 1f
+                            else -> 0.5f
                         },
-                        animationSpec = if (index == currentLineIndex) tween(100) else tween(durationMillis = 600)
+                        animationSpec = tween(durationMillis = 400)
                     )
                     val scale by animateFloatAsState(
                         targetValue = if (index == displayedCurrentLineIndex) 1.05f else 1f,
@@ -1683,7 +1660,8 @@ fun Lyrics(
 
                                     val wordAlpha = when {
                                         !isActiveLine -> 0.7f
-                                        hasWordPassed || isWordActive -> 1f
+                                        hasWordPassed -> 1f
+                                        isWordActive -> 0.5f + (0.5f * transitionProgress)
                                         else -> 0.35f
                                     }
 
@@ -1726,7 +1704,8 @@ fun Lyrics(
 
                                     val wordAlpha = when {
                                         !isActiveLine -> 0.55f
-                                        hasWordPassed || isWordActive -> 1f
+                                        hasWordPassed -> 1f
+                                        isWordActive -> 0.4f + (0.6f * fadeProgress)
                                         else -> 0.4f
                                     }
                                     val wordColor = expressiveAccent.copy(alpha = wordAlpha)
@@ -1948,7 +1927,8 @@ fun Lyrics(
 
                                     val wordAlpha = when {
                                         !isActiveLine -> 0.55f
-                                        hasWordPassed || isWordActive -> 1f
+                                        hasWordPassed -> 1f
+                                        isWordActive -> 0.55f + (0.45f * smoothProgress)
                                         else -> 0.4f
                                     }
                                     val wordColor = expressiveAccent.copy(alpha = wordAlpha)
@@ -2122,7 +2102,11 @@ fun Lyrics(
             exit = slideOutVertically { it } + fadeOut()
         ) {
             FilledTonalButton(onClick = {
-                forceScrollTrigger++
+                scope.launch {
+                    // Use last known active line if current line is -1 (no active line)
+                    val targetIndex = if (currentLineIndex >= 0) currentLineIndex else lastKnownActiveLineIndex
+                    performSmoothPageScroll(targetIndex, targetIndex, 1500)
+                }
                 isAutoScrollEnabled = true
             }) {
                 Icon(
