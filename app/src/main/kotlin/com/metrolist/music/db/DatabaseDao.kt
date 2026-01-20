@@ -106,8 +106,8 @@ interface DatabaseDao {
                             song.artists.joinToString("") { it.name }
                         },
                     ).groupBy { it.album?.title }
-                    .flatMap { (_, songsByAlbum) ->
-                        songsByAlbum.sortedBy { album ->
+                    .flatMap { entry ->
+                        entry.value.sortedBy { album ->
                             album.artists.joinToString(
                                 "",
                             ) { it.name }
@@ -156,8 +156,8 @@ interface DatabaseDao {
                             song.artists.joinToString("") { it.name }
                         },
                     ).groupBy { it.album?.title }
-                    .flatMap { (_, songsByAlbum) ->
-                        songsByAlbum.sortedBy { album ->
+                    .flatMap { entry ->
+                        entry.value.sortedBy { album ->
                             album.artists.joinToString(
                                 "",
                             ) { it.name }
@@ -1079,8 +1079,8 @@ interface DatabaseDao {
                             song.artists.joinToString("") { it.name }
                         },
                     ).groupBy { it.album?.title }
-                    .flatMap { (_, songsByAlbum) ->
-                        songsByAlbum.sortedBy { album ->
+                    .flatMap { entry ->
+                        entry.value.sortedBy { album ->
                             album.artists.joinToString(
                                 "",
                             ) { it.name }
