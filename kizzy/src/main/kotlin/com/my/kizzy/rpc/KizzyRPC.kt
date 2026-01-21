@@ -31,6 +31,10 @@ import org.json.JSONObject
 open class KizzyRPC(token: String) {
     private val kizzyRepository = KizzyRepository()
     private val discordWebSocket = DiscordWebSocket(token)
+    
+    // Rate limiting to prevent Discord from flagging the account
+    private var lastUpdateTime = 0L
+    private var lastActivityHash = 0
 
     fun closeRPC() {
         discordWebSocket.close()
@@ -69,11 +73,35 @@ open class KizzyRPC(token: String) {
         applicationId: String? = null,
         status: String? = "online",
         since: Long? = null,
+        forceUpdate: Boolean = false,
     ) {
         if (!isRpcRunning()) {
             discordWebSocket.connect()
         }
         
+        // Create a hash of the activity data to detect meaningful changes
+        val activityHash = listOf(
+            name, state, details, type.value, statusDisplayType.value,
+            largeImage?.toString(), smallImage?.toString()
+        ).hashCode()
+        
+        val currentTime = System.currentTimeMillis()
+        val timeSinceLastUpdate = currentTime - lastUpdateTime
+        
+        // Rate limiting: Enforce minimum interval and prevent redundant updates
+        val shouldUpdate = when {
+            forceUpdate -> true // Periodic updates always go through
+            timeSinceLastUpdate < MIN_UPDATE_INTERVAL_MS -> false // Too soon
+            activityHash != lastActivityHash -> true // Activity changed
+            timeSinceLastUpdate > MAX_STALE_TIME_MS -> true // Force refresh if too old
+            else -> false
+        }
+        
+        if (!shouldUpdate) {
+            return
+        }
+        
+        // Resolve external images with enhanced fallback support
         val images = listOfNotNull(largeImage, smallImage)
         val externalImages = images.filterIsInstance<RpcImage.ExternalImage>()
         val imageUrls = externalImages.map { it.image }
@@ -94,13 +122,22 @@ open class KizzyRPC(token: String) {
                         largeImage = largeImage?.let { 
                             when (it) {
                                 is RpcImage.DiscordImage -> "mp:${it.image}"
-                                is RpcImage.ExternalImage -> resolvedImages[it.image]
+                                is RpcImage.ExternalImage -> {
+                                    val resolvedId = resolvedImages[it.image]
+                                    // Ensure we have a valid ID (not null or empty)
+                                    // Worker returns fallback IDs even on error status
+                                    if (!resolvedId.isNullOrEmpty()) resolvedId else null
+                                }
                             }
                         },
                         smallImage = smallImage?.let { 
                             when (it) {
                                 is RpcImage.DiscordImage -> "mp:${it.image}"
-                                is RpcImage.ExternalImage -> resolvedImages[it.image]
+                                is RpcImage.ExternalImage -> {
+                                    val resolvedId = resolvedImages[it.image]
+                                    // Ensure we have a valid ID (not null or empty)
+                                    if (!resolvedId.isNullOrEmpty()) resolvedId else null
+                                }
                             }
                         },
                         largeText = largeText,
@@ -117,6 +154,10 @@ open class KizzyRPC(token: String) {
             status = status ?: "online"
         )
         discordWebSocket.sendActivity(presence)
+        
+        // Update rate limiting tracking
+        lastUpdateTime = currentTime
+        lastActivityHash = activityHash
     }
 
     enum class Type(val value: Int) {
@@ -134,6 +175,9 @@ open class KizzyRPC(token: String) {
     }
 
     companion object {
+        private const val MIN_UPDATE_INTERVAL_MS = 10_000L // 10 seconds minimum between updates
+        private const val MAX_STALE_TIME_MS = 30_000L // Force update after 30s even if no change
+        
         suspend fun getUserInfo(token: String): Result<UserInfo> = runCatching {
             val client = HttpClient()
             val response = client.get("https://discord.com/api/v10/users/@me") {

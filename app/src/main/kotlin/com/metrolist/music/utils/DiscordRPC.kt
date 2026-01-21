@@ -15,7 +15,13 @@ class DiscordRPC(
     val context: Context,
     token: String,
 ) : KizzyRPC(token) {
-    suspend fun updateSong(song: Song, currentPlaybackTimeMillis: Long, playbackSpeed: Float = 1.0f, useDetails: Boolean = false) = runCatching {
+    suspend fun updateSong(
+        song: Song, 
+        currentPlaybackTimeMillis: Long, 
+        playbackSpeed: Float = 1.0f, 
+        useDetails: Boolean = false,
+        forceUpdate: Boolean = false
+    ) = runCatching {
         val currentTime = System.currentTimeMillis()
 
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
@@ -48,7 +54,8 @@ class DiscordRPC(
             since = currentTime,
             startTime = calculatedStartTime,
             endTime = currentTime + adjustedRemainingDuration,
-            applicationId = APPLICATION_ID
+            applicationId = APPLICATION_ID,
+            forceUpdate = forceUpdate
         )
     }
 

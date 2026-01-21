@@ -281,6 +281,9 @@ class MusicService :
     private var discordRpc: DiscordRPC? = null
     private var lastPlaybackSpeed = 1.0f
     private var discordUpdateJob: kotlinx.coroutines.Job? = null
+    private var discordPeriodicUpdateJob: kotlinx.coroutines.Job? = null
+    private var discordIdleTimeoutJob: kotlinx.coroutines.Job? = null
+    private var discordConnectionStartTime = 0L
 
     private var scrobbleManager: ScrobbleManager? = null
 
@@ -447,6 +450,8 @@ class MusicService :
                     if (mediaId != null) {
                         database.song(mediaId).first()?.let { song ->
                             discordRpc?.updateSong(song, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                            // Restart periodic updates
+                            startDiscordPeriodicUpdate()
                         }
                     }
                 }
@@ -520,15 +525,23 @@ class MusicService :
             .debounce(300)
             .distinctUntilChanged()
             .collect(scope) { (key, enabled) ->
+                // Cancel all Discord jobs
+                discordPeriodicUpdateJob?.cancel()
+                discordIdleTimeoutJob?.cancel()
+                
                 if (discordRpc?.isRpcRunning() == true) {
                     discordRpc?.closeRPC()
                 }
                 discordRpc = null
+                discordConnectionStartTime = 0L
+                
                 if (key != null && enabled) {
                     discordRpc = DiscordRPC(this, key)
                     if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
                         currentSong.value?.let {
                             discordRpc?.updateSong(it, player.currentPosition, player.playbackParameters.speed, dataStore.get(DiscordUseDetailsKey, false))
+                            // Start periodic updates
+                            startDiscordPeriodicUpdate()
                         }
                     }
                 }
@@ -1545,9 +1558,22 @@ class MusicService :
         // Discord RPC updates
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
             updateWidgetUI(player.isPlaying)
-            if (!player.isPlaying && !events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)) {
-                scope.launch {
-                    discordRpc?.close()
+            
+            if (player.isPlaying) {
+                // Cancel idle timeout when playback starts
+                cancelDiscordIdleTimeout()
+                // Start periodic updates with jitter
+                startDiscordPeriodicUpdate()
+            } else {
+                // Stop periodic updates when playback pauses
+                stopDiscordPeriodicUpdate()
+                
+                if (!events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                    scope.launch {
+                        discordRpc?.close()
+                    }
+                    // Start idle timeout to close connection after 5 minutes of inactivity
+                    startDiscordIdleTimeout()
                 }
             }
         }
@@ -2008,6 +2034,108 @@ class MusicService :
         }
     }
 
+    /**
+     * Starts a periodic job that updates Discord RPC to keep the presence alive.
+     * Uses random jitter to avoid detection patterns.
+     */
+    private fun startDiscordPeriodicUpdate() {
+        discordPeriodicUpdateJob?.cancel()
+        discordPeriodicUpdateJob = scope.launch {
+            while (isActive && player.isPlaying) {
+                // Add jitter: 15-20 seconds (random)
+                // This prevents predictable patterns that Discord might flag
+                val jitter = (15_000L..20_000L).random()
+                delay(jitter)
+                
+                // Check session health before updating
+                checkDiscordSessionHealth()
+                
+                currentSong.value?.let { song ->
+                    discordRpc?.updateSong(
+                        song = song,
+                        currentPlaybackTimeMillis = player.currentPosition,
+                        playbackSpeed = player.playbackParameters.speed,
+                        useDetails = dataStore.get(DiscordUseDetailsKey, false),
+                        forceUpdate = true // Force update to refresh timestamps
+                    )
+                }
+            }
+        }
+        
+        // Track connection start time if this is a new connection
+        if (discordConnectionStartTime == 0L) {
+            discordConnectionStartTime = System.currentTimeMillis()
+        }
+    }
+
+    /**
+     * Stops the periodic Discord RPC updates.
+     */
+    private fun stopDiscordPeriodicUpdate() {
+        discordPeriodicUpdateJob?.cancel()
+        discordPeriodicUpdateJob = null
+    }
+
+    /**
+     * Checks if the Discord session has been active for too long.
+     * Reconnects if necessary to prevent account flagging.
+     */
+    private fun checkDiscordSessionHealth() {
+        val currentTime = System.currentTimeMillis()
+        val sessionDuration = currentTime - discordConnectionStartTime
+        
+        // precise 0 check to handle initial state, though usually updated in startDiscordPeriodicUpdate
+        if (discordConnectionStartTime == 0L) return
+
+        // Force reconnect if session is too long (prevents account kicks)
+        if (sessionDuration > DISCORD_MAX_SESSION_DURATION_MS) {
+            scope.launch {
+                discordRpc?.closeRPC()
+                delay(2000) // Wait 2 seconds before reconnecting
+                if (player.isPlaying) {
+                    // Will auto-reconnect on next update
+                    currentSong.value?.let { song ->
+                        discordRpc?.updateSong(
+                            song = song,
+                            currentPlaybackTimeMillis = player.currentPosition,
+                            playbackSpeed = player.playbackParameters.speed,
+                            useDetails = dataStore.get(DiscordUseDetailsKey, false),
+                            forceUpdate = true
+                        )
+                    }
+                }
+                discordConnectionStartTime = System.currentTimeMillis()
+            }
+        }
+    }
+
+    /**
+     * Starts an idle timeout job that closes the Discord RPC connection after inactivity.
+     * This prevents Discord from flagging the account for suspicious activity.
+     */
+    private fun startDiscordIdleTimeout() {
+        discordIdleTimeoutJob?.cancel()
+        discordIdleTimeoutJob = scope.launch {
+            delay(DISCORD_IDLE_TIMEOUT_MS)
+            // Close the connection if still idle (not playing)
+            if (!player.isPlaying) {
+                scope.launch {
+                    discordRpc?.close()
+                    discordRpc?.closeRPC()
+                    discordConnectionStartTime = 0L // Reset session timer
+                }
+            }
+        }
+    }
+
+    /**
+     * Cancels the idle timeout job.
+     */
+    private fun cancelDiscordIdleTimeout() {
+        discordIdleTimeoutJob?.cancel()
+        discordIdleTimeoutJob = null
+    }
+
     private fun saveQueueToDisk() {
         if (player.mediaItemCount == 0) {
             Log.d(TAG, "Skipping queue save - no media items")
@@ -2088,10 +2216,17 @@ class MusicService :
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }
+        
+        // Clean up Discord RPC
+        discordPeriodicUpdateJob?.cancel()
+        discordIdleTimeoutJob?.cancel()
+        discordUpdateJob?.cancel()
         if (discordRpc?.isRpcRunning() == true) {
             discordRpc?.closeRPC()
         }
         discordRpc = null
+        discordConnectionStartTime = 0L
+        
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
@@ -2099,7 +2234,6 @@ class MusicService :
         player.removeListener(this)
         player.removeListener(sleepTimer)
         player.release()
-        discordUpdateJob?.cancel()
         super.onDestroy()
     }
 
@@ -2261,6 +2395,10 @@ class MusicService :
         // Constants for audio normalization
         private const val MAX_GAIN_MB = 300 // Maximum gain in millibels (3 dB)
         private const val MIN_GAIN_MB = -1500 // Minimum gain in millibels (-15 dB)
+        
+        // Discord RPC constants
+        private const val DISCORD_IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
+        private const val DISCORD_MAX_SESSION_DURATION_MS = 3 * 60 * 60 * 1000L // 3 hours
 
         private const val TAG = "MusicService"
     }
