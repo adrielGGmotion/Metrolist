@@ -37,11 +37,15 @@ import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.AudioNormalizationKey
+import com.metrolist.music.constants.AudioOffload
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.AudioQualityKey
-import com.metrolist.music.constants.AudioOffload
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AutoLoadMoreKey
+import com.metrolist.music.constants.AutomixEnabledKey
+import com.metrolist.music.constants.AutoSkipNextOnErrorKey
+import com.metrolist.music.constants.CrossfadeDurationKey
+import com.metrolist.music.constants.CrossfadeEnabledKey
 import com.metrolist.music.constants.DisableLoadMoreWhenRepeatAllKey
 import com.metrolist.music.constants.AutoSkipNextOnErrorKey
 import com.metrolist.music.constants.EnableGoogleCastKey
@@ -94,6 +98,19 @@ fun PlayerSettings(
 
     val (audioOffload, onAudioOffloadChange) = rememberPreference(
         key = AudioOffload,
+        defaultValue = false
+    )
+
+    val (crossfadeEnabled, onCrossfadeEnabledChange) = rememberPreference(
+        CrossfadeEnabledKey,
+        defaultValue = false
+    )
+    val (crossfadeDuration, onCrossfadeDurationChange) = rememberPreference(
+        CrossfadeDurationKey,
+        defaultValue = 4000L
+    )
+    val (automixEnabled, onAutomixEnabledChange) = rememberPreference(
+        AutomixEnabledKey,
         defaultValue = false
     )
 
@@ -309,6 +326,83 @@ fun PlayerSettings(
                     },
                     onClick = { onAudioOffloadChange(!audioOffload) }
                 ))
+
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.playlist_play),
+                    title = { Text(stringResource(R.string.crossfade)) },
+                    description = { Text(stringResource(R.string.crossfade_description)) },
+                    trailingContent = {
+                        Switch(
+                            checked = crossfadeEnabled,
+                            onCheckedChange = {
+                                onCrossfadeEnabledChange(it)
+                                if (it) onAutomixEnabledChange(false)
+                            },
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (crossfadeEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = {
+                        val newValue = !crossfadeEnabled
+                        onCrossfadeEnabledChange(newValue)
+                        if (newValue) onAutomixEnabledChange(false)
+                    }
+                ))
+
+                if (crossfadeEnabled) {
+                    add(Material3SettingsItem(
+                        icon = painterResource(R.drawable.slow_motion_video),
+                        title = { Text(stringResource(R.string.crossfade_duration)) },
+                        description = {
+                            Column {
+                                Text("${crossfadeDuration / 1000}s")
+                                Slider(
+                                    value = crossfadeDuration.toFloat(),
+                                    onValueChange = { onCrossfadeDurationChange(it.toLong()) },
+                                    valueRange = 1000f..12000f,
+                                    steps = 10
+                                )
+                            }
+                        }
+                    ))
+                }
+
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.radio),
+                    title = { Text(stringResource(R.string.automix)) },
+                    description = { Text(stringResource(R.string.automix_description)) },
+                    trailingContent = {
+                        Switch(
+                            checked = automixEnabled,
+                            onCheckedChange = {
+                                onAutomixEnabledChange(it)
+                                if (it) onCrossfadeEnabledChange(false)
+                            },
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (automixEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = {
+                        val newValue = !automixEnabled
+                        onAutomixEnabledChange(newValue)
+                        if (newValue) onCrossfadeEnabledChange(false)
+                    }
+                ))
+
                 // Only show Cast setting in GMS builds (not in F-Droid/FOSS)
                 if (BuildConfig.CAST_AVAILABLE) {
                     add(Material3SettingsItem(

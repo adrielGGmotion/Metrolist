@@ -92,6 +92,9 @@ import com.metrolist.music.constants.AudioQualityKey
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AutoLoadMoreKey
 import com.metrolist.music.constants.AutoSkipNextOnErrorKey
+import com.metrolist.music.constants.AutomixEnabledKey
+import com.metrolist.music.constants.CrossfadeDurationKey
+import com.metrolist.music.constants.CrossfadeEnabledKey
 import com.metrolist.music.constants.DisableLoadMoreWhenRepeatAllKey
 import com.metrolist.music.constants.DiscordTokenKey
 import com.metrolist.music.constants.DiscordUseDetailsKey
@@ -347,7 +350,7 @@ class MusicService :
                     setSmallIcon(R.drawable.small_icon)
                 },
         )
-        player =
+        val playerFactory = {
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
@@ -365,7 +368,9 @@ class MusicService :
                 .setSeekForwardIncrementMs(5000)
                 .setDeviceVolumeControlEnabled(true)
                 .build()
-                .apply {
+        }
+
+        player = CrossfadePlayer(this, playerFactory).apply {
                     addListener(this@MusicService)
                     sleepTimer = SleepTimer(scope, this)
                     addListener(sleepTimer)
@@ -505,6 +510,20 @@ class MusicService :
                     silenceSkipJob?.cancel()
                 }
             }
+
+        combine(
+            dataStore.data.map { it[CrossfadeEnabledKey] ?: false }.distinctUntilChanged(),
+            dataStore.data.map { it[AutomixEnabledKey] ?: false }.distinctUntilChanged(),
+            dataStore.data.map { it[CrossfadeDurationKey] ?: 4000L }.distinctUntilChanged()
+        ) { crossfade, automix, duration ->
+             Triple(crossfade, automix, duration)
+        }.collectLatest(scope) { (crossfade, automix, duration) ->
+             (player as? CrossfadePlayer)?.let {
+                 it.crossfadeEnabled = crossfade
+                 it.automixEnabled = automix
+                 it.crossfadeDurationMs = duration
+             }
+        }
 
         combine(
             currentFormat,

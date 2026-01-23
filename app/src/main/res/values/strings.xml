@@ -340,4 +340,9 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+    <string name="crossfade">Crossfade</string>
+    <string name="crossfade_description">Overlap tracks for gapless playback</string>
+    <string name="crossfade_duration">Crossfade Duration</string>
+    <string name="automix">Automix</string>
+    <string name="automix_description">Smart beat-matching for infinite radio</string>
 </resources>
