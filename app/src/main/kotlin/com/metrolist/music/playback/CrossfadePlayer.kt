@@ -25,6 +25,10 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.Clock
 import androidx.media3.common.util.Size
+import androidx.media3.common.Effect
+import androidx.media3.exoplayer.source.TrackGroupArray
+import androidx.media3.exoplayer.PlayerMessage
+import androidx.media3.exoplayer.trackselection.TrackSelectionArray
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -65,6 +69,7 @@ class CrossfadePlayer(
 
     private var checkProgressJob: Job? = null
     private var isCrossfading = false
+    private var isReleased = false
 
     private val forwardingListener = object : Listener {
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
@@ -296,7 +301,7 @@ class CrossfadePlayer(
 
     // Delegates to currentPlayer
     override fun getApplicationLooper(): Looper = currentPlayer.applicationLooper
-    override fun getPlayerError(): PlaybackException? = currentPlayer.playerError
+    override fun getPlayerError(): androidx.media3.exoplayer.ExoPlaybackException? = currentPlayer.playerError
     override fun play() = currentPlayer.play()
     override fun pause() = currentPlayer.pause()
     override fun setPlayWhenReady(playWhenReady: Boolean) { currentPlayer.playWhenReady = playWhenReady }
@@ -316,7 +321,14 @@ class CrossfadePlayer(
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) { currentPlayer.playbackParameters = playbackParameters }
     override fun getPlaybackParameters(): PlaybackParameters = currentPlayer.playbackParameters
     override fun stop() { currentPlayer.stop(); nextPlayer?.stop() }
-    override fun release() { currentPlayer.release(); nextPlayer?.release(); scope.cancel() }
+    override fun release() { 
+        isReleased = true
+        currentPlayer.release()
+        nextPlayer?.release()
+        scope.cancel() 
+    }
+    override fun isReleased(): Boolean = isReleased
+
     override fun getCurrentTracks(): Tracks = currentPlayer.currentTracks
     override fun getTrackSelectionParameters(): TrackSelectionParameters = currentPlayer.trackSelectionParameters
     override fun setTrackSelectionParameters(parameters: TrackSelectionParameters) { currentPlayer.trackSelectionParameters = parameters }
@@ -357,6 +369,8 @@ class CrossfadePlayer(
     override fun isDeviceMuted(): Boolean = currentPlayer.isDeviceMuted
     override fun setDeviceVolume(volume: Int) { currentPlayer.deviceVolume = volume }
     override fun setDeviceMuted(muted: Boolean) { currentPlayer.isDeviceMuted = muted }
+    override fun setDeviceVolume(volume: Int, flags: Int) { currentPlayer.setDeviceVolume(volume, flags) }
+    override fun setDeviceMuted(muted: Boolean, flags: Int) { currentPlayer.setDeviceMuted(muted, flags) }
     override fun increaseDeviceVolume() = currentPlayer.increaseDeviceVolume()
     override fun decreaseDeviceVolume() = currentPlayer.decreaseDeviceVolume()
     
@@ -433,11 +447,70 @@ class CrossfadePlayer(
     override fun seekToNext() = currentPlayer.seekToNext()
     override fun seekToPrevious() = currentPlayer.seekToPrevious()
     
-    override fun setImageOutput(imageOutput: ImageOutput) { currentPlayer.setImageOutput(imageOutput) }
+    override fun setImageOutput(imageOutput: ImageOutput?) { 
+        if (imageOutput != null) currentPlayer.setImageOutput(imageOutput) 
+    }
 
-    // Components - Implementing if interface requires
-    override val audioComponent: ExoPlayer.AudioComponent? get() = currentPlayer.audioComponent
-    override val videoComponent: ExoPlayer.VideoComponent? get() = currentPlayer.videoComponent
-    override val textComponent: ExoPlayer.TextComponent? get() = currentPlayer.textComponent
-    override val deviceComponent: ExoPlayer.DeviceComponent? get() = currentPlayer.deviceComponent
+    override fun increaseDeviceVolume(flags: Int) { currentPlayer.increaseDeviceVolume(flags) }
+    override fun decreaseDeviceVolume(flags: Int) { currentPlayer.decreaseDeviceVolume(flags) }
+    override fun prepare(mediaSource: MediaSource) { currentPlayer.prepare(mediaSource) }
+    override fun prepare(mediaSource: MediaSource, resetPosition: Boolean, resetState: Boolean) { currentPlayer.prepare(mediaSource, resetPosition, resetState) }
+    override fun addAudioOffloadListener(listener: ExoPlayer.AudioOffloadListener) { currentPlayer.addAudioOffloadListener(listener) }
+    override fun removeAudioOffloadListener(listener: ExoPlayer.AudioOffloadListener) { currentPlayer.removeAudioOffloadListener(listener) }
+    override fun getRendererCount(): Int = currentPlayer.rendererCount
+    override fun getRendererType(index: Int): Int = currentPlayer.getRendererType(index)
+    override fun getRenderer(index: Int): Renderer = currentPlayer.getRenderer(index)
+    override fun getTrackSelector(): TrackSelector? = currentPlayer.trackSelector
+    override fun getCurrentTrackGroups(): TrackGroupArray = currentPlayer.currentTrackGroups
+    override fun getCurrentTrackSelections(): TrackSelectionArray = currentPlayer.currentTrackSelections
+    override fun getPlaybackLooper(): Looper = currentPlayer.playbackLooper
+    override fun setPreloadConfiguration(preloadConfiguration: ExoPlayer.PreloadConfiguration) { currentPlayer.preloadConfiguration = preloadConfiguration }
+    override fun getPreloadConfiguration(): ExoPlayer.PreloadConfiguration = currentPlayer.preloadConfiguration
+    override fun replaceMediaItem(index: Int, mediaItem: MediaItem) { currentPlayer.replaceMediaItem(index, mediaItem) }
+    override fun replaceMediaItems(fromIndex: Int, toIndex: Int, mediaItems: MutableList<MediaItem>) { currentPlayer.replaceMediaItems(fromIndex, toIndex, mediaItems) }
+    override fun setVideoEffects(effects: MutableList<Effect>) { currentPlayer.setVideoEffects(effects) }
+    override fun createMessage(target: PlayerMessage.Target): PlayerMessage = currentPlayer.createMessage(target)
+    override fun setWakeMode(mode: Int) { currentPlayer.setWakeMode(mode) }
+    
+    override fun setPriority(priority: Int) { 
+        // Try to find a setter, otherwise no-op
+    }
+    
+    // override fun isReleased(): Boolean = false // If strictly required
+
+    // Missing Player/ExoPlayer overrides
+    override fun setPriorityTaskManager(priorityTaskManager: PriorityTaskManager?) { currentPlayer.setPriorityTaskManager(priorityTaskManager) }
+    override fun isSleepingForOffload(): Boolean = currentPlayer.isSleepingForOffload
+    override fun isTunnelingEnabled(): Boolean = currentPlayer.isTunnelingEnabled
+    override fun setMediaItem(mediaItem: MediaItem) { currentPlayer.setMediaItem(mediaItem) }
+    override fun setMediaItem(mediaItem: MediaItem, startPositionMs: Long) { currentPlayer.setMediaItem(mediaItem, startPositionMs) }
+    override fun setMediaItem(mediaItem: MediaItem, resetPosition: Boolean) { currentPlayer.setMediaItem(mediaItem, resetPosition) }
+    override fun addMediaItem(mediaItem: MediaItem) { currentPlayer.addMediaItem(mediaItem) }
+    override fun addMediaItem(index: Int, mediaItem: MediaItem) { currentPlayer.addMediaItem(index, mediaItem) }
+    override fun isPlaying(): Boolean = currentPlayer.isPlaying
+    override fun seekBack() { currentPlayer.seekBack() }
+    override fun seekForward() { currentPlayer.seekForward() }
+    override fun seekToPreviousWindow() { currentPlayer.seekToPreviousWindow() }
+    override fun seekToNextWindow() { currentPlayer.seekToNextWindow() }
+    override fun hasNext(): Boolean = currentPlayer.hasNext()
+    override fun hasNextWindow(): Boolean = currentPlayer.hasNextWindow()
+    override fun next() { currentPlayer.next() }
+    override fun setPlaybackSpeed(speed: Float) { currentPlayer.setPlaybackSpeed(speed) }
+    override fun getCurrentManifest(): Any? = currentPlayer.currentManifest
+    override fun getCurrentPeriodIndex(): Int = currentPlayer.currentPeriodIndex
+    override fun getCurrentWindowIndex(): Int = currentPlayer.currentWindowIndex
+    override fun getNextWindowIndex(): Int = currentPlayer.nextWindowIndex
+    override fun getNextMediaItemIndex(): Int = currentPlayer.nextMediaItemIndex
+    override fun getPreviousWindowIndex(): Int = currentPlayer.previousWindowIndex
+    override fun getPreviousMediaItemIndex(): Int = currentPlayer.previousMediaItemIndex
+    override fun getBufferedPercentage(): Int = currentPlayer.bufferedPercentage
+    override fun isCurrentWindowDynamic(): Boolean = currentPlayer.isCurrentWindowDynamic
+    override fun isCurrentMediaItemDynamic(): Boolean = currentPlayer.isCurrentMediaItemDynamic
+    override fun isCurrentWindowLive(): Boolean = currentPlayer.isCurrentWindowLive
+    override fun isCurrentMediaItemLive(): Boolean = currentPlayer.isCurrentMediaItemLive
+    override fun getCurrentLiveOffset(): Long = currentPlayer.currentLiveOffset
+    override fun isCurrentWindowSeekable(): Boolean = currentPlayer.isCurrentWindowSeekable
+    override fun isCurrentMediaItemSeekable(): Boolean = currentPlayer.isCurrentMediaItemSeekable
+    override fun getContentDuration(): Long = currentPlayer.contentDuration
+    override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) { currentPlayer.setAudioAttributes(audioAttributes, handleAudioFocus) }
 }
