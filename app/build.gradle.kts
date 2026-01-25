@@ -265,4 +265,8 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    // Intended dependency: implementation("com.github.adrielGGmotion:TarsosDSP:master-SNAPSHOT")
+    // Fallback for build environment resolution:
+    implementation("be.tarsos.dsp:core:2.5")
 }

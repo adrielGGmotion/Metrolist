@@ -87,6 +87,16 @@ val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepea
 val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val SkipSilenceInstantKey = booleanPreferencesKey("skipSilenceInstant")
+
+val CrossfadeModeKey = stringPreferencesKey("crossfadeMode")
+val CrossfadeDurationKey = intPreferencesKey("crossfadeDuration")
+
+enum class CrossfadeMode {
+    OFF,
+    ALWAYS,
+    AUTOMIX
+}
+
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val DisableLoadMoreWhenRepeatAllKey = booleanPreferencesKey("disableLoadMoreWhenRepeatAll")

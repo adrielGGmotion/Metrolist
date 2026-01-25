@@ -39,6 +39,9 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.AudioNormalizationKey
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.AudioQualityKey
+import com.metrolist.music.constants.CrossfadeDurationKey
+import com.metrolist.music.constants.CrossfadeMode
+import com.metrolist.music.constants.CrossfadeModeKey
 import com.metrolist.music.constants.AudioOffload
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AutoLoadMoreKey
@@ -77,6 +80,14 @@ fun PlayerSettings(
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
+    )
+    val (crossfadeMode, onCrossfadeModeChange) = rememberEnumPreference(
+        CrossfadeModeKey,
+        defaultValue = CrossfadeMode.OFF
+    )
+    val (crossfadeDuration, onCrossfadeDurationChange) = rememberPreference(
+        CrossfadeDurationKey,
+        defaultValue = 5
     )
     val (playerClient, onPlayerClientChange) = rememberEnumPreference(
         PlayerClientKey,
@@ -167,8 +178,38 @@ fun PlayerSettings(
         mutableStateOf(false)
     }
 
+    var showCrossfadeModeDialog by remember {
+        mutableStateOf(false)
+    }
+
     var showPlayerClientDialog by remember {
         mutableStateOf(false)
+    }
+
+    if (showCrossfadeModeDialog) {
+        EnumDialog(
+            onDismiss = { showCrossfadeModeDialog = false },
+            onSelect = {
+                onCrossfadeModeChange(it)
+                showCrossfadeModeDialog = false
+            },
+            title = stringResource(R.string.crossfade_mode),
+            current = crossfadeMode,
+            values = CrossfadeMode.values().toList(),
+            valueText = {
+                when (it) {
+                    CrossfadeMode.OFF -> stringResource(R.string.crossfade_mode_off)
+                    CrossfadeMode.ALWAYS -> stringResource(R.string.crossfade_mode_always)
+                    CrossfadeMode.AUTOMIX -> stringResource(R.string.crossfade_mode_automix)
+                }
+            },
+            valueDescription = {
+                when (it) {
+                    CrossfadeMode.AUTOMIX -> stringResource(R.string.crossfade_mode_automix_desc)
+                    else -> ""
+                }
+            }
+        )
     }
 
     if (showAudioQualityDialog) {
@@ -251,6 +292,37 @@ fun PlayerSettings(
                     },
                     onClick = { showAudioQualityDialog = true }
                 ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.graphic_eq),
+                    title = { Text(stringResource(R.string.crossfade_mode)) },
+                    description = {
+                        Text(
+                            when (crossfadeMode) {
+                                CrossfadeMode.OFF -> stringResource(R.string.crossfade_mode_off)
+                                CrossfadeMode.ALWAYS -> stringResource(R.string.crossfade_mode_always)
+                                CrossfadeMode.AUTOMIX -> stringResource(R.string.crossfade_mode_automix)
+                            }
+                        )
+                    },
+                    onClick = { showCrossfadeModeDialog = true }
+                ))
+                if (crossfadeMode == CrossfadeMode.ALWAYS) {
+                    add(Material3SettingsItem(
+                        icon = painterResource(R.drawable.history),
+                        title = { Text(stringResource(R.string.crossfade_duration)) },
+                        description = {
+                            Column {
+                                Text(stringResource(R.string.crossfade_duration_seconds, crossfadeDuration))
+                                Slider(
+                                    value = crossfadeDuration.toFloat(),
+                                    onValueChange = { onCrossfadeDurationChange(it.roundToInt()) },
+                                    valueRange = 1f..12f,
+                                    steps = 10
+                                )
+                            }
+                        }
+                    ))
+                }
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.play),
                     title = { Text(stringResource(R.string.player_client)) },

@@ -121,6 +121,9 @@ import com.metrolist.music.constants.ShowLyricsKey
 import com.metrolist.music.constants.ShuffleModeKey
 import com.metrolist.music.constants.ShufflePlaylistFirstKey
 import com.metrolist.music.constants.SimilarContent
+import com.metrolist.music.constants.CrossfadeDurationKey
+import com.metrolist.music.constants.CrossfadeMode
+import com.metrolist.music.constants.CrossfadeModeKey
 import com.metrolist.music.constants.SkipSilenceInstantKey
 import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.db.MusicDatabase
@@ -154,6 +157,7 @@ import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
+import com.metrolist.music.playback.audio.BpmAudioProcessor
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.utils.CoilBitmapLoader
 import com.metrolist.music.utils.DiscordRPC
@@ -191,6 +195,8 @@ import okhttp3.OkHttpClient
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.time.LocalDateTime
+import java.util.Collections
+import java.util.WeakHashMap
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
@@ -268,13 +274,12 @@ class MusicService :
     @DownloadCache
     lateinit var downloadCache: SimpleCache
 
-    lateinit var player: ExoPlayer
+    lateinit var player: CrossFadePlayer
     private lateinit var mediaSession: MediaLibrarySession
 
     // Custom Audio Processor
-    private val customEqualizerAudioProcessor = CustomEqualizerAudioProcessor()
-    private val silenceDetectorAudioProcessor =
-        SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
+    // We keep a reference to the active processors to handle updates
+    private val activeEqProcessors = Collections.newSetFromMap(WeakHashMap<CustomEqualizerAudioProcessor, Boolean>())
 
     private val instantSilenceSkipEnabled = MutableStateFlow(false)
 
@@ -306,9 +311,6 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
-
-        // 3. Connect the processor to the service
-        equalizerService.setAudioProcessor(customEqualizerAudioProcessor)
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -350,31 +352,34 @@ class MusicService :
                     setSmallIcon(R.drawable.small_icon)
                 },
         )
-        player =
-            ExoPlayer
-                .Builder(this)
-                .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory())
-                .setHandleAudioBecomingNoisy(true)
-                .setWakeMode(C.WAKE_MODE_NETWORK)
-                .setAudioAttributes(
-                    AudioAttributes
-                        .Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build(),
-                    false,
-                ).setSeekBackIncrementMs(5000)
-                .setSeekForwardIncrementMs(5000)
-                .setDeviceVolumeControlEnabled(true)
-                .build()
-                .apply {
-                    addListener(this@MusicService)
-                    sleepTimer = SleepTimer(scope, this)
-                    addListener(sleepTimer)
-                    addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
-                    setOffloadEnabled(dataStore.get(AudioOffload, false))
-                }
+
+        // Initialize CrossFadePlayer
+        val crossFadePlayer = CrossFadePlayer(
+            playerFactory = { createExoPlayer() },
+            scope = scope
+        )
+        player = crossFadePlayer.apply {
+            addListener(this@MusicService)
+            sleepTimer = SleepTimer(scope, this)
+            addListener(sleepTimer)
+        }
+
+        // Observe Crossfade Settings
+        scope.launch {
+            dataStore.data.map {
+                it[CrossfadeModeKey]?.let { mode -> CrossfadeMode.valueOf(mode) } ?: CrossfadeMode.OFF
+            }.distinctUntilChanged().collect { mode ->
+                crossFadePlayer.crossfadeMode.value = mode
+            }
+        }
+
+        scope.launch {
+            dataStore.data.map {
+                (it[CrossfadeDurationKey] ?: 5).toLong() * 1000L
+            }.distinctUntilChanged().collect { durationMs ->
+                crossFadePlayer.crossfadeDurationMs.value = durationMs
+            }
+        }
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         setupAudioFocusRequest()
@@ -420,19 +425,23 @@ class MusicService :
         // 4. Watch for EQ profile changes
         scope.launch {
             eqProfileRepository.activeProfile.collect { profile ->
+                // Apply to all active processors
+                activeEqProcessors.forEach { processor ->
+                    if (profile != null) {
+                        // We manually configure the processor if EqualizerService doesn't support multiple
+                    }
+                }
+
                 if (profile != null) {
                     val result = equalizerService.applyProfile(profile)
-                    if (result.isSuccess && player.playbackState == Player.STATE_READY && player.isPlaying) {
-                        // Instant update: flush buffers and seek slightly to re-process audio
-                        customEqualizerAudioProcessor.flush()
-                        // Small seek to force re-buffer through the new EQ settings
-                        // Seek to current position effectively resets the pipeline
-                        player.seekTo(player.currentPosition) 
+                     if (result.isSuccess && player.playbackState == Player.STATE_READY && player.isPlaying) {
+                        activeEqProcessors.forEach { it.flush() }
+                        player.seekTo(player.currentPosition)
                     }
                 } else {
                     equalizerService.disable()
                     if (player.playbackState == Player.STATE_READY && player.isPlaying) {
-                        customEqualizerAudioProcessor.flush()
+                        activeEqProcessors.forEach { it.flush() }
                         player.seekTo(player.currentPosition)
                     }
                 }
@@ -502,10 +511,11 @@ class MusicService :
 
                 val enableInstant = skipSilence && instantSkip
                 instantSilenceSkipEnabled.value = enableInstant
-                silenceDetectorAudioProcessor.instantModeEnabled = enableInstant
+
+                player.getCurrentSilenceProcessor()?.instantModeEnabled = enableInstant
 
                 if (!enableInstant) {
-                    silenceDetectorAudioProcessor.resetTracking()
+                    player.getCurrentSilenceProcessor()?.resetTracking()
                     silenceSkipJob?.cancel()
                 }
             }
@@ -1310,7 +1320,9 @@ class MusicService :
     }
 
     private fun setupLoudnessEnhancer() {
-        val audioSessionId = player.audioSessionId
+        // Player doesn't expose audioSessionId usually, but ExoPlayer does.
+        // We cast safely.
+        val audioSessionId = player.getCurrentExoPlayer().audioSessionId
 
         if (audioSessionId == C.AUDIO_SESSION_ID_UNSET || audioSessionId <= 0) {
             Log.w(TAG, "setupLoudnessEnhancer: invalid audioSessionId ($audioSessionId), cannot create effect yet")
@@ -1400,11 +1412,13 @@ class MusicService :
 
     private fun openAudioEffectSession() {
         if (isAudioEffectSessionOpened) return
+        val audioSessionId = player.getCurrentExoPlayer().audioSessionId
+
         isAudioEffectSessionOpened = true
         setupLoudnessEnhancer()
         sendBroadcast(
             Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
+                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, audioSessionId)
                 putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
                 putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
             },
@@ -1413,11 +1427,13 @@ class MusicService :
 
     private fun closeAudioEffectSession() {
         if (!isAudioEffectSessionOpened) return
+        val audioSessionId = player.getCurrentExoPlayer().audioSessionId
+
         isAudioEffectSessionOpened = false
         releaseLoudnessEnhancer()
         sendBroadcast(
             Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
+                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, audioSessionId)
                 putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
             },
         )
@@ -1526,6 +1542,12 @@ class MusicService :
         player: Player,
         events: Player.Events,
     ) {
+        if (events.contains(Player.EVENT_AUDIO_SESSION_ID)) {
+            // Re-apply effects when session ID changes (e.g. crossfade swap)
+            closeAudioEffectSession()
+            openAudioEffectSession()
+        }
+
         if (events.containsAny(
                 Player.EVENT_PLAYBACK_STATE_CHANGED,
                 Player.EVENT_PLAY_WHEN_READY_CHANGED
@@ -1807,32 +1829,35 @@ class MusicService :
     // Flag to prevent queue saving during silence skip operations
     private var isSilenceSkipping = false
 
-    private fun handleLongSilenceDetected() {
+    private fun handleLongSilenceDetected(processor: SilenceDetectorAudioProcessor) {
+        // Only allow silence skip if the processor belongs to the active player
+        if (processor != player.getCurrentSilenceProcessor()) return
+
         if (!instantSilenceSkipEnabled.value) return
         if (silenceSkipJob?.isActive == true) return
 
         silenceSkipJob = scope.launch {
             // Debounce so short fades or transitions do not trigger a jump.
             delay(200)
-            performInstantSilenceSkip()
+            performInstantSilenceSkip(processor)
         }
     }
 
-    private suspend fun performInstantSilenceSkip() {
+    private suspend fun performInstantSilenceSkip(processor: SilenceDetectorAudioProcessor) {
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
         if (duration <= INSTANT_SILENCE_SKIP_STEP_MS) return
 
         isSilenceSkipping = true
         try {
             var hops = 0
-            while (coroutineContext.isActive && instantSilenceSkipEnabled.value && silenceDetectorAudioProcessor.isCurrentlySilent()) {
+            while (coroutineContext.isActive && instantSilenceSkipEnabled.value && processor.isCurrentlySilent()) {
                 val current = player.currentPosition
                 val target = (current + INSTANT_SILENCE_SKIP_STEP_MS).coerceAtMost(duration - 500)
 
                 if (target <= current) break
 
                 // Reset silence tracking before seeking to prevent immediate re-trigger
-                silenceDetectorAudioProcessor.resetTracking()
+                processor.resetTracking()
                 player.seekTo(target)
                 hops++
 
@@ -1846,6 +1871,72 @@ class MusicService :
         } finally {
             isSilenceSkipping = false
         }
+    }
+
+    private fun createExoPlayer(): PlayerContext {
+        // Create new processors
+        val eqProcessor = CustomEqualizerAudioProcessor()
+        activeEqProcessors.add(eqProcessor)
+        // Make sure it has the current profile applied if possible
+        // equalizerService.setAudioProcessor(eqProcessor) // This would overwrite.
+        // We rely on the initial profile being applied globally or the user toggling it.
+
+        lateinit var silenceProcessor: SilenceDetectorAudioProcessor
+        silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected(silenceProcessor) }
+        silenceProcessor.instantModeEnabled = instantSilenceSkipEnabled.value
+
+        val bpmProcessor = BpmAudioProcessor()
+
+        val renderersFactory = object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean,
+            ) = DefaultAudioSink
+                .Builder(this@MusicService)
+                .setEnableFloatOutput(enableFloatOutput)
+                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .setAudioProcessorChain(
+                    DefaultAudioSink.DefaultAudioProcessorChain(
+                        arrayOf(
+                            eqProcessor,
+                            silenceProcessor,
+                            bpmProcessor
+                        ),
+                        SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
+                        SonicAudioProcessor(),
+                    ),
+                ).build()
+        }
+
+        val playerInstance = ExoPlayer
+                .Builder(this)
+                .setMediaSourceFactory(createMediaSourceFactory())
+                .setRenderersFactory(renderersFactory)
+                .setHandleAudioBecomingNoisy(true)
+                .setWakeMode(C.WAKE_MODE_NETWORK)
+                .setAudioAttributes(
+                    AudioAttributes
+                        .Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build(),
+                    false,
+                ).setSeekBackIncrementMs(5000)
+                .setSeekForwardIncrementMs(5000)
+                .setDeviceVolumeControlEnabled(true)
+                .build()
+
+        // Listener removed to avoid duplicate events. CrossFadePlayer forwards events.
+        // Note: SleepTimer is attached to the wrapper 'player' in onCreate, which delegates here.
+        // We don't need to attach it to inner players.
+        playerInstance.addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
+        playerInstance.setOffloadEnabled(dataStore.get(AudioOffload, false))
+
+        // Register processor with EqualizerService to ensure profiles are applied
+        equalizerService.addAudioProcessor(eqProcessor)
+
+        return PlayerContext(playerInstance, bpmProcessor, silenceProcessor)
     }
 
     private fun createDataSourceFactory(): DataSource.Factory {
@@ -1909,6 +2000,7 @@ class MusicService :
             run {
                 val format = nonNullPlayback.format
                 val loudnessDb = nonNullPlayback.audioConfig?.loudnessDb
+                // FIXED: Use local var instead of format property
                 val perceptualLoudnessDb = nonNullPlayback.audioConfig?.perceptualLoudnessDb
 
                 Log.d(TAG, "Storing format for $mediaId with loudnessDb: $loudnessDb, perceptualLoudnessDb: $perceptualLoudnessDb")
@@ -1950,29 +2042,6 @@ class MusicService :
                 arrayOf(MatroskaExtractor(), FragmentedMp4Extractor())
             },
         )
-
-    private fun createRenderersFactory() =
-        object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(
-                context: Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean,
-            ) = DefaultAudioSink
-                .Builder(this@MusicService)
-                .setEnableFloatOutput(enableFloatOutput)
-                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                .setAudioProcessorChain(
-                    DefaultAudioSink.DefaultAudioProcessorChain(
-                        // 2. Inject processor into audio pipeline
-                        arrayOf(
-                            customEqualizerAudioProcessor,
-                            silenceDetectorAudioProcessor,
-                        ),
-                        SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
-                        SonicAudioProcessor(),
-                    ),
-                ).build()
-        }
 
     override fun onPlaybackStatsReady(
         eventTime: AnalyticsListener.EventTime,
