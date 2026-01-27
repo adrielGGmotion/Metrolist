@@ -146,6 +146,7 @@ import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsAppleEnhancedGlowKey
 import com.metrolist.music.constants.LyricsAppleEnhancedBlurKey
 import com.metrolist.music.constants.LyricsAppleEnhancedBlurAmountKey
 import com.metrolist.music.constants.LyricsHigherAnchorKey
@@ -467,7 +468,7 @@ fun HierarchicalLyricsLine(
     activeColor: Color,
     isBgLine: Boolean = false,
 ) {
-    val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, false)
+    val lyricsAppleEnhancedGlow by rememberPreference(LyricsAppleEnhancedGlowKey, false)
     val textMeasurer = rememberTextMeasurer()
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
@@ -501,7 +502,7 @@ fun HierarchicalLyricsLine(
     ) {
 
 
-        if (lyricsGlowEffect) {
+        if (lyricsAppleEnhancedGlow) {
              // Identify words that deserve "High Intensity" glow
              val highIntensityWords = remember(line.words) {
                  val highIntensitySet = mutableSetOf<com.metrolist.music.lyrics.Word>()
@@ -693,8 +694,10 @@ fun HierarchicalLyricsLine(
                                     )
                                 }
 
-                                val gradientStart = (horizontalClip - fadeWidth).coerceAtLeast(0f)
-                                val gradientEnd = horizontalClip
+                                // Push the fade-out gradient AFTER the current clip position
+                                // This ensures the filled text remains 100% opaque
+                                val gradientStart = horizontalClip
+                                val gradientEnd = horizontalClip + fadeWidth
 
                                 if (gradientEnd > gradientStart) {
                                     val gradient = Brush.horizontalGradient(
@@ -708,6 +711,14 @@ fun HierarchicalLyricsLine(
                                         Rect(gradientStart, lineTop, gradientEnd, lineBottom),
                                         maskPaint
                                     )
+
+                                    // Mask out everything after the gradient
+                                    if (gradientEnd < size.width) {
+                                        drawContext.canvas.drawRect(
+                                            Rect(gradientEnd, lineTop, size.width, lineBottom),
+                                            maskPaint
+                                        )
+                                    }
                                 }
 
                                 drawContext.canvas.restore()
@@ -1062,6 +1073,12 @@ fun Lyrics(
     }
 
     LaunchedEffect(lyricsContent) {
+        // Reset auto-scroll state on new song/lyrics
+        isAutoScrollEnabled = true
+        initialScrollDone = false
+        previousScrollTargetMinIndex = -1
+        previousScrollTargetMaxIndex = -1
+
         if (lyrics.isNullOrEmpty()) {
             activeLineIndices = emptySet()
             return@LaunchedEffect
@@ -1071,9 +1088,9 @@ fun Lyrics(
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
             val position = sliderPosition ?: playerConnection.player.currentPosition
-            currentPlaybackPosition = position
             val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
-            val adjustedPosition = position + lyricsOffset
+            val adjustedPosition = position - lyricsOffset
+            currentPlaybackPosition = adjustedPosition
 
             when (lyricsContent) {
                 is LyricsContent.Standard -> {
@@ -1490,7 +1507,6 @@ fun Lyrics(
                                         } else Modifier
                                     )
                                     .blur(radius = animatedBlur)
-                                    .clip(RoundedCornerShape(8.dp))
                                     .combinedClickable(
                                         enabled = true,
                                         onClick = {
@@ -1523,8 +1539,9 @@ fun Lyrics(
                                         }
                                     )
                                     .background(
-                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                                        else Color.Transparent
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                        else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
                                     )
                             ) {
                                 HierarchicalLyricsLine(
