@@ -472,6 +472,7 @@ fun HierarchicalLyricsLine(
     val textMeasurer = rememberTextMeasurer()
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
+    val fadeWidth = with(LocalDensity.current) { 48.dp.toPx() }
     
     // BG lines are smaller
     val effectiveFontSize = if (isBgLine) lyricsTextSize * 0.7f else lyricsTextSize
@@ -684,7 +685,6 @@ fun HierarchicalLyricsLine(
 
                                 val lineTop = measuredText.getLineTop(currentLineIndex)
                                 val lineBottom = measuredText.getLineBottom(currentLineIndex)
-                                val fadeWidth = 60f
 
                                 // Mask out the future part of the current line
                                 if (horizontalClip < size.width) {
@@ -955,6 +955,11 @@ fun Lyrics(
     var currentPlaybackPosition by remember {
         mutableLongStateOf(0L)
     }
+
+    var lastPlaybackPosition by remember {
+        mutableLongStateOf(0L)
+    }
+
     // Because LaunchedEffect has delay, which leads to inconsistent with current line color and scroll animation,
     // we use deferredCurrentLineIndex when user is scrolling
     var deferredCurrentLineIndex by rememberSaveable {
@@ -1088,6 +1093,15 @@ fun Lyrics(
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
             val position = sliderPosition ?: playerConnection.player.currentPosition
+
+            // Detect song restart (e.g. seeking back to start or repeat)
+            // If position drops significantly to near zero, re-enable auto-scroll
+            if (!isSeeking && position < 1000 && lastPlaybackPosition > 2000) {
+                isAutoScrollEnabled = true
+                initialScrollDone = false // Allow initial scroll animation to trigger again
+            }
+            lastPlaybackPosition = position
+
             val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
             val adjustedPosition = position - lyricsOffset
             currentPlaybackPosition = adjustedPosition
