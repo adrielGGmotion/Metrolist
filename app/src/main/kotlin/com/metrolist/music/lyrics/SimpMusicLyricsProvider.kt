@@ -14,7 +14,7 @@ import com.metrolist.music.utils.get
 object SimpMusicLyricsProvider : LyricsProvider {
     override val name = "SimpMusic"
 
-    override fun isEnabled(context: Context): Boolean = context.dataStore[EnableSimpMusicKey] ?: true
+    override suspend fun isEnabled(context: Context): Boolean = context.dataStore[EnableSimpMusicKey] ?: true
 
     override suspend fun getLyrics(
         id: String,

@@ -9,12 +9,14 @@ import android.content.Context
 import com.metrolist.kugou.KuGou
 import com.metrolist.music.constants.EnableKugouKey
 import com.metrolist.music.utils.dataStore
-import com.metrolist.music.utils.get
+import kotlinx.coroutines.flow.first
 
 object KuGouLyricsProvider : LyricsProvider {
     override val name = "Kugou"
-    override fun isEnabled(context: Context): Boolean =
-        context.dataStore[EnableKugouKey] ?: true
+    override suspend fun isEnabled(context: Context): Boolean {
+        val preferences = context.dataStore.data.first()
+        return preferences[EnableKugouKey] ?: true
+    }
 
     override suspend fun getLyrics(
         id: String,

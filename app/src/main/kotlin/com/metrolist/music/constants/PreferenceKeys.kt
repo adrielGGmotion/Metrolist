@@ -49,6 +49,7 @@ val EnableKugouKey = booleanPreferencesKey("enableKugou")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
 val EnableBetterLyricsKey = booleanPreferencesKey("enableBetterLyrics")
 val EnableSimpMusicKey = booleanPreferencesKey("enableSimpMusic")
+val EnableAppleMusicKey = booleanPreferencesKey("enableAppleMusic")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoSongsKey = booleanPreferencesKey("hideVideoSongs")
 val ShowArtistDescriptionKey = booleanPreferencesKey("showArtistDescription")
@@ -316,6 +317,7 @@ enum class QuickPicks {
 }
 
 enum class PreferredLyricsProvider {
+    APPLE_MUSIC,
     LRCLIB,
     KUGOU,
     BETTER_LYRICS,
@@ -356,6 +358,12 @@ val LyricsRomanizeMacedonianKey = booleanPreferencesKey("lyricsRomanizeMacedonia
 val LyricsRomanizeCyrillicByLineKey = booleanPreferencesKey("lyricsRomanizeCyrillicByLine")
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
+val LyricsAppleEnhancedGlowKey = booleanPreferencesKey("lyricsAppleEnhancedGlow")
+val LyricsAppleEnhancedBlurKey = booleanPreferencesKey("lyricsAppleEnhancedBlur")
+val LyricsAppleEnhancedBlurAmountKey = floatPreferencesKey("lyricsAppleEnhancedBlurAmount")
+val LyricsHigherAnchorKey = booleanPreferencesKey("lyricsHigherAnchor")
+val LyricsStandbyEffectKey = booleanPreferencesKey("lyricsStandbyEffect")
+val LyricsFullscreenHideQuickSettingsKey = booleanPreferencesKey("lyricsFullscreenHideQuickSettings")
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")
 enum class LyricsAnimationStyle {
@@ -365,6 +373,7 @@ enum class LyricsAnimationStyle {
     SLIDE,
     KARAOKE,
     APPLE,
+    APPLE_ENHANCED,
 }
 
 val LyricsTextSizeKey = floatPreferencesKey("lyricsTextSize")

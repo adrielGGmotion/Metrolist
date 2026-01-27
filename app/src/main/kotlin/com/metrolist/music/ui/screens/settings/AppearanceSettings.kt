@@ -70,6 +70,12 @@ import com.metrolist.music.constants.LyricsAnimationStyleKey
 import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.LyricsLineSpacingKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsAppleEnhancedGlowKey
+import com.metrolist.music.constants.LyricsAppleEnhancedBlurKey
+import com.metrolist.music.constants.LyricsAppleEnhancedBlurAmountKey
+import com.metrolist.music.constants.LyricsHigherAnchorKey
+import com.metrolist.music.constants.LyricsStandbyEffectKey
+import com.metrolist.music.constants.LyricsFullscreenHideQuickSettingsKey
 import com.metrolist.music.constants.MiniPlayerOutlineKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
@@ -201,6 +207,12 @@ fun AppearanceSettings(
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 24f)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = false)
+    val (lyricsAppleEnhancedGlow, onLyricsAppleEnhancedGlowChange) = rememberPreference(LyricsAppleEnhancedGlowKey, defaultValue = true)
+    val (lyricsAppleEnhancedBlur, onLyricsAppleEnhancedBlurChange) = rememberPreference(LyricsAppleEnhancedBlurKey, defaultValue = true)
+    val (lyricsAppleEnhancedBlurAmount, onLyricsAppleEnhancedBlurAmountChange) = rememberPreference(LyricsAppleEnhancedBlurAmountKey, defaultValue = 15f)
+    val (lyricsHigherAnchor, onLyricsHigherAnchorChange) = rememberPreference(LyricsHigherAnchorKey, defaultValue = false)
+    val (lyricsStandbyEffect, onLyricsStandbyEffectChange) = rememberPreference(LyricsStandbyEffectKey, defaultValue = false)
+    val (lyricsFullscreenHideQuickSettings, onLyricsFullscreenHideQuickSettingsChange) = rememberPreference(LyricsFullscreenHideQuickSettingsKey, defaultValue = false)
 
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
         SliderStyleKey,
@@ -344,6 +356,7 @@ fun AppearanceSettings(
                     LyricsAnimationStyle.SLIDE -> stringResource(R.string.slide)
                     LyricsAnimationStyle.KARAOKE -> stringResource(R.string.karaoke)
                     LyricsAnimationStyle.APPLE -> stringResource(R.string.apple_music_style)
+                    LyricsAnimationStyle.APPLE_ENHANCED -> stringResource(R.string.apple_music_enhanced_style)
                 }
             }
         )
@@ -1174,7 +1187,7 @@ fun AppearanceSettings(
 
         Material3SettingsGroup(
             title = stringResource(R.string.lyrics),
-            items = listOf(
+            items = listOfNotNull(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),
                     title = { Text(stringResource(R.string.lyrics_text_position)) },
@@ -1201,6 +1214,7 @@ fun AppearanceSettings(
                                 LyricsAnimationStyle.SLIDE -> stringResource(R.string.slide)
                                 LyricsAnimationStyle.KARAOKE -> stringResource(R.string.karaoke)
                                 LyricsAnimationStyle.APPLE -> stringResource(R.string.apple_music_style)
+                                LyricsAnimationStyle.APPLE_ENHANCED -> stringResource(R.string.apple_music_enhanced_style)
                             }
                         )
                     },
@@ -1226,6 +1240,142 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onLyricsGlowEffectChange(!lyricsGlowEffect) }
+                ),
+                // Only show Apple Music Enhanced glow toggle when that style is selected
+                if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED) {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.lyrics),
+                        title = { Text(stringResource(R.string.lyrics_apple_enhanced_glow)) },
+                        description = { Text(stringResource(R.string.lyrics_apple_enhanced_glow_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = lyricsAppleEnhancedGlow,
+                                onCheckedChange = onLyricsAppleEnhancedGlowChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (lyricsAppleEnhancedGlow) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onLyricsAppleEnhancedGlowChange(!lyricsAppleEnhancedGlow) }
+                    )
+                } else null,
+                // Only show Apple Music Enhanced blur toggle when that style is selected
+                if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED) {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.lyrics),
+                        title = { Text(stringResource(R.string.lyrics_apple_enhanced_blur)) },
+                        description = { Text(stringResource(R.string.lyrics_apple_enhanced_blur_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = lyricsAppleEnhancedBlur,
+                                onCheckedChange = onLyricsAppleEnhancedBlurChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (lyricsAppleEnhancedBlur) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onLyricsAppleEnhancedBlurChange(!lyricsAppleEnhancedBlur) }
+                    )
+                } else null,
+                // Only show blur amount slider when blur is enabled and Apple Music Enhanced style is selected
+                if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED && lyricsAppleEnhancedBlur) {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.lyrics),
+                        title = { Text(stringResource(R.string.lyrics_apple_enhanced_blur_amount)) },
+                        description = {
+                            Column {
+                                Text(stringResource(R.string.lyrics_apple_enhanced_blur_amount_desc))
+                                Slider(
+                                    value = lyricsAppleEnhancedBlurAmount,
+                                    onValueChange = onLyricsAppleEnhancedBlurAmountChange,
+                                    valueRange = 5f..30f,
+                                    steps = 4,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                                Text(
+                                    text = "${lyricsAppleEnhancedBlurAmount.roundToInt()} dp",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.align(Alignment.End)
+                                )
+                            }
+                        },
+                        onClick = { }
+                    )
+                } else null,
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.lyrics_higher_anchor)) },
+                    description = { Text(stringResource(R.string.lyrics_higher_anchor_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = lyricsHigherAnchor,
+                            onCheckedChange = onLyricsHigherAnchorChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsHigherAnchor) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLyricsHigherAnchorChange(!lyricsHigherAnchor) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.lyrics_standby_effect)) },
+                    description = { Text(stringResource(R.string.lyrics_standby_effect_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = lyricsStandbyEffect,
+                            onCheckedChange = onLyricsStandbyEffectChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsStandbyEffect) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLyricsStandbyEffectChange(!lyricsStandbyEffect) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.fullscreen),
+                    title = { Text(stringResource(R.string.lyrics_fullscreen_hide_quick_settings)) },
+                    description = { Text(stringResource(R.string.lyrics_fullscreen_hide_quick_settings_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = lyricsFullscreenHideQuickSettings,
+                            onCheckedChange = onLyricsFullscreenHideQuickSettingsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsFullscreenHideQuickSettings) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLyricsFullscreenHideQuickSettingsChange(!lyricsFullscreenHideQuickSettings) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),

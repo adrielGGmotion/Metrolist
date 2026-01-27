@@ -10,7 +10,7 @@ import android.content.Context
 interface LyricsProvider {
     val name: String
 
-    fun isEnabled(context: Context): Boolean
+    suspend fun isEnabled(context: Context): Boolean
 
     suspend fun getLyrics(
         id: String,

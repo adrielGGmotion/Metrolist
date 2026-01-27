@@ -9,12 +9,15 @@ import android.content.Context
 import com.metrolist.music.betterlyrics.BetterLyrics
 import com.metrolist.music.constants.EnableBetterLyricsKey
 import com.metrolist.music.utils.dataStore
-import com.metrolist.music.utils.get
+import kotlinx.coroutines.flow.first
 
 object BetterLyricsProvider : LyricsProvider {
     override val name = "BetterLyrics"
 
-    override fun isEnabled(context: Context): Boolean = context.dataStore[EnableBetterLyricsKey] ?: true
+    override suspend fun isEnabled(context: Context): Boolean {
+        val preferences = context.dataStore.data.first()
+        return preferences[EnableBetterLyricsKey] ?: true
+    }
 
     override suspend fun getLyrics(
         id: String,
