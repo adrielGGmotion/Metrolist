@@ -1345,7 +1345,7 @@ fun Lyrics(
                 }
             }
             is LyricsContent.Hierarchical -> {
-                val lines = (lyricsContent as LyricsContent.Hierarchical).lines
+                val lines = lyricsContent.lines
                 var lastPrimarySpeaker: SpeakerRole by remember { mutableStateOf(SpeakerRole.V1) }
                 val hasV2 = remember(lines) { lines.any { it.speaker is SpeakerRole.V2 } }
                 
@@ -1629,7 +1629,7 @@ fun Lyrics(
                 }
             }
             is LyricsContent.Standard -> {
-                val lines = (lyricsContent as LyricsContent.Standard).lines
+                val lines = lyricsContent.lines
                 LazyColumn(
                 state = lazyListState,
                 contentPadding = WindowInsets.systemBars
@@ -2062,7 +2062,7 @@ fun Lyrics(
                                 }
                             }
                             Text(text = styledText, fontSize = lyricsTextSize.sp, textAlign = alignment, lineHeight = (lyricsTextSize * lyricsLineSpacing).sp)
-                        } else if (hasWordTimings && item.words != null && lyricsAnimationStyle == LyricsAnimationStyle.APPLE) {
+                        } else if (hasWordTimings && lyricsAnimationStyle == LyricsAnimationStyle.APPLE) {
                             val styledText = buildAnnotatedString {
                                 item.words.forEachIndexed { wordIndex, word ->
                                     val wordStartMs = (word.startTime * 1000).toLong()
