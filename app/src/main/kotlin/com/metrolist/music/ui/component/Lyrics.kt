@@ -1186,7 +1186,7 @@ fun Lyrics(
     suspend fun performSmoothPageScroll(
         minIndex: Int,
         maxIndex: Int,
-        duration: Int = 1500,
+        duration: Int = METROLIST_AUTO_SCROLL_DURATION.toInt(),
         animationSpec: AnimationSpec<Float>? = null
     ) {
         // Guard against invalid indices to prevent crashes
@@ -1215,7 +1215,10 @@ fun Lyrics(
                 if (abs(offset) > 1f) {
                     lazyListState.animateScrollBy(
                         value = offset,
-                        animationSpec = animationSpec ?: tween(durationMillis = duration)
+                        animationSpec = animationSpec ?: tween(
+                            durationMillis = duration,
+                            easing = FastOutSlowInEasing
+                        )
                     )
                 }
             } else {
@@ -1243,15 +1246,15 @@ fun Lyrics(
                 val currentLine = lines.getOrNull(effectiveMin)
 
                 if ((previousScrollTargetMinIndex == -1 || !initialScrollDone) && currentLine != null) {
-                    performSmoothPageScroll(effectiveMin, effectiveMax, 800)
+                    performSmoothPageScroll(effectiveMin, effectiveMax, METROLIST_INITIAL_SCROLL_DURATION.toInt())
                     if (!isAppMinimized) {
                         initialScrollDone = true
                     }
                 } else if (previousLine != null && currentLine != null) {
-                    val previousLineEndTimeMs = (previousLine.endTime * 1000).toLong()
-                    val scrollThresholdTimeMs = (currentLine.startTime * 1000).toLong() + 200
-                    val scheduledScrollTimeMs = maxOf(previousLineEndTimeMs, scrollThresholdTimeMs)
-                    val delayDuration = scheduledScrollTimeMs - currentPlaybackPosition
+                    // Schedule scroll to happen 50ms BEFORE the line is sung
+                    // This creates anticipatory scrolling for a better reading experience
+                    val scrollThresholdTimeMs = (currentLine.startTime * 1000).toLong() - 50
+                    val delayDuration = scrollThresholdTimeMs - currentPlaybackPosition
                     
                     // Cap delay to prevent stuck scrolling on song restart
                     // If delay is negative or excessively long, scroll immediately
@@ -1263,7 +1266,7 @@ fun Lyrics(
                     val currentMaxAfterDelay = activeLineIndices.maxOrNull() ?: -1
                     
                     if (isActive && effectiveMin == currentMinAfterDelay && effectiveMax == currentMaxAfterDelay) {
-                        performSmoothPageScroll(effectiveMin, effectiveMax, 1500)
+                        performSmoothPageScroll(effectiveMin, effectiveMax, METROLIST_AUTO_SCROLL_DURATION.toInt())
                     }
                 }
                 previousScrollTargetMinIndex = effectiveMin
@@ -1278,7 +1281,7 @@ fun Lyrics(
 
             if ((effectiveMidpointIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
                 shouldScrollToFirstLine = false
-                performSmoothPageScroll(effectiveMidpointIndex, effectiveMidpointIndex, 800)
+                performSmoothPageScroll(effectiveMidpointIndex, effectiveMidpointIndex, METROLIST_INITIAL_SCROLL_DURATION.toInt())
                 if (!isAppMinimized) {
                     initialScrollDone = true
                 }
@@ -1286,10 +1289,10 @@ fun Lyrics(
                 deferredCurrentLineIndex = effectiveMidpointIndex
                 if (isSeeking) {
                     val seekCenterIndex = kotlin.math.max(0, effectiveMidpointIndex - 1)
-                    performSmoothPageScroll(seekCenterIndex, seekCenterIndex, 500)
+                    performSmoothPageScroll(seekCenterIndex, seekCenterIndex, METROLIST_FAST_SEEK_DURATION.toInt())
                 } else if ((lastPreviewTime == 0L || effectiveMidpointIndex != previousMidpointIndex) && scrollLyrics) {
                     if (effectiveMidpointIndex != previousMidpointIndex) {
-                        performSmoothPageScroll(effectiveMidpointIndex, effectiveMidpointIndex, 1500)
+                        performSmoothPageScroll(effectiveMidpointIndex, effectiveMidpointIndex, METROLIST_AUTO_SCROLL_DURATION.toInt())
                     }
                 }
             }
@@ -1429,15 +1432,21 @@ fun Lyrics(
                                             stiffness = Spring.StiffnessMedium
                                         )
                                     ),
-                            exit = scaleOut(
-                                        targetScale = 1.2f,
-                                        animationSpec = tween(200, easing = FastOutSlowInEasing)
-                                    ) +
-                                    fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
-                                    shrinkVertically(
-                                        animationSpec = tween(350, easing = FastOutSlowInEasing),
+                            exit = shrinkVertically(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
                                         shrinkTowards = Alignment.CenterVertically
-                                    )
+                                    ) +
+                                    scaleOut(
+                                        targetScale = 0.4f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    ) +
+                                    fadeOut(animationSpec = tween(200, delayMillis = 50, easing = FastOutSlowInEasing))
                         ) {
                             StandbyIndicator(
                                 progress = standbyState.progress,
@@ -1713,7 +1722,10 @@ fun Lyrics(
                                             if (kotlin.math.abs(offset) > 10) { // Only animate if not already centered
                                                 lazyListState.animateScrollBy(
                                                     value = offset.toFloat(),
-                                                    animationSpec = tween(durationMillis = 1500) // Reduced to half speed
+                                                    animationSpec = tween(
+                                                        durationMillis = METROLIST_AUTO_SCROLL_DURATION.toInt(),
+                                                        easing = FastOutSlowInEasing
+                                                    )
                                                 )
                                             }
                                         }
@@ -2662,10 +2674,10 @@ fun Lyrics(
 }
 
 // Professional page animation constants inspired by Metrolist design - slower for smoothness
-private const val METROLIST_AUTO_SCROLL_DURATION = 1500L // Much slower auto-scroll for smooth transitions
-private const val METROLIST_INITIAL_SCROLL_DURATION = 1000L // Slower initial positioning
-private const val METROLIST_SEEK_DURATION = 800L // Slower user interaction
-private const val METROLIST_FAST_SEEK_DURATION = 600L // Less aggressive seeking
+private const val METROLIST_AUTO_SCROLL_DURATION = 600L // Reduced for snappier feel while maintaining smoothness
+private const val METROLIST_INITIAL_SCROLL_DURATION = 800L // Slower initial positioning
+private const val METROLIST_SEEK_DURATION = 600L // Slower user interaction
+private const val METROLIST_FAST_SEEK_DURATION = 400L // Less aggressive seeking
 
 // Lyrics constants
 val LyricsPreviewTime = 2.seconds
