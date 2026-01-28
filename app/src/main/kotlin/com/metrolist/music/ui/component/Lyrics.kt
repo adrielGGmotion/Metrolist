@@ -169,27 +169,24 @@ import com.metrolist.music.constants.LyricsTextPositionKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
-import com.metrolist.music.lyrics.AppleMusicLyricsParser
-import com.metrolist.music.lyrics.LyricsEntry
-import com.metrolist.music.lyrics.WordTimestamp
-import com.metrolist.music.lyrics.LyricLine
-import com.metrolist.music.lyrics.SpeakerRole
-import com.metrolist.music.lyrics.LyricsUtils.findCurrentLineIndex
-import com.metrolist.music.lyrics.LyricsUtils.isBelarusian
+import com.metrolist.music.lyrics.*
 import com.metrolist.music.lyrics.LyricsUtils.isChinese
 import com.metrolist.music.lyrics.LyricsUtils.isJapanese
 import com.metrolist.music.lyrics.LyricsUtils.isKorean
-import com.metrolist.music.lyrics.LyricsUtils.isKyrgyz
 import com.metrolist.music.lyrics.LyricsUtils.isRussian
+import com.metrolist.music.lyrics.LyricsUtils.isUkrainian
 import com.metrolist.music.lyrics.LyricsUtils.isSerbian
 import com.metrolist.music.lyrics.LyricsUtils.isBulgarian
-import com.metrolist.music.lyrics.LyricsUtils.isUkrainian
+import com.metrolist.music.lyrics.LyricsUtils.isBelarusian
+import com.metrolist.music.lyrics.LyricsUtils.isKyrgyz
 import com.metrolist.music.lyrics.LyricsUtils.isMacedonian
-import com.metrolist.music.lyrics.LyricsUtils.parseLyrics
-import com.metrolist.music.lyrics.LyricsUtils.romanizeCyrillic
 import com.metrolist.music.lyrics.LyricsUtils.romanizeJapanese
 import com.metrolist.music.lyrics.LyricsUtils.romanizeKorean
 import com.metrolist.music.lyrics.LyricsUtils.romanizeChinese
+import com.metrolist.music.lyrics.LyricsUtils.romanizeCyrillic
+import com.metrolist.music.lyrics.LyricsUtils.findCurrentLineIndex
+import com.metrolist.music.lyrics.LyricsUtils.parseLyrics
+import com.metrolist.music.lyrics.LyricsUtils.romanizeHierarchicalLine
 import com.metrolist.music.ui.component.shimmer.ShimmerHost
 import com.metrolist.music.ui.component.shimmer.TextPlaceholder
 import com.metrolist.music.ui.screens.settings.DarkMode
@@ -473,10 +470,11 @@ fun HierarchicalLyricsLine(
     val textMeasurer = rememberTextMeasurer()
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
-    val fadeWidth = with(LocalDensity.current) { 48.dp.toPx() }
+    val density = LocalDensity.current
+    val fadeWidth = with(density) { 48.dp.toPx() }
     
-    // BG lines are smaller
     val effectiveFontSize = if (isBgLine) lyricsTextSize * 0.7f else lyricsTextSize
+    val romanizedFontSize = effectiveFontSize * 0.45f
 
     val textStyle = TextStyle(
         fontSize = effectiveFontSize.sp,
@@ -485,19 +483,22 @@ fun HierarchicalLyricsLine(
         lineHeight = (effectiveFontSize * lyricsLineSpacing).sp,
     )
 
+    val romanizedTextStyle = TextStyle(
+        fontSize = romanizedFontSize.sp,
+        fontWeight = FontWeight.Medium,
+        textAlign = TextAlign.Center,
+        color = inactiveColor
+    )
 
-    // Use raw playback position for smoother animation
-    // indexOfLast finds the last word whose start time has passed
-    // This ensures smooth transition: once a word starts, it stays "active" until the next word starts
+    val hasRomanization = remember(line.words) { line.words.any { it.romanizedText != null } }
+
     val activeWordIndex = if (isActive) {
         line.words.indexOfLast { (it.startTime * 1000) <= currentPosition }
     } else {
-        // For inactive lines that have passed, show all words as filled
         val lineEndTime = (line.endTime * 1000f)
         if (currentPosition > lineEndTime) line.words.lastIndex else -1
     }
 
-    // Calculate if the current word has completed (for smooth fill transition)
     val activeWord = line.words.getOrNull(activeWordIndex)
     val isCurrentWordComplete = activeWord?.let {
         currentPosition >= (it.endTime * 1000)
@@ -506,19 +507,16 @@ fun HierarchicalLyricsLine(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 4.dp)
+            .padding(horizontal = 24.dp, vertical = if (hasRomanization) 12.dp else 4.dp)
+            .padding(top = if (hasRomanization) 16.dp else 0.dp)
     ) {
-
-
         if (lyricsAppleEnhancedGlow) {
-             // Identify words that deserve "High Intensity" glow
              val highIntensityWords = remember(line.words) {
                  val highIntensitySet = mutableSetOf<com.metrolist.music.lyrics.Word>()
                  val chains = mutableListOf<MutableList<com.metrolist.music.lyrics.Word>>()
                  var currentChain: MutableList<com.metrolist.music.lyrics.Word>? = null
 
                  for (word in line.words) {
-                     // Individual long words always get a glow
                      val wordDuration = (word.endTime * 1000) - (word.startTime * 1000)
                      if (wordDuration >= 1700) {
                          highIntensitySet.add(word)
@@ -541,12 +539,10 @@ fun HierarchicalLyricsLine(
                      val chainStartMs = (chain.first().startTime * 1000).toLong()
                      val chainEndMs = (chain.last().endTime * 1000).toLong()
                      val chainDuration = chainEndMs - chainStartMs
-
                      if (chainDuration >= 1700) {
                          highIntensitySet.add(chain.last())
                      }
                  }
-
                  highIntensitySet
              }
 
@@ -554,48 +550,34 @@ fun HierarchicalLyricsLine(
                 line.words.forEach { word ->
                     val wordStartMs = (word.startTime * 1000).toLong()
                     val wordEndMs = (word.endTime * 1000).toLong()
-                    val wordDuration = wordEndMs - wordStartMs
-
-                    // Determine intensity
                     val isHighIntensity = highIntensityWords.contains(word)
-                    
-                    // Config based on intensity
                     val maxAlpha = if (isHighIntensity) 1.0f else 0.6f
                     val maxRadius = if (isHighIntensity) MAX_GLOW_RADIUS else MAX_GLOW_RADIUS * 0.6f
-                    val fadeInDuration = 200f // Fast attack for "bouncy" feel
+                    val fadeInDuration = 200f
                     val fadeOutDuration = if (isHighIntensity) 800f else 400f
                     
                     val timeSinceStart = (currentPosition - wordStartMs).toFloat()
                     val timeSinceEnd = (currentPosition - wordEndMs).toFloat()
 
                     val rawAlpha = when {
-                        // Before word: No glow
                         currentPosition < wordStartMs -> 0f
-                        
-                        // Fade In (Fast)
                         currentPosition in wordStartMs..wordEndMs -> {
                             val progress = (timeSinceStart / fadeInDuration).coerceIn(0f, 1f)
-                            // "Bouncy" ease out (overshoot-like or just quadOut)
-                            // Using QuadOut for snappiness: 1 - (1-x)^2
                             1f - (1f - progress) * (1f - progress)
                         }
-                        
-                        // Fade Out
                         currentPosition > wordEndMs -> {
                             val progress = (timeSinceEnd / fadeOutDuration).coerceIn(0f, 1f)
                             1f - progress
                         }
-                        
                         else -> 0f
                     }
                     
                     val finalAlpha = rawAlpha * maxAlpha
-
                     if (finalAlpha > 0.01f) {
                          val glowShadow = Shadow(
                             color = activeColor.copy(alpha = (finalAlpha * 0.8f).coerceIn(0f, 1f)),
                             offset = Offset.Zero,
-                            blurRadius = maxRadius * finalAlpha // Scale radius with alpha for "pulse" effect
+                            blurRadius = maxRadius * finalAlpha
                         )
                         withStyle(style = SpanStyle(shadow = glowShadow)) {
                             append(word.text)
@@ -625,117 +607,104 @@ fun HierarchicalLyricsLine(
                         constraints = androidx.compose.ui.unit.Constraints.fixedWidth(size.width.toInt())
                     )
 
+                    val measuredRomanizedWords = line.words.map { word ->
+                        word.romanizedText?.let {
+                            textMeasurer.measure(
+                                text = AnnotatedString(it),
+                                style = romanizedTextStyle,
+                                softWrap = false
+                            )
+                        }
+                    }
+
                     onDrawBehind {
                         drawText(
                             textLayoutResult = measuredText,
                             color = inactiveColor,
                         )
 
+                        if (hasRomanization) {
+                            var currentWordStartOffset = 0
+                            measuredRomanizedWords.forEachIndexed { i, measuredRomaji ->
+                                if (measuredRomaji != null) {
+                                    val wordText = line.words[i].text
+                                    val wordEndOffset = currentWordStartOffset + wordText.length
+                                    val startPos = measuredText.getHorizontalPosition(currentWordStartOffset, true)
+                                    val endPos = measuredText.getHorizontalPosition(wordEndOffset, true)
+                                    val centerPos = (startPos + endPos) / 2f
+                                    val romajiTop = with(density) { -romanizedFontSize.sp.toPx() * 1.1f }
+                                    
+                                    drawText(
+                                        textLayoutResult = measuredRomaji,
+                                        color = inactiveColor.copy(alpha = 0.8f),
+                                        topLeft = Offset(centerPos - (measuredRomaji.size.width / 2f), romajiTop)
+                                    )
+                                }
+                                currentWordStartOffset += line.words[i].text.length
+                            }
+                        }
+
                         if (activeWordIndex != -1) {
                             val wordToProcess = activeWord ?: line.words.last()
-                            // Calculate the total character offset for all completed words
                             val completedWordsCharCount = line.words.take(activeWordIndex).sumOf { it.text.length }
-
-                            // If word is complete but next word hasn't started, keep it at 100%
                             val wordProgress = if (isActive) {
-                                if (isCurrentWordComplete) {
-                                    // Word is complete - keep it fully filled
-                                    1f
-                                } else {
+                                if (isCurrentWordComplete) 1f else {
                                     val wordStartTime = (wordToProcess.startTime * 1000f)
                                     val wordEndTime = (wordToProcess.endTime * 1000f)
                                     val wordDuration = wordEndTime - wordStartTime
-                                    if (wordDuration > 0) {
-                                        ((currentPosition - wordStartTime) / wordDuration).coerceIn(0f, 1f)
-                                    } else 1f
+                                    if (wordDuration > 0) ((currentPosition - wordStartTime) / wordDuration).coerceIn(0f, 1f) else 1f
                                 }
                             } else 1f
 
-                            // Calculate the progress within the current word
                             val wordProgressFloat = wordToProcess.text.length * wordProgress
                             val currentCharIndex = wordProgressFloat.toInt()
                             val subCharProgress = wordProgressFloat - currentCharIndex
-
-                            // Total character position = completed words + progress in current word
                             val totalCharOffsetStart = completedWordsCharCount + currentCharIndex
                             val totalCharOffsetEnd = (totalCharOffsetStart + 1).coerceAtMost(measuredText.layoutInput.text.length)
-
                             val clipStart = measuredText.getHorizontalPosition(totalCharOffsetStart, true)
                             val clipEnd = measuredText.getHorizontalPosition(totalCharOffsetEnd, true)
-
                             val startLine = measuredText.getLineForOffset(totalCharOffsetStart)
                             val endLine = measuredText.getLineForOffset(totalCharOffsetEnd)
-
-                            val horizontalClip = if (startLine != endLine || clipEnd < clipStart) {
-                                clipStart
-                            } else {
-                                clipStart + (clipEnd - clipStart) * subCharProgress
-                            }
+                            val horizontalClip = if (startLine != endLine || clipEnd < clipStart) clipStart else clipStart + (clipEnd - clipStart) * subCharProgress
 
                             if (horizontalClip > 0) {
-                                drawContext.canvas.saveLayer(
-                                    Rect(0f, 0f, size.width, size.height),
-                                    androidx.compose.ui.graphics.Paint()
-                                )
+                                drawContext.canvas.saveLayer(Rect(0f, -size.height, size.width, size.height * 2), androidx.compose.ui.graphics.Paint())
+                                drawText(textLayoutResult = measuredText, color = activeColor)
 
-                                drawText(
-                                    textLayoutResult = measuredText,
-                                    color = activeColor
-                                )
+                                if (hasRomanization) {
+                                    var cwOffset = 0
+                                    measuredRomanizedWords.forEachIndexed { i, mRomaji ->
+                                        if (mRomaji != null) {
+                                            val wText = line.words[i].text
+                                            val sP = measuredText.getHorizontalPosition(cwOffset, true)
+                                            val eP = measuredText.getHorizontalPosition(cwOffset + wText.length, true)
+                                            val cP = (sP + eP) / 2f
+                                            val rT = with(density) { -romanizedFontSize.sp.toPx() }
+                                            drawText(textLayoutResult = mRomaji, color = activeColor, topLeft = Offset(cP - (mRomaji.size.width / 2f), rT))
+                                        }
+                                        cwOffset += line.words[i].text.length
+                                    }
+                                }
 
                                 val maskPaint = androidx.compose.ui.graphics.Paint().apply {
                                     blendMode = androidx.compose.ui.graphics.BlendMode.DstOut
                                     color = Color.Black
                                 }
-
-                                val currentLineIndex = measuredText.getLineForOffset(totalCharOffsetStart)
-                                val lineCount = measuredText.lineCount
-                                
-                                // Mask out future lines
-                                for (i in (currentLineIndex + 1) until lineCount) {
-                                    drawContext.canvas.drawRect(
-                                        Rect(0f, measuredText.getLineTop(i), size.width, measuredText.getLineBottom(i)),
-                                        maskPaint
-                                    )
+                                val currentLineIdx = measuredText.getLineForOffset(totalCharOffsetStart)
+                                for (i in (currentLineIdx + 1) until measuredText.lineCount) {
+                                    drawContext.canvas.drawRect(Rect(0f, measuredText.getLineTop(i), size.width, measuredText.getLineBottom(i)), maskPaint)
                                 }
-
-                                val lineTop = measuredText.getLineTop(currentLineIndex)
-                                val lineBottom = measuredText.getLineBottom(currentLineIndex)
-
-                                // Calculate gradient boundaries
-                                // The gradient starts at the current fill position
-                                // and extends fadeWidth pixels to the right
-                                val gradientStart = horizontalClip
-                                val gradientEnd = (horizontalClip + fadeWidth).coerceAtMost(size.width)
-
-                                // First, mask out everything AFTER the gradient ends
-                                // This ensures the unfilled part of the word is fully masked
-                                if (gradientEnd < size.width) {
-                                    drawContext.canvas.drawRect(
-                                        Rect(gradientEnd, lineTop, size.width, lineBottom),
-                                        maskPaint
-                                    )
+                                val lineTop = measuredText.getLineTop(currentLineIdx) - with(density) { (if (hasRomanization) romanizedFontSize.sp.toPx() * 2 else 0f) }
+                                val lineBottom = measuredText.getLineBottom(currentLineIdx)
+                                val gStart = horizontalClip
+                                val gEnd = (horizontalClip + fadeWidth).coerceAtMost(size.width)
+                                if (gEnd < size.width) drawContext.canvas.drawRect(Rect(gEnd, lineTop, size.width, lineBottom), maskPaint)
+                                if (fadeWidth > 0 && gEnd > gStart) {
+                                    val gPaint = androidx.compose.ui.graphics.Paint().apply { blendMode = androidx.compose.ui.graphics.BlendMode.DstOut }
+                                    val g = Brush.horizontalGradient(colors = listOf(Color.Transparent, Color.Black), startX = gStart, endX = gEnd)
+                                    g.applyTo(size, gPaint, 1f)
+                                    drawContext.canvas.drawRect(Rect(gStart, lineTop, gEnd, lineBottom), gPaint)
                                 }
-
-                                // Now apply the gradient fade from the current position
-                                // The gradient goes from Transparent (keep the text) to Black (mask it out)
-                                if (fadeWidth > 0 && gradientEnd > gradientStart) {
-                                    val gradientPaint = androidx.compose.ui.graphics.Paint().apply {
-                                        blendMode = androidx.compose.ui.graphics.BlendMode.DstOut
-                                    }
-                                    val gradient = Brush.horizontalGradient(
-                                        colors = listOf(Color.Transparent, Color.Black),
-                                        startX = gradientStart,
-                                        endX = gradientEnd
-                                    )
-                                    gradient.applyTo(size, gradientPaint, 1f)
-
-                                    drawContext.canvas.drawRect(
-                                        Rect(gradientStart, lineTop, gradientEnd, lineBottom),
-                                        gradientPaint
-                                    )
-                                }
-
                                 drawContext.canvas.restore()
                             }
                         }
@@ -1346,6 +1315,21 @@ fun Lyrics(
             }
             is LyricsContent.Hierarchical -> {
                 val lines = lyricsContent.lines
+                
+                LaunchedEffect(lines, romanizeJapaneseLyrics, romanizeKoreanLyrics, romanizeChineseLyrics) {
+                    withContext(Dispatchers.Default) {
+                        lines.forEach { line ->
+                            romanizeHierarchicalLine(
+                                line = line,
+                                romanizeJapaneseLyrics = romanizeJapaneseLyrics,
+                                romanizeKoreanLyrics = romanizeKoreanLyrics,
+                                romanizeChineseLyrics = romanizeChineseLyrics,
+                                romanizeCyrillic = true
+                            )
+                        }
+                    }
+                }
+
                 var lastPrimarySpeaker: SpeakerRole by remember { mutableStateOf(SpeakerRole.V1) }
                 val hasV2 = remember(lines) { lines.any { it.speaker is SpeakerRole.V2 } }
                 

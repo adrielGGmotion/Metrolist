@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 data class WordTimestamp(
     val text: String,
     val startTime: Double,
-    val endTime: Double
+    val endTime: Double,
+    var romanizedText: String? = null
 )
 
 data class LyricsEntry(
@@ -19,7 +20,7 @@ data class LyricsEntry(
     val words: List<WordTimestamp>? = null,
     val romanizedTextFlow: MutableStateFlow<String?> = MutableStateFlow(null)
 ) : Comparable<LyricsEntry> {
-    override fun compareTo(other: LyricsEntry): Int = (time - other.time).toInt()
+    override operator fun compareTo(other: LyricsEntry): Int = (time - other.time).toInt()
 
     companion object {
         val HEAD_LYRICS_ENTRY = LyricsEntry(0L, "")

@@ -15,7 +15,8 @@ data class Word(
     val text: String,
     val startTime: Float,
     val endTime: Float,
-    val glowStrength: Float = 0f
+    val glowStrength: Float = 0f,
+    var romanizedText: String? = null
 )
 
 data class LyricLine(
