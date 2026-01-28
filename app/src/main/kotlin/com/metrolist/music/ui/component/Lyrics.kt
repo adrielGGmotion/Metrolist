@@ -486,15 +486,21 @@ fun HierarchicalLyricsLine(
 
 
     // Use raw playback position for smoother animation
+    // indexOfLast finds the last word whose start time has passed
+    // This ensures smooth transition: once a word starts, it stays "active" until the next word starts
     val activeWordIndex = if (isActive) {
         line.words.indexOfLast { (it.startTime * 1000) <= currentPosition }
     } else {
+        // For inactive lines that have passed, show all words as filled
         val lineEndTime = (line.endTime * 1000f)
         if (currentPosition > lineEndTime) line.words.lastIndex else -1
     }
 
-
+    // Calculate if the current word has completed (for smooth fill transition)
     val activeWord = line.words.getOrNull(activeWordIndex)
+    val isCurrentWordComplete = activeWord?.let {
+        currentPosition >= (it.endTime * 1000)
+    } ?: false
 
     Box(
         modifier = Modifier
@@ -626,22 +632,31 @@ fun HierarchicalLyricsLine(
 
                         if (activeWordIndex != -1) {
                             val wordToProcess = activeWord ?: line.words.last()
-                            val activeWordStartOffset = line.words.take(activeWordIndex).sumOf { it.text.length }
+                            // Calculate the total character offset for all completed words
+                            val completedWordsCharCount = line.words.take(activeWordIndex).sumOf { it.text.length }
 
+                            // If word is complete but next word hasn't started, keep it at 100%
                             val wordProgress = if (isActive) {
-                                val wordStartTime = (wordToProcess.startTime * 1000f)
-                                val wordEndTime = (wordToProcess.endTime * 1000f)
-                                val wordDuration = wordEndTime - wordStartTime
-                                if (wordDuration > 0) {
-                                    ((currentPosition - wordStartTime) / wordDuration).coerceIn(0f, 1f)
-                                } else 1f
+                                if (isCurrentWordComplete) {
+                                    // Word is complete - keep it fully filled
+                                    1f
+                                } else {
+                                    val wordStartTime = (wordToProcess.startTime * 1000f)
+                                    val wordEndTime = (wordToProcess.endTime * 1000f)
+                                    val wordDuration = wordEndTime - wordStartTime
+                                    if (wordDuration > 0) {
+                                        ((currentPosition - wordStartTime) / wordDuration).coerceIn(0f, 1f)
+                                    } else 1f
+                                }
                             } else 1f
 
+                            // Calculate the progress within the current word
                             val wordProgressFloat = wordToProcess.text.length * wordProgress
                             val currentCharIndex = wordProgressFloat.toInt()
                             val subCharProgress = wordProgressFloat - currentCharIndex
 
-                            val totalCharOffsetStart = activeWordStartOffset + currentCharIndex
+                            // Total character position = completed words + progress in current word
+                            val totalCharOffsetStart = completedWordsCharCount + currentCharIndex
                             val totalCharOffsetEnd = (totalCharOffsetStart + 1).coerceAtMost(measuredText.layoutInput.text.length)
 
                             val clipStart = measuredText.getHorizontalPosition(totalCharOffsetStart, true)
@@ -1108,6 +1123,10 @@ fun Lyrics(
             if (!isSeeking && position < 1000 && lastPlaybackPosition > 2000) {
                 isAutoScrollEnabled = true
                 initialScrollDone = false // Allow initial scroll animation to trigger again
+                // Reset scroll target indices to force immediate scroll to first line
+                previousScrollTargetMinIndex = -1
+                previousScrollTargetMaxIndex = -1
+                lastKnownActiveLineIndex = 0
             }
             lastPlaybackPosition = position
 
@@ -1227,7 +1246,10 @@ fun Lyrics(
                     val scrollThresholdTimeMs = (currentLine.startTime * 1000).toLong() + 200
                     val scheduledScrollTimeMs = maxOf(previousLineEndTimeMs, scrollThresholdTimeMs)
                     val delayDuration = scheduledScrollTimeMs - currentPlaybackPosition
-                    if (delayDuration > 0) {
+                    
+                    // Cap delay to prevent stuck scrolling on song restart
+                    // If delay is negative or excessively long, scroll immediately
+                    if (delayDuration in 1..5000) {
                         delay(delayDuration)
                     }
 
@@ -1575,7 +1597,7 @@ fun Lyrics(
                                     isActive = isActiveLine,
                                     currentPosition = currentPlaybackPosition,
                                     textAlign = textAlign,
-                                    inactiveColor = expressiveAccent.copy(alpha = if (isBgLine) 0.4f else 0.5f),
+                                    inactiveColor = expressiveAccent.copy(alpha = if (isBgLine) 0.25f else 0.35f),
                                     activeColor = expressiveAccent.copy(alpha = if (isBgLine) 0.85f else 1f),
                                     isBgLine = isBgLine,
                                 )
