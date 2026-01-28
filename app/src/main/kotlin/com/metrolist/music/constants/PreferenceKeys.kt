@@ -29,8 +29,10 @@ val SwipeToRemoveSongKey = booleanPreferencesKey("SwipeToRemoveSong")
 val UseNewPlayerDesignKey= booleanPreferencesKey("useNewPlayerDesign")
 val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
+val CropAlbumArtKey = booleanPreferencesKey("cropAlbumArt")
 val SeekExtraSeconds = booleanPreferencesKey("seekExtraSeconds")
 val PauseOnMute = booleanPreferencesKey("pauseOnMute")
+val KeepScreenOn = booleanPreferencesKey("keepScreenOn")
 val DeveloperModeKey = booleanPreferencesKey("developerMode")
 
 enum class SliderStyle {
@@ -59,6 +61,7 @@ val ProxyTypeKey = stringPreferencesKey("proxyType")
 val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
 val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
+val SelectedYtmPlaylistsKey = stringPreferencesKey("selectedYtmPlaylists")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 
@@ -69,9 +72,34 @@ enum class AudioQuality {
     HIGH,
     LOW,
 }
+
+val PlayerClientKey = stringPreferencesKey("playerClient")
+
+enum class PlayerClient {
+    ANDROID_VR,
+    WEB_REMIX,
+}
+
+val DecryptionLibraryKey = stringPreferencesKey("decryptionLibrary")
+
+/**
+ * Available decryption libraries for YouTube stream URL decryption.
+ * 
+ * - NEWPIPE_EXTRACTOR: Official NewPipe Extractor from TeamNewPipe (default, recommended)
+ * - PIPEPIPE_EXTRACTOR_API: PipePipe API-based decryption (MetroExtractor)
+ * 
+ * Note: Both libraries are used with automatic fallback. If the primary library fails,
+ * the system will automatically try the alternative library.
+ */
+enum class DecryptionLibrary {
+    NEWPIPE_EXTRACTOR,      // Official TeamNewPipe/NewPipeExtractor (default)
+    PIPEPIPE_EXTRACTOR_API, // MetroExtractor API-based
+}
+
 val AudioOffload = booleanPreferencesKey("enableOffload")
 
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
+val PersistentShuffleAcrossQueuesKey = booleanPreferencesKey("persistentShuffleAcrossQueues")
 val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepeat")
 val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
@@ -101,6 +129,17 @@ val DiscordUseDetailsKey = booleanPreferencesKey("discordUseDetails")
 
 // Google Cast
 val EnableGoogleCastKey = booleanPreferencesKey("enableGoogleCast")
+
+// Listen Together
+val ListenTogetherServerUrlKey = stringPreferencesKey("listenTogetherServerUrl")
+val ListenTogetherUsernameKey = stringPreferencesKey("listenTogetherUsername")
+val EnableListenTogetherKey = booleanPreferencesKey("enableListenTogether")
+// Session persistence for reconnection
+val ListenTogetherSessionTokenKey = stringPreferencesKey("listenTogetherSessionToken")
+val ListenTogetherRoomCodeKey = stringPreferencesKey("listenTogetherRoomCode")
+val ListenTogetherUserIdKey = stringPreferencesKey("listenTogetherUserId")
+val ListenTogetherIsHostKey = booleanPreferencesKey("listenTogetherIsHost")
+val ListenTogetherSessionTimestampKey = longPreferencesKey("listenTogetherSessionTimestamp")
 
 val LastFMSessionKey = stringPreferencesKey("lastfmSession")
 val LastFMUsernameKey = stringPreferencesKey("lastfmUsername")

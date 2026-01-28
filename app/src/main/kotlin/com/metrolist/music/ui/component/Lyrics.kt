@@ -8,6 +8,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
+import android.text.Layout
 import android.os.Build
 import android.view.WindowManager
 import android.widget.Toast
@@ -1019,6 +1020,8 @@ fun Lyrics(
     val selectedIndices = remember { mutableStateListOf<Int>() }
     var showMaxSelectionToast by remember { mutableStateOf(false) } // State for showing max selection toast
 
+    val isLyricsProviderShown = lyricsEntity?.provider != null && lyricsEntity?.provider != "Unknown" && !isSelectionModeActive
+
     val lazyListState = rememberLazyListState()
     
     // Professional animation states for smooth Metrolist-style transitions
@@ -1191,8 +1194,11 @@ fun Lyrics(
         if (isAnimating) return
         isAnimating = true
         try {
-            val minItemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == minIndex }
-            val maxItemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == maxIndex }
+            val lookUpMinIndex = if (isLyricsProviderShown) minIndex + 1 else minIndex
+            val lookUpMaxIndex = if (isLyricsProviderShown) maxIndex + 1 else maxIndex
+            
+            val minItemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lookUpMinIndex }
+            val maxItemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lookUpMaxIndex }
 
             if (minItemInfo != null && maxItemInfo != null) {
                 // Both items are visible. We can calculate the true midpoint.
@@ -1385,6 +1391,21 @@ fun Lyrics(
                             }
                         })
                 ) {
+                    // Show lyrics provider at the top, scrolling with content
+                    if (isLyricsProviderShown) {
+                        item {
+                            Text(
+                                text = "Lyrics from ${lyricsEntity?.provider}",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
                     itemsIndexed(lines, key = { index, item -> "$index-${item.startTime}" }) { index, line ->
                         // Show standby indicator after the specified line
                         val showStandbyHere = lyricsStandbyEffect && 
@@ -1479,11 +1500,6 @@ fun Lyrics(
                         )
 
                         // Check if current line has SIGNIFICANT time overlap with any active line
-                        // This prevents blurring lines that are meant to be displayed together
-                        // (e.g., parenthesis text on the same visual line)
-                        // Only consider it overlap if:
-                        // 1. The current line starts DURING the active line (not just touching at boundaries)
-                        // 2. Or the lines have substantial overlap (more than just sequential timing)
                         val hasTimeOverlapWithActive = remember(activeLineIndices, line.startTime, line.endTime) {
                             if (activeLineIndices.isEmpty()) false
                             else {
@@ -1501,9 +1517,6 @@ fun Lyrics(
                                         val overlapEnd = minOf(currentEnd, activeEnd)
                                         val overlapDuration = (overlapEnd - overlapStart).coerceAtLeast(0f)
                                         
-                                        // Consider it a significant overlap only if:
-                                        // - The overlap is at least 50% of the current line's duration, OR
-                                        // - The current line starts within the active line's time range (not at the boundary)
                                         val hasSignificantOverlap = overlapDuration > 0 && 
                                             (overlapDuration >= currentDuration * 0.5f || 
                                              (currentStart > activeStart && currentStart < activeEnd - 0.1f))
@@ -2454,10 +2467,16 @@ fun Lyrics(
         val headerFooterEstimate = (48.dp + 14.dp + 16.dp + 20.dp + 8.dp + 28.dp * 2)
         val previewAvailableHeight = previewBoxHeight - headerFooterEstimate
 
+        val lyricsTextAlign = when (lyricsTextPosition) {
+            LyricsPosition.LEFT -> TextAlign.Left
+            LyricsPosition.CENTER -> TextAlign.Center
+            LyricsPosition.RIGHT -> TextAlign.Right
+        }
+
         val textStyleForMeasurement = TextStyle(
             color = previewTextColor,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            textAlign = lyricsTextAlign
         )
         val textMeasurer = rememberTextMeasurer()
 
@@ -2530,7 +2549,8 @@ fun Lyrics(
                             mediaMetadata = mediaMetadata ?: return@Box,
                             backgroundColor = previewBackgroundColor,
                             textColor = previewTextColor,
-                            secondaryTextColor = previewSecondaryTextColor
+                                secondaryTextColor = previewSecondaryTextColor,
+                                textAlign = lyricsTextAlign
                         )
                     }
 
@@ -2609,6 +2629,11 @@ fun Lyrics(
                                         backgroundColor = previewBackgroundColor.toArgb(),
                                         textColor = previewTextColor.toArgb(),
                                         secondaryTextColor = previewSecondaryTextColor.toArgb(),
+                                        lyricsAlignment = when (lyricsTextPosition) {
+                                            LyricsPosition.LEFT -> Layout.Alignment.ALIGN_NORMAL
+                                            LyricsPosition.CENTER -> Layout.Alignment.ALIGN_CENTER
+                                            LyricsPosition.RIGHT -> Layout.Alignment.ALIGN_OPPOSITE
+                                        }
                                     )
                                     val timestamp = System.currentTimeMillis()
                                     val filename = "lyrics_$timestamp"

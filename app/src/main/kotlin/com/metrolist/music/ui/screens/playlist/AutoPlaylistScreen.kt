@@ -10,7 +10,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,7 +57,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -102,6 +100,7 @@ import com.metrolist.music.constants.SongSortDescendingKey
 import com.metrolist.music.constants.SongSortType
 import com.metrolist.music.constants.SongSortTypeKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
+import com.metrolist.music.constants.YtmSyncKey
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.ExoDownloadService
@@ -124,7 +123,7 @@ import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.AutoPlaylistViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -165,10 +164,7 @@ fun AutoPlaylistScreen(
 
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
-    // Pull-to-refresh state
-    val coroutineScope = rememberCoroutineScope()
-    var isRefreshing by remember { mutableStateOf(false) }
-    val pullRefreshState = rememberPullToRefreshState()
+    val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
     val likeLength =
         remember(songs) {
@@ -214,22 +210,15 @@ fun AutoPlaylistScreen(
     var downloadState by remember {
         mutableIntStateOf(Download.STATE_STOPPED)
     }
-
-    // Disable pull-to-refresh for downloads playlist (no sync needed)
-    val isPullToRefreshEnabled = playlistType != PlaylistType.DOWNLOAD
     
-    val onRefresh: () -> Unit = {
-        if (isPullToRefreshEnabled) {
-            coroutineScope.launch(Dispatchers.IO) {
-                isRefreshing = true
+    LaunchedEffect(Unit) {
+        if (ytmSync) {
+            withContext(Dispatchers.IO) {
                 if (playlistType == PlaylistType.LIKE) viewModel.syncLikedSongs()
                 if (playlistType == PlaylistType.UPLOADED) viewModel.syncUploadedSongs()
-                isRefreshing = false
             }
         }
     }
-
-    // Removed automatic sync on screen entry - use pull-to-refresh instead
 
     LaunchedEffect(songs) {
         mutableSongs.apply {
@@ -312,21 +301,24 @@ fun AutoPlaylistScreen(
 
     val state = rememberLazyListState()
 
-    BoxWithConstraints(
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val pullRefreshState = rememberPullToRefreshState()
+    val canRefresh = playlistType == PlaylistType.LIKE || playlistType == PlaylistType.UPLOADED
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .then(
-                if (isPullToRefreshEnabled) {
+                if (canRefresh) {
                     Modifier.pullToRefresh(
                         state = pullRefreshState,
                         isRefreshing = isRefreshing,
-                        onRefresh = onRefresh
+                        onRefresh = viewModel::refresh
                     )
                 } else {
                     Modifier
                 }
             ),
-        contentAlignment = Alignment.TopStart
     ) {
         LazyColumn(
             state = state,
@@ -467,7 +459,7 @@ fun AutoPlaylistScreen(
             headerItems = 2
         )
 
-        if (isPullToRefreshEnabled) {
+        if (canRefresh) {
             Indicator(
                 isRefreshing = isRefreshing,
                 state = pullRefreshState,

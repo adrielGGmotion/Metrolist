@@ -356,7 +356,6 @@
     <string name="import_error_title">Помилка імпорту</string>
     <string name="enable_wavy_slider">Увімкнути хвилястий повзунок</string>
     <string name="wavy">Хвилястий</string>
-    <string name="enable_squiggly_slider">Увімкнути звивистий повзунок</string>
     <string name="pause_music_when_media_is_muted">Призупиняти музику, коли медіа вимкнено</string>
     <string name="enable_simpmusic">Увімкнути текст пісні SimpMusic</string>
     <string name="enable_simpmusic_desc">Використовуйте постачальника текстів пісень SimpMusic для синхронізованих текстів пісень</string>
@@ -374,4 +373,27 @@
     <string name="remember_shuffle_and_repeat">Пам’ятайте про перемішування та повторення</string>
     <string name="remember_shuffle_and_repeat_desc">Запам\'ятайте режим випадкового відтворення та повтору під час перезапуску програми</string>
     <string name="lyrics_offset">Текст пісні Offset</string>
+    <string name="about_artist">Про нас</string>
+    <string name="show_more">Показати більше</string>
+    <string name="show_less">Показати менше</string>
+    <string name="artist_page_settings">Сторінка виконавця</string>
+    <string name="show_artist_description">Показати опис виконавця</string>
+    <string name="show_artist_subscriber_count">Показати кількість підписників</string>
+    <string name="show_artist_monthly_listeners">Показати щомісячні слухачі</string>
+    <string name="skip_silence_desc">Перемотування вперед тихих частин пісень</string>
+    <string name="skip_silence_instant">Миттєво пропустити тишу</string>
+    <string name="skip_silence_instant_desc">Перемотуйте вперед під час тихих моментів замість прискорення відтворення</string>
+    <string name="persistent_shuffle_title">Постійне перемішування</string>
+    <string name="persistent_shuffle_desc">Увімкніть випадкове перемішування під час запуску нових пісень або списків відтворення</string>
+    <string name="error_playback_failed">Помилка відтворення</string>
+    <string name="error_copied">Інформацію про помилку скопійовано в буфер обміну</string>
+    <string name="copy_error">Помилка копіювання</string>
+    <string name="error_copy_hint">Скопіюйте інформацію про помилку, щоб допомогти розробникам налагодити проблему</string>
+    <string name="error_title">Помилка</string>
+    <string name="error_eq_apply_failed">Не вдалося застосувати профіль еквалайзера: %1$s</string>
+    <string name="player_client">Клієнт гравця</string>
+    <string name="player_client_android_vr">Android VR</string>
+    <string name="player_client_android_vr_desc">Найшвидший варіант. URL-адреси прямого потоку без розшифрування підпису. Рекомендовано для більшості користувачів.</string>
+    <string name="player_client_web_remix">Web Remix</string>
+    <string name="player_client_web_remix_desc">Повільніше, але підтримує преміум-формати. Використовує розшифрування підпису JavaScript, що додає ~5-10 секунд до початку відтворення.</string>
 </resources>

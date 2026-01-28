@@ -44,7 +44,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +70,11 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.metrolist.music.LocalPlayerConnection
+import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.R
+import com.metrolist.music.listentogether.RoomRole
+import androidx.compose.foundation.layout.Row
+import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerHorizontalPadding
@@ -198,6 +201,7 @@ fun Thumbnail(
     modifier: Modifier = Modifier,
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
+    isListenTogetherGuest: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -211,8 +215,11 @@ fun Thumbnail(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
 
     // Preferences - computed once
-    val swipeThumbnail by rememberPreference(SwipeThumbnailKey, true)
+    // Disable swipe for Listen Together guests
+    val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
+    val swipeThumbnail = swipeThumbnailPref && !isListenTogetherGuest
     val hidePlayerThumbnail by rememberPreference(HidePlayerThumbnailKey, false)
+    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT
@@ -228,7 +235,8 @@ fun Thumbnail(
     val mediaItemsData by remember(
         playerConnection.player.currentMediaItemIndex,
         playerConnection.player.shuffleModeEnabled,
-        swipeThumbnail
+        swipeThumbnail,
+        mediaMetadata
     ) {
         derivedStateOf {
             getMediaItems(playerConnection.player, swipeThumbnail)
@@ -386,12 +394,16 @@ fun Thumbnail(
                                 item = item,
                                 dimensions = dimensions,
                                 hidePlayerThumbnail = hidePlayerThumbnail,
+                                cropAlbumArt = cropAlbumArt,
                                 textBackgroundColor = textBackgroundColor,
                                 layoutDirection = layoutDirection,
                                 onSeek = onSeekCallback,
                                 playerConnection = playerConnection,
                                 context = context,
-                                isLandscape = isLandscape
+                                isLandscape = isLandscape,
+                                isListenTogetherGuest = isListenTogetherGuest,
+                                currentMediaId = mediaMetadata?.id,
+                                currentMediaThumbnail = mediaMetadata?.thumbnailUrl
                             )
                         }
                     }
@@ -428,6 +440,9 @@ private fun ThumbnailHeader(
     textColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val listenTogetherManager = LocalListenTogetherManager.current
+    val listenTogetherRoleState = listenTogetherManager?.role?.collectAsState(initial = RoomRole.NONE)
+    val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -439,11 +454,20 @@ private fun ThumbnailHeader(
                 .align(Alignment.Center)
                 .padding(horizontal = 48.dp)
         ) {
-            Text(
-                text = stringResource(R.string.now_playing),
-                style = MaterialTheme.typography.titleMedium,
-                color = textColor
-            )
+            // Listen Together indicator
+            if (listenTogetherRoleState?.value != RoomRole.NONE) {
+                Text(
+                    text = if (listenTogetherRoleState?.value == RoomRole.HOST) "Hosting Listen Together" else "Listening Together",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = textColor
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.now_playing),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = textColor
+                )
+            }
             val playingFrom = queueTitle ?: albumTitle
             if (!playingFrom.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -467,13 +491,17 @@ private fun ThumbnailItem(
     item: MediaItem,
     dimensions: ThumbnailDimensions,
     hidePlayerThumbnail: Boolean,
+    cropAlbumArt: Boolean,
     textBackgroundColor: Color,
     layoutDirection: LayoutDirection,
     onSeek: (String, Boolean) -> Unit,
     playerConnection: com.metrolist.music.playback.PlayerConnection,
     context: android.content.Context,
+    isLandscape: Boolean = false,
+    isListenTogetherGuest: Boolean = false,
+    currentMediaId: String? = null,
+    currentMediaThumbnail: String? = null,
     modifier: Modifier = Modifier,
-    isLandscape: Boolean = false
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
     var skipMultiplier by remember { mutableIntStateOf(1) }
@@ -498,6 +526,8 @@ private fun ThumbnailItem(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { offset ->
+                        if (isListenTogetherGuest) return@detectTapGestures
+
                         val currentPosition = playerConnection.player.currentPosition
                         val duration = playerConnection.player.duration
 
@@ -534,7 +564,16 @@ private fun ThumbnailItem(
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
             } else {
-                ThumbnailImage(artworkUri = item.mediaMetadata.artworkUri?.toString())
+                val artworkUriToUse = if (item.mediaId == currentMediaId && !currentMediaThumbnail.isNullOrBlank()) {
+                    currentMediaThumbnail
+                } else {
+                    item.mediaMetadata.artworkUri?.toString()
+                }
+
+                ThumbnailImage(
+                    artworkUri = artworkUriToUse,
+                    cropArtwork = cropAlbumArt
+                )
             }
             
             // Cast button at top-right corner of thumbnail
@@ -577,6 +616,7 @@ private fun HiddenThumbnailPlaceholder(
 @Composable
 private fun ThumbnailImage(
     artworkUri: String?,
+    cropArtwork: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -596,7 +636,7 @@ private fun ThumbnailImage(
                 .networkCachePolicy(CachePolicy.ENABLED)
                 .build(),
             contentDescription = null,
-            contentScale = ContentScale.Fit,
+            contentScale = if (cropArtwork) ContentScale.Crop else ContentScale.Fit,
             modifier = Modifier.fillMaxSize()
         )
     }

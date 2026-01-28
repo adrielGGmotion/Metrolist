@@ -14,6 +14,10 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.metrolist.music.R
 import com.metrolist.music.constants.AudioQuality
+import com.metrolist.music.constants.DecryptionLibrary
+import com.metrolist.music.constants.DecryptionLibraryKey
+import com.metrolist.music.constants.PlayerClient
+import com.metrolist.music.constants.PlayerClientKey
 import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
@@ -105,11 +109,19 @@ class WrappedAudioService(
             val audioQuality = context.dataStore.get(com.metrolist.music.constants.AudioQualityKey).let {
                 AudioQuality.valueOf(it ?: AudioQuality.AUTO.name)
             }
+            val playerClient = context.dataStore.get(PlayerClientKey).let {
+                PlayerClient.valueOf(it ?: PlayerClient.ANDROID_VR.name)
+            }
+            val decryptionLibrary = context.dataStore.get(DecryptionLibraryKey).let {
+                DecryptionLibrary.valueOf(it ?: DecryptionLibrary.NEWPIPE_EXTRACTOR.name)
+            }
             val playbackData = withContext(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(
                     videoId = songId,
                     audioQuality = audioQuality,
-                    connectivityManager = connectivityManager
+                    connectivityManager = connectivityManager,
+                    playerClient = playerClient,
+                    decryptionLibrary = decryptionLibrary,
                 ).getOrNull()
             }
             val streamUrl = playbackData?.streamUrl

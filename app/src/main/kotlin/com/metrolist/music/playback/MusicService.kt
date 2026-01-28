@@ -55,6 +55,7 @@ import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
@@ -96,7 +97,11 @@ import com.metrolist.music.constants.DiscordTokenKey
 import com.metrolist.music.constants.DiscordUseDetailsKey
 import com.metrolist.music.constants.EnableDiscordRPCKey
 import com.metrolist.music.constants.EnableLastFMScrobblingKey
+import com.metrolist.music.constants.DecryptionLibrary
+import com.metrolist.music.constants.DecryptionLibraryKey
 import com.metrolist.music.constants.HideExplicitKey
+import com.metrolist.music.constants.PlayerClient
+import com.metrolist.music.constants.PlayerClientKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.LastFMUseNowPlaying
@@ -110,6 +115,7 @@ import com.metrolist.music.constants.MediaSessionConstants.CommandToggleStartRad
 import com.metrolist.music.constants.PauseListenHistoryKey
 import com.metrolist.music.constants.PauseOnMute
 import com.metrolist.music.constants.PersistentQueueKey
+import com.metrolist.music.constants.PersistentShuffleAcrossQueuesKey
 import com.metrolist.music.constants.PlayerVolumeKey
 import com.metrolist.music.constants.RememberShuffleAndRepeatKey
 import com.metrolist.music.constants.RepeatModeKey
@@ -236,6 +242,8 @@ class MusicService :
     private val isNetworkConnected = MutableStateFlow(false)
 
     private lateinit var audioQuality: com.metrolist.music.constants.AudioQuality
+    private lateinit var playerClient: com.metrolist.music.constants.PlayerClient
+    private lateinit var decryptionLibrary: com.metrolist.music.constants.DecryptionLibrary
 
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
@@ -252,6 +260,12 @@ class MusicService :
         }
 
     lateinit var playerVolume: MutableStateFlow<Float>
+    val isMuted = MutableStateFlow(false)
+
+    fun toggleMute() {
+        isMuted.value = !isMuted.value
+    }
+
 
     lateinit var sleepTimer: SleepTimer
 
@@ -291,6 +305,18 @@ class MusicService :
     private var retryJob: Job? = null
     private var retryCount = 0
     private var silenceSkipJob: Job? = null
+    
+    // URL cache for stream URLs - class-level so it can be invalidated on errors
+    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    
+    // Enhanced error tracking for strict retry management
+    private var currentMediaIdRetryCount = mutableMapOf<String, Int>()
+    private val MAX_RETRY_PER_SONG = 3
+    private val RETRY_DELAY_MS = 1000L
+    
+    // Track failed songs to prevent infinite retry loops
+    private val recentlyFailedSongs = mutableSetOf<String>()
+    private var failedSongsClearJob: Job? = null
     
     // Google Cast support
     var castConnectionHandler: CastConnectionHandler? = null
@@ -403,6 +429,8 @@ class MusicService :
         connectivityManager = getSystemService()!!
         connectivityObserver = NetworkConnectivityObserver(this)
         audioQuality = dataStore.get(AudioQualityKey).toEnum(com.metrolist.music.constants.AudioQuality.AUTO)
+        playerClient = dataStore.get(PlayerClientKey).toEnum(PlayerClient.ANDROID_VR)
+        decryptionLibrary = dataStore.get(DecryptionLibraryKey).toEnum(DecryptionLibrary.NEWPIPE_EXTRACTOR)
         playerVolume = MutableStateFlow(dataStore.get(PlayerVolumeKey, 1f).coerceIn(0f, 1f))
 
         // Initialize Google Cast
@@ -412,8 +440,8 @@ class MusicService :
         scope.launch {
             eqProfileRepository.activeProfile.collect { profile ->
                 if (profile != null) {
-                    val applied = equalizerService.applyProfile(profile)
-                    if (applied && player.playbackState == Player.STATE_READY && player.isPlaying) {
+                    val result = equalizerService.applyProfile(profile)
+                    if (result.isSuccess && player.playbackState == Player.STATE_READY && player.isPlaying) {
                         // Instant update: flush buffers and seek slightly to re-process audio
                         customEqualizerAudioProcessor.flush()
                         // Small seek to force re-buffer through the new EQ settings
@@ -448,7 +476,9 @@ class MusicService :
             }
         }
 
-        playerVolume.collectLatest(scope) {
+        combine(playerVolume, isMuted) { volume, muted ->
+            if (muted) 0f else volume
+        }.collectLatest(scope) {
             player.volume = it
         }
 
@@ -472,12 +502,13 @@ class MusicService :
             if (showLyrics && mediaMetadata != null && database.lyrics(mediaMetadata.id)
                     .first() == null
             ) {
-                val lyrics = lyricsHelper.getLyrics(mediaMetadata)
+                val lyricsWithProvider = lyricsHelper.getLyrics(mediaMetadata)
                 database.query {
                     upsert(
                         LyricsEntity(
                             id = mediaMetadata.id,
-                            lyrics = lyrics,
+                            lyrics = lyricsWithProvider.lyrics,
+                            provider = lyricsWithProvider.provider,
                         ),
                     )
                 }
@@ -629,7 +660,7 @@ class MusicService :
                     delay(1000) // Wait for queue to be loaded
                     player.repeatMode = playerState.repeatMode
                     player.shuffleModeEnabled = playerState.shuffleModeEnabled
-                    player.volume = playerState.volume
+                    playerVolume.value = playerState.volume
 
                     // Restore position if it's still valid
                     if (playerState.currentMediaItemIndex < player.mediaItemCount) {
@@ -697,7 +728,7 @@ class MusicService :
                     }
                 }
 
-                player.volume = playerVolume.value
+                player.volume = if (isMuted.value) 0f else playerVolume.value
                 lastAudioFocusState = focusChange
             }
 
@@ -724,14 +755,14 @@ class MusicService :
                 hasAudioFocus = false
                 wasPlayingBeforeAudioFocusLoss = player.isPlaying
                 if (player.isPlaying) {
-                    player.volume = (playerVolume.value * 0.2f)
+                    player.volume = if (isMuted.value) 0f else (playerVolume.value * 0.2f)
                 }
                 lastAudioFocusState = focusChange
             }
 
             AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK -> {
                 hasAudioFocus = true
-                player.volume = playerVolume.value
+                player.volume = if (isMuted.value) 0f else playerVolume.value
                 lastAudioFocusState = focusChange
             }
         }
@@ -947,7 +978,11 @@ class MusicService :
         if (!scope.isActive) scope = CoroutineScope(Dispatchers.Main) + Job()
         currentQueue = queue
         queueTitle = null
-        player.shuffleModeEnabled = false
+        val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
+        val previousShuffleEnabled = player.shuffleModeEnabled
+        if (!persistShuffleAcrossQueues) {
+            player.shuffleModeEnabled = false
+        }
         // Reset original queue size when starting a new queue
         originalQueueSize = 0
         if (queue.preloadItem != null) {
@@ -994,6 +1029,11 @@ class MusicService :
                 )
                 player.prepare()
                 player.playWhenReady = playWhenReady
+            }
+
+            // Rebuild shuffle order when persisting shuffle across queues is enabled
+            if (persistShuffleAcrossQueues && previousShuffleEnabled) {
+                onShuffleModeEnabledChanged(true)
             }
         }
     }
@@ -1474,6 +1514,12 @@ class MusicService :
             retryCount = 0
             waitingForNetworkConnection.value = false
             retryJob?.cancel()
+            
+            // Reset retry count for current song on successful playback
+            player.currentMediaItem?.mediaId?.let { mediaId ->
+                resetRetryCount(mediaId)
+                Log.d(TAG, "Playback successful for $mediaId, reset retry count")
+            }
         }
 
         if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
@@ -1653,33 +1699,338 @@ class MusicService :
         }
     }
 
+    /**
+     * Extracts the HTTP response code from an error's cause chain.
+     * Returns null if no HTTP response code is found.
+     */
+    private fun getHttpResponseCode(error: PlaybackException): Int? {
+        var cause: Throwable? = error.cause
+        while (cause != null) {
+            if (cause is HttpDataSource.InvalidResponseCodeException) {
+                return cause.responseCode
+            }
+            cause = cause.cause
+        }
+        return null
+    }
+    
+    /**
+     * Checks if the error is caused by an expired/forbidden URL (HTTP 403).
+     * This typically happens when a YouTube stream URL expires.
+     */
+    private fun isExpiredUrlError(error: PlaybackException): Boolean {
+        val responseCode = getHttpResponseCode(error)
+        return responseCode == 403
+    }
+    
+    /**
+     * Checks if the error is a Range Not Satisfiable error (HTTP 416).
+     * This happens when cached data doesn't match the actual stream size.
+     */
+    private fun isRangeNotSatisfiableError(error: PlaybackException): Boolean {
+        val responseCode = getHttpResponseCode(error)
+        return responseCode == 416
+    }
+    
+    /**
+     * Checks if the error is a "page needs to be reloaded" error.
+     * This is a YouTube-specific error that requires refreshing the stream.
+     */
+    private fun isPageReloadError(error: PlaybackException): Boolean {
+        val errorMessage = error.message?.lowercase() ?: ""
+        val causeMessage = error.cause?.message?.lowercase() ?: ""
+        val innerCauseMessage = error.cause?.cause?.message?.lowercase() ?: ""
+        
+        val reloadKeywords = listOf(
+            "page needs to be reloaded",
+            "pagina deve essere ricaricata",
+            "la pagina deve essere ricaricata",
+            "page must be reloaded",
+            "reload",
+            "ricaricata"
+        )
+        
+        return reloadKeywords.any { keyword ->
+            errorMessage.contains(keyword) || 
+            causeMessage.contains(keyword) || 
+            innerCauseMessage.contains(keyword)
+        }
+    }
+
     private fun isNetworkRelatedError(error: PlaybackException): Boolean {
+        // Don't treat specific errors as network errors - they need special handling
+        if (isExpiredUrlError(error) || isRangeNotSatisfiableError(error) || isPageReloadError(error)) {
+            return false
+        }
         return error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
                 error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
-                error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
                 error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE ||
-                error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
-                error.cause is java.io.IOException ||
+                error.cause is java.net.ConnectException ||
+                error.cause is java.net.UnknownHostException ||
                 (error.cause as? PlaybackException)?.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
     }
 
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
         
-        Log.w(TAG, "Player error occurred: ${error.message}", error)
+        val mediaId = player.currentMediaItem?.mediaId
+        Log.w(TAG, "Player error occurred for $mediaId: ${error.message}", error)
         reportException(error)
         
-        if (!isNetworkConnected.value || isNetworkRelatedError(error)) {
-            Log.d(TAG, "Network-related error detected, waiting for connection")
-            waitOnNetworkError()
+        // Check if this song has failed too many times
+        if (mediaId != null && hasExceededRetryLimit(mediaId)) {
+            Log.w(TAG, "Song $mediaId has exceeded retry limit, skipping")
+            markSongAsFailed(mediaId)
+            handleFinalFailure()
             return
         }
 
+        // Aggressive cache clearing for all playback errors
+        if (mediaId != null) {
+            performAggressiveCacheClear(mediaId)
+        }
+        
+        // Handle specific error types with strict strategies
+        when {
+            isRangeNotSatisfiableError(error) -> {
+                Log.d(TAG, "Range Not Satisfiable (416) detected, performing strict recovery")
+                handleRangeNotSatisfiableError(mediaId)
+                return
+            }
+            isPageReloadError(error) -> {
+                Log.d(TAG, "Page reload error detected, performing strict recovery")
+                handlePageReloadError(mediaId)
+                return
+            }
+            isExpiredUrlError(error) -> {
+                Log.d(TAG, "Expired URL (403) detected, refreshing stream URL")
+                handleExpiredUrlError(mediaId)
+                return
+            }
+            !isNetworkConnected.value || isNetworkRelatedError(error) -> {
+                Log.d(TAG, "Network-related error detected, waiting for connection")
+                waitOnNetworkError()
+                return
+            }
+        }
+        
+        // For IO_UNSPECIFIED and IO_BAD_HTTP_STATUS, try recovery first
+        if (error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+            error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
+            Log.d(TAG, "IO error detected (${error.errorCode}), attempting recovery")
+            handleGenericIOError(mediaId)
+            return
+        }
+
+        // Final fallback
         if (dataStore.get(AutoSkipNextOnErrorKey, false)) {
-            Log.d(TAG, "Auto-skipping to next track due to error")
+            Log.d(TAG, "Auto-skipping to next track due to unrecoverable error")
             skipOnError()
         } else {
-            Log.d(TAG, "Stopping playback due to error")
+            Log.d(TAG, "Stopping playback due to unrecoverable error")
+            stopOnError()
+        }
+    }
+    
+    /**
+     * Performs aggressive cache clearing for a media item.
+     * Clears both player cache and download cache, plus URL cache.
+     */
+    private fun performAggressiveCacheClear(mediaId: String) {
+        Log.d(TAG, "Performing aggressive cache clear for $mediaId")
+        
+        // Clear URL cache
+        songUrlCache.remove(mediaId)
+        
+        // Clear player cache
+        try {
+            playerCache.removeResource(mediaId)
+            Log.d(TAG, "Cleared player cache for $mediaId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear player cache for $mediaId", e)
+        }
+        
+        // Clear decryption caches
+        try {
+            YTPlayerUtils.forceRefreshForVideo(mediaId)
+            Log.d(TAG, "Cleared decryption caches for $mediaId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear decryption caches for $mediaId", e)
+        }
+    }
+    
+    /**
+     * Checks if a song has exceeded the retry limit.
+     */
+    private fun hasExceededRetryLimit(mediaId: String): Boolean {
+        val currentRetries = currentMediaIdRetryCount[mediaId] ?: 0
+        return currentRetries >= MAX_RETRY_PER_SONG
+    }
+    
+    /**
+     * Increments the retry count for a song.
+     */
+    private fun incrementRetryCount(mediaId: String) {
+        val currentRetries = currentMediaIdRetryCount[mediaId] ?: 0
+        currentMediaIdRetryCount[mediaId] = currentRetries + 1
+        Log.d(TAG, "Retry count for $mediaId: ${currentRetries + 1}/$MAX_RETRY_PER_SONG")
+    }
+    
+    /**
+     * Resets the retry count for a song (called on successful playback).
+     */
+    private fun resetRetryCount(mediaId: String) {
+        currentMediaIdRetryCount.remove(mediaId)
+        recentlyFailedSongs.remove(mediaId)
+    }
+    
+    /**
+     * Marks a song as failed to prevent further retry attempts.
+     */
+    private fun markSongAsFailed(mediaId: String) {
+        recentlyFailedSongs.add(mediaId)
+        currentMediaIdRetryCount.remove(mediaId)
+        
+        // Schedule cleanup of failed songs list after 5 minutes
+        failedSongsClearJob?.cancel()
+        failedSongsClearJob = scope.launch {
+            delay(5 * 60 * 1000L) // 5 minutes
+            recentlyFailedSongs.clear()
+            Log.d(TAG, "Cleared recently failed songs list")
+        }
+    }
+    
+    /**
+     * Handles Range Not Satisfiable (416) errors with strict recovery.
+     * This error occurs when cached data doesn't match the actual stream size.
+     */
+    private fun handleRangeNotSatisfiableError(mediaId: String?) {
+        if (mediaId == null) {
+            handleFinalFailure()
+            return
+        }
+        
+        incrementRetryCount(mediaId)
+        
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            // Clear all caches aggressively
+            performAggressiveCacheClear(mediaId)
+            
+            // Wait before retry
+            delay(RETRY_DELAY_MS)
+            
+            // Force re-prepare from position 0 to avoid range issues
+            val currentIndex = player.currentMediaItemIndex
+            player.seekTo(currentIndex, 0)
+            player.prepare()
+            
+            Log.d(TAG, "Retrying playback for $mediaId after 416 error (from position 0)")
+        }
+    }
+    
+    /**
+     * Handles "page needs to be reloaded" errors with strict recovery.
+     * This requires clearing decryption caches and getting fresh stream URLs.
+     */
+    private fun handlePageReloadError(mediaId: String?) {
+        if (mediaId == null) {
+            handleFinalFailure()
+            return
+        }
+        
+        incrementRetryCount(mediaId)
+        
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            Log.d(TAG, "Handling page reload error for $mediaId")
+            
+            // Clear all caches including decryption caches
+            performAggressiveCacheClear(mediaId)
+            
+            // Additional delay for page reload errors as they may be rate-limited
+            delay(RETRY_DELAY_MS * 2)
+            
+            // Re-prepare the player
+            val currentPosition = player.currentPosition
+            val currentIndex = player.currentMediaItemIndex
+            player.seekTo(currentIndex, currentPosition)
+            player.prepare()
+            
+            Log.d(TAG, "Retrying playback for $mediaId after page reload error")
+        }
+    }
+    
+    /**
+     * Handles expired URL (403) errors by clearing caches and retrying.
+     */
+    private fun handleExpiredUrlError(mediaId: String?) {
+        if (mediaId == null) {
+            handleFinalFailure()
+            return
+        }
+        
+        incrementRetryCount(mediaId)
+        
+        // Clear the cached URL
+        songUrlCache.remove(mediaId)
+        Log.d(TAG, "Cleared cached URL for $mediaId")
+        
+        // Clear decryption caches
+        try {
+            YTPlayerUtils.forceRefreshForVideo(mediaId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear decryption caches", e)
+        }
+        
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            delay(RETRY_DELAY_MS)
+            
+            // Seek to current position to force URL re-resolution
+            val currentPosition = player.currentPosition
+            val currentIndex = player.currentMediaItemIndex
+            player.seekTo(currentIndex, currentPosition)
+            player.prepare()
+            
+            Log.d(TAG, "Retrying playback for $mediaId after 403 error")
+        }
+    }
+    
+    /**
+     * Handles generic IO errors with recovery attempt.
+     */
+    private fun handleGenericIOError(mediaId: String?) {
+        if (mediaId == null) {
+            handleFinalFailure()
+            return
+        }
+        
+        incrementRetryCount(mediaId)
+        
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            performAggressiveCacheClear(mediaId)
+            delay(RETRY_DELAY_MS)
+            
+            val currentPosition = player.currentPosition
+            val currentIndex = player.currentMediaItemIndex
+            player.seekTo(currentIndex, currentPosition)
+            player.prepare()
+            
+            Log.d(TAG, "Retrying playback for $mediaId after generic IO error")
+        }
+    }
+    
+    /**
+     * Handles final failure when all recovery attempts have been exhausted.
+     */
+    private fun handleFinalFailure() {
+        if (dataStore.get(AutoSkipNextOnErrorKey, false)) {
+            Log.d(TAG, "All recovery attempts exhausted, auto-skipping to next track")
+            skipOnError()
+        } else {
+            Log.d(TAG, "All recovery attempts exhausted, stopping playback")
             stopOnError()
         }
     }
@@ -1777,7 +2128,6 @@ class MusicService :
     }
 
     private fun createDataSourceFactory(): DataSource.Factory {
-        val songUrlCache = HashMap<String, Pair<String, Long>>()
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
@@ -1802,6 +2152,8 @@ class MusicService :
                     mediaId,
                     audioQuality = audioQuality,
                     connectivityManager = connectivityManager,
+                    playerClient = playerClient,
+                    decryptionLibrary = decryptionLibrary,
                 )
             }.getOrElse { throwable ->
                 when (throwable) {
@@ -1927,16 +2279,17 @@ class MusicService :
                 } catch (_: SQLException) {
                 }
             }
+        }
 
-            CoroutineScope(Dispatchers.IO).launch {
-                val playbackUrl = YTPlayerUtils.playerResponseForMetadata(mediaItem.mediaId, null)
+        CoroutineScope(Dispatchers.IO).launch {
+            val playbackUrl = database.format(mediaItem.mediaId).first()?.playbackUrl
+                ?: YTPlayerUtils.playerResponseForMetadata(mediaItem.mediaId, null)
                     .getOrNull()?.playbackTracking?.videostatsPlaybackUrl?.baseUrl
-                playbackUrl?.let {
-                    YouTube.registerPlayback(null, playbackUrl)
-                        .onFailure {
-                            reportException(it)
-                        }
-                }
+            playbackUrl?.let {
+                YouTube.registerPlayback(null, playbackUrl)
+                    .onFailure {
+                        reportException(it)
+                    }
             }
         }
     }
@@ -2148,7 +2501,9 @@ class MusicService :
                 val playbackData = YTPlayerUtils.playerResponseForPlayback(
                     videoId = mediaId,
                     audioQuality = audioQuality,
-                    connectivityManager = connectivityManager
+                    connectivityManager = connectivityManager,
+                    playerClient = playerClient,
+                    decryptionLibrary = decryptionLibrary,
                 ).getOrNull()
                 playbackData?.streamUrl
             } catch (e: Exception) {

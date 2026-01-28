@@ -42,9 +42,14 @@ import com.metrolist.music.constants.AudioQualityKey
 import com.metrolist.music.constants.AudioOffload
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AutoLoadMoreKey
+import com.metrolist.music.constants.DecryptionLibrary
+import com.metrolist.music.constants.DecryptionLibraryKey
 import com.metrolist.music.constants.DisableLoadMoreWhenRepeatAllKey
 import com.metrolist.music.constants.AutoSkipNextOnErrorKey
 import com.metrolist.music.constants.EnableGoogleCastKey
+import com.metrolist.music.constants.PersistentShuffleAcrossQueuesKey
+import com.metrolist.music.constants.PlayerClient
+import com.metrolist.music.constants.PlayerClientKey
 import com.metrolist.music.constants.RememberShuffleAndRepeatKey
 import com.metrolist.music.constants.ShufflePlaylistFirstKey
 import com.metrolist.music.constants.PersistentQueueKey
@@ -54,6 +59,7 @@ import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.PauseOnMute
+import com.metrolist.music.constants.KeepScreenOn
 import com.metrolist.music.constants.SeekExtraSeconds
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
@@ -73,6 +79,14 @@ fun PlayerSettings(
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
+    )
+    val (playerClient, onPlayerClientChange) = rememberEnumPreference(
+        PlayerClientKey,
+        defaultValue = PlayerClient.ANDROID_VR
+    )
+    val (decryptionLibrary, onDecryptionLibraryChange) = rememberEnumPreference(
+        DecryptionLibraryKey,
+        defaultValue = DecryptionLibrary.NEWPIPE_EXTRACTOR
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
         PersistentQueueKey,
@@ -126,6 +140,10 @@ fun PlayerSettings(
         AutoSkipNextOnErrorKey,
         defaultValue = false
     )
+    val (persistentShuffleAcrossQueues, onPersistentShuffleAcrossQueuesChange) = rememberPreference(
+        PersistentShuffleAcrossQueuesKey,
+        defaultValue = false
+    )
     val (rememberShuffleAndRepeat, onRememberShuffleAndRepeatChange) = rememberPreference(
         RememberShuffleAndRepeatKey,
         defaultValue = true
@@ -142,12 +160,24 @@ fun PlayerSettings(
         PauseOnMute,
         defaultValue = false
     )
+    val (keepScreenOn, onKeepScreenOnChange) = rememberPreference(
+        KeepScreenOn,
+        defaultValue = false
+    )
     val (historyDuration, onHistoryDurationChange) = rememberPreference(
         HistoryDuration,
         defaultValue = 30f
     )
 
     var showAudioQualityDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showPlayerClientDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showDecryptionLibraryDialog by remember {
         mutableStateOf(false)
     }
 
@@ -166,6 +196,56 @@ fun PlayerSettings(
                     AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
                     AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
                     AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                }
+            }
+        )
+    }
+
+    if (showPlayerClientDialog) {
+        EnumDialog(
+            onDismiss = { showPlayerClientDialog = false },
+            onSelect = {
+                onPlayerClientChange(it)
+                showPlayerClientDialog = false
+            },
+            title = stringResource(R.string.player_client),
+            current = playerClient,
+            values = PlayerClient.values().toList(),
+            valueText = {
+                when (it) {
+                    PlayerClient.ANDROID_VR -> stringResource(R.string.player_client_android_vr)
+                    PlayerClient.WEB_REMIX -> stringResource(R.string.player_client_web_remix)
+                }
+            },
+            valueDescription = {
+                when (it) {
+                    PlayerClient.ANDROID_VR -> stringResource(R.string.player_client_android_vr_desc)
+                    PlayerClient.WEB_REMIX -> stringResource(R.string.player_client_web_remix_desc)
+                }
+            }
+        )
+    }
+
+    if (showDecryptionLibraryDialog) {
+        EnumDialog(
+            onDismiss = { showDecryptionLibraryDialog = false },
+            onSelect = {
+                onDecryptionLibraryChange(it)
+                showDecryptionLibraryDialog = false
+            },
+            title = stringResource(R.string.decryption_library),
+            current = decryptionLibrary,
+            values = DecryptionLibrary.values().toList(),
+            valueText = {
+                when (it) {
+                    DecryptionLibrary.NEWPIPE_EXTRACTOR -> stringResource(R.string.decryption_library_newpipe)
+                    DecryptionLibrary.PIPEPIPE_EXTRACTOR_API -> stringResource(R.string.decryption_library_pipepipe_api)
+                }
+            },
+            valueDescription = {
+                when (it) {
+                    DecryptionLibrary.NEWPIPE_EXTRACTOR -> stringResource(R.string.decryption_library_newpipe_desc)
+                    DecryptionLibrary.PIPEPIPE_EXTRACTOR_API -> stringResource(R.string.decryption_library_pipepipe_api_desc)
                 }
             }
         )
@@ -205,6 +285,32 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { showAudioQualityDialog = true }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.play),
+                    title = { Text(stringResource(R.string.player_client)) },
+                    description = {
+                        Text(
+                            when (playerClient) {
+                                PlayerClient.ANDROID_VR -> stringResource(R.string.player_client_android_vr)
+                                PlayerClient.WEB_REMIX -> stringResource(R.string.player_client_web_remix)
+                            }
+                        )
+                    },
+                    onClick = { showPlayerClientDialog = true }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.decryption_library)) },
+                    description = {
+                        Text(
+                            when (decryptionLibrary) {
+                                DecryptionLibrary.NEWPIPE_EXTRACTOR -> stringResource(R.string.decryption_library_newpipe)
+                                DecryptionLibrary.PIPEPIPE_EXTRACTOR_API -> stringResource(R.string.decryption_library_pipepipe_api)
+                            }
+                        )
+                    },
+                    onClick = { showDecryptionLibraryDialog = true }
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.history),
@@ -464,6 +570,27 @@ fun PlayerSettings(
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.shuffle),
+                    title = { Text(stringResource(R.string.persistent_shuffle_title)) },
+                    description = { Text(stringResource(R.string.persistent_shuffle_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = persistentShuffleAcrossQueues,
+                            onCheckedChange = onPersistentShuffleAcrossQueuesChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (persistentShuffleAcrossQueues) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onPersistentShuffleAcrossQueuesChange(!persistentShuffleAcrossQueues) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.shuffle),
                     title = { Text(stringResource(R.string.remember_shuffle_and_repeat)) },
                     description = { Text(stringResource(R.string.remember_shuffle_and_repeat_desc)) },
                     trailingContent = {
@@ -572,6 +699,26 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onPauseOnMuteChange(!pauseOnMute) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.screenshot),
+                    title = { Text(stringResource(R.string.keep_screen_on_when_player_is_expanded)) },
+                    trailingContent = {
+                        Switch(
+                            checked = keepScreenOn,
+                            onCheckedChange = onKeepScreenOnChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (keepScreenOn) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onKeepScreenOnChange(!keepScreenOn) }
                 )
             )
         )
