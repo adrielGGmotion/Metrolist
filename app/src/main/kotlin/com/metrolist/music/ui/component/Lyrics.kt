@@ -468,7 +468,7 @@ fun HierarchicalLyricsLine(
     activeColor: Color,
     isBgLine: Boolean = false,
 ) {
-    val lyricsAppleEnhancedGlow by rememberPreference(LyricsAppleEnhancedGlowKey, false)
+    val lyricsAppleEnhancedGlow by rememberPreference(LyricsAppleEnhancedGlowKey, true)
     val textMeasurer = rememberTextMeasurer()
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
@@ -686,39 +686,38 @@ fun HierarchicalLyricsLine(
                                 val lineTop = measuredText.getLineTop(currentLineIndex)
                                 val lineBottom = measuredText.getLineBottom(currentLineIndex)
 
-                                // Mask out the future part of the current line
-                                if (horizontalClip < size.width) {
+                                // Calculate gradient boundaries
+                                // The gradient starts at the current fill position
+                                // and extends fadeWidth pixels to the right
+                                val gradientStart = horizontalClip
+                                val gradientEnd = (horizontalClip + fadeWidth).coerceAtMost(size.width)
+
+                                // First, mask out everything AFTER the gradient ends
+                                // This ensures the unfilled part of the word is fully masked
+                                if (gradientEnd < size.width) {
                                     drawContext.canvas.drawRect(
-                                        Rect(horizontalClip, lineTop, size.width, lineBottom),
+                                        Rect(gradientEnd, lineTop, size.width, lineBottom),
                                         maskPaint
                                     )
                                 }
 
-                                // Push the fade-out gradient AFTER the current clip position
-                                // This ensures the filled text remains 100% opaque
-                                val gradientStart = horizontalClip
-                                val gradientEnd = horizontalClip + fadeWidth
-
-                                if (gradientEnd > gradientStart) {
+                                // Now apply the gradient fade from the current position
+                                // The gradient goes from Transparent (keep the text) to Black (mask it out)
+                                if (fadeWidth > 0 && gradientEnd > gradientStart) {
+                                    val gradientPaint = androidx.compose.ui.graphics.Paint().apply {
+                                        blendMode = androidx.compose.ui.graphics.BlendMode.DstOut
+                                    }
                                     val gradient = Brush.horizontalGradient(
                                         colors = listOf(Color.Transparent, Color.Black),
                                         startX = gradientStart,
                                         endX = gradientEnd
                                     )
-                                    gradient.applyTo(size, maskPaint, 1f)
+                                    gradient.applyTo(size, gradientPaint, 1f)
 
                                     drawContext.canvas.drawRect(
                                         Rect(gradientStart, lineTop, gradientEnd, lineBottom),
-                                        maskPaint
+                                        gradientPaint
                                     )
-
-                                    // Mask out everything after the gradient
-                                    if (gradientEnd < size.width) {
-                                        drawContext.canvas.drawRect(
-                                            Rect(gradientEnd, lineTop, size.width, lineBottom),
-                                            maskPaint
-                                        )
-                                    }
                                 }
 
                                 drawContext.canvas.restore()
@@ -1075,6 +1074,16 @@ fun Lyrics(
         if (midpointIndex != -1) {
             blurFocalPoint = midpointIndex
         }
+    }
+
+    // Reset auto-scroll when song changes (mediaMetadata changes)
+    LaunchedEffect(mediaMetadata?.id) {
+        isAutoScrollEnabled = true
+        initialScrollDone = false
+        previousScrollTargetMinIndex = -1
+        previousScrollTargetMaxIndex = -1
+        lastKnownActiveLineIndex = 0
+        activeLineIndices = emptySet()
     }
 
     LaunchedEffect(lyricsContent) {
@@ -1520,7 +1529,10 @@ fun Lyrics(
                                                 }
                                         } else Modifier
                                     )
-                                    .blur(radius = animatedBlur)
+                                    .blur(
+                                        radius = animatedBlur,
+                                        edgeTreatment = androidx.compose.ui.draw.BlurredEdgeTreatment.Unbounded
+                                    )
                                     .combinedClickable(
                                         enabled = true,
                                         onClick = {

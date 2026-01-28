@@ -1180,27 +1180,31 @@ fun AppearanceSettings(
                     },
                     onClick = { showLyricsAnimationStyleDialog = true }
                 ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.lyrics),
-                    title = { Text(stringResource(R.string.lyrics_glow_effect)) },
-                    description = { Text(stringResource(R.string.lyrics_glow_effect_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = lyricsGlowEffect,
-                            onCheckedChange = onLyricsGlowEffectChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (lyricsGlowEffect) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onLyricsGlowEffectChange(!lyricsGlowEffect) }
-                ),
+                // Only show standard glow effect toggle when NOT using Apple Music Enhanced style
+                // (Apple Music Enhanced has its own separate glow toggle)
+                if (lyricsAnimationStyle != LyricsAnimationStyle.APPLE_ENHANCED) {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.lyrics),
+                        title = { Text(stringResource(R.string.lyrics_glow_effect)) },
+                        description = { Text(stringResource(R.string.lyrics_glow_effect_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = lyricsGlowEffect,
+                                onCheckedChange = onLyricsGlowEffectChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (lyricsGlowEffect) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onLyricsGlowEffectChange(!lyricsGlowEffect) }
+                    )
+                } else null,
                 // Only show Apple Music Enhanced glow toggle when that style is selected
                 if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_ENHANCED) {
                     Material3SettingsItem(
