@@ -130,7 +130,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
+import com.metrolist.music.lyrics.LyricsUtils.romanizeHierarchicalLine
+import kotlinx.coroutines.*
+import kotlin.math.*
+import kotlin.time.Duration.Companion.seconds
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -195,12 +199,6 @@ import com.metrolist.music.ui.utils.fadingEdge
 import com.metrolist.music.utils.ComposeToImage
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 
 private const val MAX_GLOW_RADIUS = 30f
@@ -471,26 +469,23 @@ fun HierarchicalLyricsLine(
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
     val density = LocalDensity.current
-    val fadeWidth = with(density) { 48.dp.toPx() }
+    val fadeWidth = with(density) { 32.dp.toPx() } 
     
+    // 1. Determine font sizes
     val effectiveFontSize = if (isBgLine) lyricsTextSize * 0.7f else lyricsTextSize
     val romanizedFontSize = effectiveFontSize * 0.45f
 
     val textStyle = TextStyle(
         fontSize = effectiveFontSize.sp,
         fontWeight = if (isBgLine) FontWeight.Medium else FontWeight.Bold,
-        textAlign = textAlign,
-        lineHeight = (effectiveFontSize * lyricsLineSpacing).sp,
+        textAlign = TextAlign.Start, // Manual row alignment
     )
 
     val romanizedTextStyle = TextStyle(
         fontSize = romanizedFontSize.sp,
         fontWeight = FontWeight.Medium,
         textAlign = TextAlign.Center,
-        color = inactiveColor
     )
-
-    val hasRomanization = remember(line.words) { line.words.any { it.romanizedText != null } }
 
     val activeWordIndex = if (isActive) {
         line.words.indexOfLast { (it.startTime * 1000) <= currentPosition }
@@ -504,216 +499,261 @@ fun HierarchicalLyricsLine(
         currentPosition >= (it.endTime * 1000)
     } ?: false
 
-    Box(
+    // 2. Identify words that deserve "High Intensity" glow (Preserve original logic)
+    val highIntensityWords = remember(line.words) {
+        val highIntensitySet = mutableSetOf<com.metrolist.music.lyrics.Word>()
+        val chains = mutableListOf<MutableList<com.metrolist.music.lyrics.Word>>()
+        var currentChain: MutableList<com.metrolist.music.lyrics.Word>? = null
+
+        for (word in line.words) {
+            val wordDuration = (word.endTime * 1000) - (word.startTime * 1000)
+            if (wordDuration >= 1700) {
+                highIntensitySet.add(word)
+            }
+            if (currentChain == null) {
+                if (word.text.endsWith("-")) {
+                    currentChain = mutableListOf(word)
+                    chains.add(currentChain)
+                }
+            } else {
+                currentChain.add(word)
+                if (!word.text.endsWith("-")) {
+                    currentChain = null
+                }
+            }
+        }
+        for (chain in chains) {
+            val chainStartMs = (chain.first().startTime * 1000).toLong()
+            val chainEndMs = (chain.last().endTime * 1000).toLong()
+            if (chainEndMs - chainStartMs >= 1700) {
+                highIntensitySet.add(chain.last())
+            }
+        }
+        highIntensitySet
+    }
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = if (hasRomanization) 12.dp else 4.dp)
-            .padding(top = if (hasRomanization) 16.dp else 0.dp)
+            .padding(horizontal = 24.dp, vertical = 4.dp)
     ) {
-        if (lyricsAppleEnhancedGlow) {
-             val highIntensityWords = remember(line.words) {
-                 val highIntensitySet = mutableSetOf<com.metrolist.music.lyrics.Word>()
-                 val chains = mutableListOf<MutableList<com.metrolist.music.lyrics.Word>>()
-                 var currentChain: MutableList<com.metrolist.music.lyrics.Word>? = null
+        val maxWidth = constraints.maxWidth.toFloat()
+        
+        // 3. Layout measurement pass
+        val layoutResult = remember(line.words, effectiveFontSize, romanizedFontSize, maxWidth, textAlign, lyricsLineSpacing) {
+            val wordUnits = mutableListOf<WordLayoutInfo>()
+            var currentX = 0f
+            var currentY = 0f
+            var maxRowHeight = 0f
+            val rows = mutableListOf<MutableList<WordLayoutInfo>>()
+            var currentRow = mutableListOf<WordLayoutInfo>()
+            
+            val lineSpacingPx = with(density) { (effectiveFontSize * (lyricsLineSpacing - 1)).sp.toPx() }
+            val romajiPadding = with(density) { 2.dp.toPx() }
 
-                 for (word in line.words) {
-                     val wordDuration = (word.endTime * 1000) - (word.startTime * 1000)
-                     if (wordDuration >= 1700) {
-                         highIntensitySet.add(word)
-                     }
+            line.words.forEach { word ->
+                val primaryResult = textMeasurer.measure(word.text, textStyle)
+                val romajiResult = word.romanizedText?.let { textMeasurer.measure(it, romanizedTextStyle) }
+                
+                val pWidth = primaryResult.size.width.toFloat()
+                val pHeight = primaryResult.size.height.toFloat()
+                val rWidth = romajiResult?.size?.width?.toFloat() ?: 0f
+                val rHeight = romajiResult?.size?.height?.toFloat() ?: 0f
+                
+                val unitWidth = maxOf(pWidth, rWidth)
+                val unitHeight = pHeight + (if (rHeight > 0) rHeight + romajiPadding else 0f)
+                
+                // Wrapping logic
+                if (currentX + unitWidth > maxWidth && currentRow.isNotEmpty()) {
+                    rows.add(currentRow)
+                    currentRow = mutableListOf()
+                    currentX = 0f
+                    currentY += maxRowHeight + lineSpacingPx
+                    maxRowHeight = 0f
+                }
+                
+                val info = WordLayoutInfo(
+                    word = word,
+                    primaryResult = primaryResult,
+                    romajiResult = romajiResult,
+                    width = unitWidth,
+                    height = unitHeight,
+                    rawX = currentX,
+                    rawY = currentY,
+                    romajiPadding = romajiPadding
+                )
+                
+                currentRow.add(info)
+                currentX += unitWidth
+                maxRowHeight = maxOf(maxRowHeight, unitHeight)
+            }
+            if (currentRow.isNotEmpty()) rows.add(currentRow)
+            
+            // Row alignment offsets
+            rows.forEach { row ->
+                if (row.isEmpty()) return@forEach
+                val rowWidth = row.last().rawX + row.last().width
+                val rowOffset = when (textAlign) {
+                    TextAlign.Center -> (maxWidth - rowWidth) / 2f
+                    TextAlign.Right -> maxWidth - rowWidth
+                    TextAlign.End -> maxWidth - rowWidth
+                    else -> 0f
+                }
+                row.forEach { it.offsetX = rowOffset }
+                wordUnits.addAll(row)
+            }
+            
+            val totalHeight = if (wordUnits.isEmpty()) 0f else wordUnits.last().rawY + maxRowHeight
+            Pair(wordUnits, totalHeight)
+        }
 
-                     if (currentChain == null) {
-                         if (word.text.endsWith("-")) {
-                             currentChain = mutableListOf(word)
-                             chains.add(currentChain)
-                         }
-                     } else {
-                         currentChain.add(word)
-                         if (!word.text.endsWith("-")) {
-                             currentChain = null
-                         }
-                     }
-                 }
+        val wordUnits = layoutResult.first
+        val totalHeight = layoutResult.second
 
-                 for (chain in chains) {
-                     val chainStartMs = (chain.first().startTime * 1000).toLong()
-                     val chainEndMs = (chain.last().endTime * 1000).toLong()
-                     val chainDuration = chainEndMs - chainStartMs
-                     if (chainDuration >= 1700) {
-                         highIntensitySet.add(chain.last())
-                     }
-                 }
-                 highIntensitySet
-             }
-
-             val glowingText = buildAnnotatedString {
-                line.words.forEach { word ->
-                    val wordStartMs = (word.startTime * 1000).toLong()
-                    val wordEndMs = (word.endTime * 1000).toLong()
-                    val isHighIntensity = highIntensityWords.contains(word)
-                    val maxAlpha = if (isHighIntensity) 1.0f else 0.6f
-                    val maxRadius = if (isHighIntensity) MAX_GLOW_RADIUS else MAX_GLOW_RADIUS * 0.6f
-                    val fadeInDuration = 200f
-                    val fadeOutDuration = if (isHighIntensity) 800f else 400f
-                    
-                    val timeSinceStart = (currentPosition - wordStartMs).toFloat()
-                    val timeSinceEnd = (currentPosition - wordEndMs).toFloat()
-
-                    val rawAlpha = when {
-                        currentPosition < wordStartMs -> 0f
-                        currentPosition in wordStartMs..wordEndMs -> {
-                            val progress = (timeSinceStart / fadeInDuration).coerceIn(0f, 1f)
-                            1f - (1f - progress) * (1f - progress)
-                        }
-                        currentPosition > wordEndMs -> {
-                            val progress = (timeSinceEnd / fadeOutDuration).coerceIn(0f, 1f)
-                            1f - progress
-                        }
-                        else -> 0f
-                    }
-                    
-                    val finalAlpha = rawAlpha * maxAlpha
-                    if (finalAlpha > 0.01f) {
-                         val glowShadow = Shadow(
-                            color = activeColor.copy(alpha = (finalAlpha * 0.8f).coerceIn(0f, 1f)),
-                            offset = Offset.Zero,
-                            blurRadius = maxRadius * finalAlpha
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .height(with(density) { totalHeight.toDp() })
+            .drawWithCache {
+                onDrawBehind {
+                    // Draw words
+                    wordUnits.forEachIndexed { index, unit ->
+                        val word = unit.word
+                        val isWordActive = isActive && index == activeWordIndex
+                        val isWordPassed = index < activeWordIndex || (index == activeWordIndex && !isActive)
+                        
+                        val unitX = unit.rawX + unit.offsetX
+                        val unitY = unit.rawY
+                        
+                        val pWidth = unit.primaryResult.size.width.toFloat()
+                        val pHeight = unit.primaryResult.size.height.toFloat()
+                        val primaryX = unitX + (unit.width - pWidth) / 2f
+                        
+                        // 1. Draw Inactive Background Layer
+                        drawText(
+                            textLayoutResult = unit.primaryResult,
+                            color = inactiveColor,
+                            topLeft = Offset(primaryX, unitY)
                         )
-                        withStyle(style = SpanStyle(shadow = glowShadow)) {
-                            append(word.text)
+                        
+                        unit.romajiResult?.let { romaji ->
+                            val romajiX = unitX + (unit.width - romaji.size.width) / 2f
+                            val romajiY = unitY + pHeight + unit.romajiPadding
+                            drawText(
+                                textLayoutResult = romaji,
+                                color = inactiveColor.copy(alpha = 0.6f),
+                                topLeft = Offset(romajiX, romajiY)
+                            )
                         }
-                    } else {
-                        append(word.text)
+
+                        // 2. Draw Glow Layer (Preserve original logic)
+                        if (lyricsAppleEnhancedGlow) {
+                            val wordStartMs = (word.startTime * 1000).toLong()
+                            val wordEndMs = (word.endTime * 1000).toLong()
+                            val isHighIntensity = highIntensityWords.contains(word)
+                            
+                            val timeSinceStart = (currentPosition - wordStartMs).toFloat()
+                            val timeSinceEnd = (currentPosition - wordEndMs).toFloat()
+                            
+                            val alpha = when {
+                                currentPosition < wordStartMs -> 0f
+                                currentPosition in wordStartMs..wordEndMs -> {
+                                    val progress = (timeSinceStart / 200f).coerceIn(0f, 1f)
+                                    1f - (1f - progress) * (1f - progress)
+                                }
+                                currentPosition > wordEndMs -> (1f - (timeSinceEnd / (if (isHighIntensity) 800f else 400f))).coerceIn(0f, 1f)
+                                else -> 0f
+                            }
+                            
+                            if (alpha > 0.01f) {
+                                val maxAlpha = if (isHighIntensity) 1.0f else 0.6f
+                                val finalAlpha = alpha * maxAlpha
+                                val maxRadius = if (isHighIntensity) MAX_GLOW_RADIUS else MAX_GLOW_RADIUS * 0.6f
+                                val shadowColor = activeColor.copy(alpha = (finalAlpha * 0.7f).coerceIn(0f, 1f))
+                                
+                                drawText(
+                                    textLayoutResult = unit.primaryResult,
+                                    color = Color.Transparent,
+                                    topLeft = Offset(primaryX, unitY),
+                                    shadow = Shadow(color = shadowColor, blurRadius = maxRadius * alpha)
+                                )
+                            }
+                        }
+
+                        // 3. Draw Active Layer with Synchronized Gradient Clipping
+                        val wordProgress = if (isWordActive) {
+                            if (isCurrentWordComplete) 1f else {
+                                val duration = (word.endTime - word.startTime) * 1000f
+                                if (duration > 0) ((currentPosition - (word.startTime * 1000f)) / duration).coerceIn(0f, 1f) else 1f
+                            }
+                        } else if (isWordPassed) 1f else 0f
+
+                        if (wordProgress > 0f) {
+                            val clipWidth = unit.width * wordProgress
+                            val horizontalClip = unitX + clipWidth
+                            val gradientEnd = (horizontalClip + fadeWidth).coerceAtMost(unitX + unit.width)
+                            
+                            // Mask using saveLayer and BlendMode.DstIn for smooth gradient (Original Progress Style)
+                            drawContext.canvas.saveLayer(Rect(unitX, unitY, unitX + unit.width, unitY + unit.height), androidx.compose.ui.graphics.Paint())
+                            
+                            drawText(
+                                textLayoutResult = unit.primaryResult,
+                                color = activeColor,
+                                topLeft = Offset(primaryX, unitY)
+                            )
+                            unit.romajiResult?.let { romaji ->
+                                val romajiX = unitX + (unit.width - romaji.size.width) / 2f
+                                val romajiY = unitY + pHeight + unit.romajiPadding
+                                drawText(
+                                    textLayoutResult = romaji,
+                                    color = activeColor,
+                                    topLeft = Offset(romajiX, romajiY)
+                                )
+                            }
+
+                            val gradient = Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0f to Color.Black,
+                                    (clipWidth / (gradientEnd - unitX).coerceAtLeast(1f)).coerceIn(0f, 1f) to Color.Black,
+                                    1f to Color.Transparent
+                                ),
+                                startX = unitX,
+                                endX = if (wordProgress >= 1f) unitX + unit.width else gradientEnd
+                            )
+                            
+                            drawRect(
+                                brush = gradient,
+                                topLeft = Offset(unitX, unitY),
+                                size = androidx.compose.ui.geometry.Size(unit.width, unit.height),
+                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn
+                            )
+                            
+                            drawRect(
+                                brush = gradient,
+                                topLeft = Offset(unitX, unitY),
+                                size = androidx.compose.ui.geometry.Size(unit.width, unit.height),
+                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn
+                            )
+                            
+                            drawContext.canvas.restore()
+                        }
                     }
                 }
             }
-            Text(
-                text = glowingText,
-                style = textStyle.copy(color = Color.Transparent),
-                modifier = Modifier.matchParentSize()
-            )
-        }
-
-        Text(
-            text = line.text,
-            style = textStyle,
-            color = Color.Transparent,
-            modifier = Modifier
-                .fillMaxWidth()
-                .drawWithCache {
-                    val measuredText = textMeasurer.measure(
-                        text = AnnotatedString(line.text),
-                        style = textStyle,
-                        constraints = androidx.compose.ui.unit.Constraints.fixedWidth(size.width.toInt())
-                    )
-
-                    val measuredRomanizedWords = line.words.map { word ->
-                        word.romanizedText?.let {
-                            textMeasurer.measure(
-                                text = AnnotatedString(it),
-                                style = romanizedTextStyle,
-                                softWrap = false
-                            )
-                        }
-                    }
-
-                    onDrawBehind {
-                        drawText(
-                            textLayoutResult = measuredText,
-                            color = inactiveColor,
-                        )
-
-                        if (hasRomanization) {
-                            var currentWordStartOffset = 0
-                            measuredRomanizedWords.forEachIndexed { i, measuredRomaji ->
-                                if (measuredRomaji != null) {
-                                    val wordText = line.words[i].text
-                                    val wordEndOffset = currentWordStartOffset + wordText.length
-                                    val startPos = measuredText.getHorizontalPosition(currentWordStartOffset, true)
-                                    val endPos = measuredText.getHorizontalPosition(wordEndOffset, true)
-                                    val centerPos = (startPos + endPos) / 2f
-                                    val romajiTop = with(density) { -romanizedFontSize.sp.toPx() * 1.1f }
-                                    
-                                    drawText(
-                                        textLayoutResult = measuredRomaji,
-                                        color = inactiveColor.copy(alpha = 0.8f),
-                                        topLeft = Offset(centerPos - (measuredRomaji.size.width / 2f), romajiTop)
-                                    )
-                                }
-                                currentWordStartOffset += line.words[i].text.length
-                            }
-                        }
-
-                        if (activeWordIndex != -1) {
-                            val wordToProcess = activeWord ?: line.words.last()
-                            val completedWordsCharCount = line.words.take(activeWordIndex).sumOf { it.text.length }
-                            val wordProgress = if (isActive) {
-                                if (isCurrentWordComplete) 1f else {
-                                    val wordStartTime = (wordToProcess.startTime * 1000f)
-                                    val wordEndTime = (wordToProcess.endTime * 1000f)
-                                    val wordDuration = wordEndTime - wordStartTime
-                                    if (wordDuration > 0) ((currentPosition - wordStartTime) / wordDuration).coerceIn(0f, 1f) else 1f
-                                }
-                            } else 1f
-
-                            val wordProgressFloat = wordToProcess.text.length * wordProgress
-                            val currentCharIndex = wordProgressFloat.toInt()
-                            val subCharProgress = wordProgressFloat - currentCharIndex
-                            val totalCharOffsetStart = completedWordsCharCount + currentCharIndex
-                            val totalCharOffsetEnd = (totalCharOffsetStart + 1).coerceAtMost(measuredText.layoutInput.text.length)
-                            val clipStart = measuredText.getHorizontalPosition(totalCharOffsetStart, true)
-                            val clipEnd = measuredText.getHorizontalPosition(totalCharOffsetEnd, true)
-                            val startLine = measuredText.getLineForOffset(totalCharOffsetStart)
-                            val endLine = measuredText.getLineForOffset(totalCharOffsetEnd)
-                            val horizontalClip = if (startLine != endLine || clipEnd < clipStart) clipStart else clipStart + (clipEnd - clipStart) * subCharProgress
-
-                            if (horizontalClip > 0) {
-                                drawContext.canvas.saveLayer(Rect(0f, -size.height, size.width, size.height * 2), androidx.compose.ui.graphics.Paint())
-                                drawText(textLayoutResult = measuredText, color = activeColor)
-
-                                if (hasRomanization) {
-                                    var cwOffset = 0
-                                    measuredRomanizedWords.forEachIndexed { i, mRomaji ->
-                                        if (mRomaji != null) {
-                                            val wText = line.words[i].text
-                                            val sP = measuredText.getHorizontalPosition(cwOffset, true)
-                                            val eP = measuredText.getHorizontalPosition(cwOffset + wText.length, true)
-                                            val cP = (sP + eP) / 2f
-                                            val rT = with(density) { -romanizedFontSize.sp.toPx() }
-                                            drawText(textLayoutResult = mRomaji, color = activeColor, topLeft = Offset(cP - (mRomaji.size.width / 2f), rT))
-                                        }
-                                        cwOffset += line.words[i].text.length
-                                    }
-                                }
-
-                                val maskPaint = androidx.compose.ui.graphics.Paint().apply {
-                                    blendMode = androidx.compose.ui.graphics.BlendMode.DstOut
-                                    color = Color.Black
-                                }
-                                val currentLineIdx = measuredText.getLineForOffset(totalCharOffsetStart)
-                                for (i in (currentLineIdx + 1) until measuredText.lineCount) {
-                                    drawContext.canvas.drawRect(Rect(0f, measuredText.getLineTop(i), size.width, measuredText.getLineBottom(i)), maskPaint)
-                                }
-                                val lineTop = measuredText.getLineTop(currentLineIdx) - with(density) { (if (hasRomanization) romanizedFontSize.sp.toPx() * 2 else 0f) }
-                                val lineBottom = measuredText.getLineBottom(currentLineIdx)
-                                val gStart = horizontalClip
-                                val gEnd = (horizontalClip + fadeWidth).coerceAtMost(size.width)
-                                if (gEnd < size.width) drawContext.canvas.drawRect(Rect(gEnd, lineTop, size.width, lineBottom), maskPaint)
-                                if (fadeWidth > 0 && gEnd > gStart) {
-                                    val gPaint = androidx.compose.ui.graphics.Paint().apply { blendMode = androidx.compose.ui.graphics.BlendMode.DstOut }
-                                    val g = Brush.horizontalGradient(colors = listOf(Color.Transparent, Color.Black), startX = gStart, endX = gEnd)
-                                    g.applyTo(size, gPaint, 1f)
-                                    drawContext.canvas.drawRect(Rect(gStart, lineTop, gEnd, lineBottom), gPaint)
-                                }
-                                drawContext.canvas.restore()
-                            }
-                        }
-                    }
-                }
         )
     }
 }
 
+private data class WordLayoutInfo(
+    val word: com.metrolist.music.lyrics.Word,
+    val primaryResult: TextLayoutResult,
+    val romajiResult: TextLayoutResult?,
+    val width: Float,
+    val height: Float,
+    val rawX: Float,
+    val rawY: Float,
+    val romajiPadding: Float,
+    var offsetX: Float = 0f
+)
 
 @RequiresApi(Build.VERSION_CODES.M)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
