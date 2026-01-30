@@ -57,6 +57,10 @@ import com.metrolist.music.constants.SimilarContent
 import com.metrolist.music.constants.SkipSilenceInstantKey
 import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
+import com.metrolist.music.constants.CrossfadeEnabledKey
+import com.metrolist.music.constants.CrossfadeDurationKey
+import com.metrolist.music.constants.CrossfadeSkipSameAlbumKey
+import com.metrolist.music.constants.AutomixEnabledKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.PauseOnMute
 import com.metrolist.music.constants.KeepScreenOn
@@ -167,6 +171,24 @@ fun PlayerSettings(
     val (historyDuration, onHistoryDurationChange) = rememberPreference(
         HistoryDuration,
         defaultValue = 30f
+    )
+    
+    // Crossfade & Automix settings
+    val (crossfadeEnabled, onCrossfadeEnabledChange) = rememberPreference(
+        CrossfadeEnabledKey,
+        defaultValue = false
+    )
+    val (crossfadeDuration, onCrossfadeDurationChange) = rememberPreference(
+        CrossfadeDurationKey,
+        defaultValue = 5
+    )
+    val (crossfadeSkipSameAlbum, onCrossfadeSkipSameAlbumChange) = rememberPreference(
+        CrossfadeSkipSameAlbumKey,
+        defaultValue = true
+    )
+    val (automixEnabled, onAutomixEnabledChange) = rememberPreference(
+        AutomixEnabledKey,
+        defaultValue = false
     )
 
     var showAudioQualityDialog by remember {
@@ -454,6 +476,95 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onSeekExtraSeconds(!seekExtraSeconds) }
+                ))
+            }
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+        
+        // Crossfade & Automix settings group
+        Material3SettingsGroup(
+            title = stringResource(R.string.crossfade_and_automix),
+            items = buildList {
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.transition_fade),
+                    title = { Text(stringResource(R.string.crossfade)) },
+                    description = { Text(stringResource(R.string.crossfade_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = crossfadeEnabled,
+                            onCheckedChange = onCrossfadeEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (crossfadeEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onCrossfadeEnabledChange(!crossfadeEnabled) }
+                ))
+                if (crossfadeEnabled || automixEnabled) {
+                    add(Material3SettingsItem(
+                        icon = painterResource(R.drawable.timer),
+                        title = { Text(stringResource(R.string.crossfade_duration)) },
+                        description = {
+                            Column {
+                                Text(stringResource(R.string.crossfade_duration_value, crossfadeDuration))
+                                Slider(
+                                    value = crossfadeDuration.toFloat(),
+                                    onValueChange = { onCrossfadeDurationChange(it.roundToInt()) },
+                                    valueRange = 1f..12f,
+                                    steps = 10
+                                )
+                            }
+                        }
+                    ))
+                    add(Material3SettingsItem(
+                        icon = painterResource(R.drawable.album),
+                        title = { Text(stringResource(R.string.skip_gapless_albums)) },
+                        description = { Text(stringResource(R.string.skip_gapless_albums_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = crossfadeSkipSameAlbum,
+                                onCheckedChange = onCrossfadeSkipSameAlbumChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (crossfadeSkipSameAlbum) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onCrossfadeSkipSameAlbumChange(!crossfadeSkipSameAlbum) }
+                    ))
+                }
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.auto_awesome),
+                    title = { Text(stringResource(R.string.automix)) },
+                    description = { Text(stringResource(R.string.automix_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = automixEnabled,
+                            onCheckedChange = onAutomixEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (automixEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onAutomixEnabledChange(!automixEnabled) }
                 ))
             }
         )

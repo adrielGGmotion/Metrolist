@@ -112,6 +112,12 @@ val AutoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val StopMusicOnTaskClearKey = booleanPreferencesKey("stopMusicOnTaskClear")
 val ShufflePlaylistFirstKey = booleanPreferencesKey("shufflePlaylistFirst")
 
+// Crossfade & Automix
+val CrossfadeEnabledKey = booleanPreferencesKey("crossfadeEnabled")
+val CrossfadeDurationKey = intPreferencesKey("crossfadeDuration") // 1-12 seconds
+val CrossfadeSkipSameAlbumKey = booleanPreferencesKey("crossfadeSkipSameAlbum")
+val AutomixEnabledKey = booleanPreferencesKey("automixEnabled")
+
 val MaxImageCacheSizeKey = intPreferencesKey("maxImageCacheSize")
 val MaxSongCacheSizeKey = intPreferencesKey("maxSongCacheSize")
 

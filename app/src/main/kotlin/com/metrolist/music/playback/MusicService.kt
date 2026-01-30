@@ -123,6 +123,8 @@ import com.metrolist.music.constants.ShowLyricsKey
 import com.metrolist.music.constants.ShuffleModeKey
 import com.metrolist.music.constants.ShufflePlaylistFirstKey
 import com.metrolist.music.constants.SimilarContent
+import com.metrolist.music.constants.CrossfadeEnabledKey
+import com.metrolist.music.constants.CrossfadeDurationKey
 import com.metrolist.music.constants.SkipSilenceInstantKey
 import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.db.MusicDatabase
@@ -321,6 +323,11 @@ class MusicService :
     // Google Cast support
     var castConnectionHandler: CastConnectionHandler? = null
         private set
+    
+    // Crossfade support
+    private var crossfadeManager: CrossfadeManager? = null
+    private var crossfadeMonitorJob: Job? = null
+    private var crossfadePrepared = false
 
     override fun onCreate() {
         super.onCreate()
@@ -435,6 +442,9 @@ class MusicService :
 
         // Initialize Google Cast
         initializeCast()
+        
+        // Initialize Crossfade Manager
+        initializeCrossfade()
 
         // 4. Watch for EQ profile changes
         scope.launch {
@@ -1449,6 +1459,9 @@ class MusicService :
         reason: Int,
     ) {
         lastPlaybackSpeed = -1.0f // force update song
+        
+        // Reset crossfade state on track change
+        crossfadePrepared = false
 
         setupLoudnessEnhancer()
 
@@ -2370,6 +2383,8 @@ class MusicService :
     }
 
     override fun onDestroy() {
+        crossfadeMonitorJob?.cancel()
+        crossfadeManager?.release()
         castConnectionHandler?.release()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
@@ -2526,6 +2541,159 @@ class MusicService :
                 timber.log.Timber.e(e, "Failed to initialize Google Cast")
             }
         }
+    }
+    
+    /**
+     * Initialize Crossfade support
+     */
+    private fun initializeCrossfade() {
+        try {
+            val audioAttrs = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build()
+            
+            crossfadeManager = CrossfadeManager(
+                context = this,
+                dataStore = dataStore,
+                scope = scope,
+                mediaSourceFactory = createMediaSourceFactory(),
+                audioAttributes = audioAttrs,
+            )
+            
+            crossfadeManager?.onCrossfadeComplete = { newPrimaryPlayer ->
+                handleCrossfadeComplete(newPrimaryPlayer)
+            }
+            
+            crossfadeManager?.getNextMediaItem = {
+                getNextMediaItemForCrossfade()
+            }
+            
+            // Start monitoring playback position for crossfade trigger
+            startCrossfadeMonitoring()
+            
+            Log.d(TAG, "Crossfade initialized")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize Crossfade", e)
+        }
+    }
+    
+    /**
+     * Start monitoring playback position to trigger crossfade
+     */
+    private fun startCrossfadeMonitoring() {
+        crossfadeMonitorJob?.cancel()
+        crossfadeMonitorJob = scope.launch {
+            while (isActive) {
+                try {
+                    checkAndTriggerCrossfade()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in crossfade monitoring", e)
+                }
+                delay(500) // Check every 500ms
+            }
+        }
+    }
+    
+    /**
+     * Check if crossfade should be triggered and start it if needed
+     */
+    private fun checkAndTriggerCrossfade() {
+        val manager = crossfadeManager ?: return
+        
+        // Skip if already crossfading
+        if (manager.isCrossfading.value) return
+        
+        // Skip if not enabled
+        if (!manager.isEnabled() && !manager.isAutomixEnabled()) return
+        
+        // Skip if Cast is active (crossfade is local playback only)
+        if (castConnectionHandler?.isCasting?.value == true) return
+        
+        // Skip if not playing
+        if (!player.isPlaying) return
+        
+        val duration = player.duration
+        val position = player.currentPosition
+        
+        // Skip if duration is unknown
+        if (duration == C.TIME_UNSET || duration <= 0) return
+        
+        val crossfadeDurationMs = manager.getCrossfadeDurationMs()
+        val remaining = duration - position
+        
+        // Get next item for crossfade check
+        val currentItem = player.currentMediaItem ?: return
+        val nextItem = getNextMediaItemForCrossfade() ?: return
+        
+        // Check if crossfade should apply
+        if (!manager.shouldCrossfade(currentItem, nextItem, player.repeatMode)) return
+        
+        // Prepare fade player when we're close to crossfade point (add buffer time)
+        val prepareThreshold = crossfadeDurationMs + 3000 // 3 seconds before crossfade
+        
+        if (remaining <= prepareThreshold && !crossfadePrepared) {
+            Log.d(TAG, "Preparing crossfade, remaining: ${remaining}ms")
+            manager.prepareFadePlayer(nextItem)
+            crossfadePrepared = true
+        }
+        
+        // Start crossfade when remaining time equals crossfade duration
+        if (remaining <= crossfadeDurationMs && crossfadePrepared && manager.isFadePlayerReady()) {
+            Log.d(TAG, "Starting crossfade, remaining: ${remaining}ms")
+            manager.startCrossfade(player, remaining.coerceAtLeast(1000))
+        }
+    }
+    
+    /**
+     * Get the next media item in the queue for crossfade
+     */
+    private fun getNextMediaItemForCrossfade(): MediaItem? {
+        val currentIndex = player.currentMediaItemIndex
+        val itemCount = player.mediaItemCount
+        
+        if (itemCount == 0) return null
+        
+        return when (player.repeatMode) {
+            Player.REPEAT_MODE_OFF -> {
+                if (currentIndex < itemCount - 1) {
+                    player.getMediaItemAt(currentIndex + 1)
+                } else {
+                    null
+                }
+            }
+            Player.REPEAT_MODE_ALL -> {
+                val nextIndex = (currentIndex + 1) % itemCount
+                player.getMediaItemAt(nextIndex)
+            }
+            Player.REPEAT_MODE_ONE -> {
+                null // Don't crossfade on repeat one
+            }
+            else -> null
+        }
+    }
+    
+    /**
+     * Handle crossfade completion - swap players
+     */
+    private fun handleCrossfadeComplete(newPrimaryPlayer: ExoPlayer) {
+        Log.d(TAG, "Crossfade complete, advancing to next track")
+        
+        // Reset crossfade prepared flag
+        crossfadePrepared = false
+        
+        // The new primary player is already playing the next track.
+        // We need to advance the queue position without interrupting playback.
+        // Since the fade player is playing the "next" track, we just need to
+        // update our internal state and skip to next in the primary player's queue.
+        
+        // Simply advance to next track in queue (the primary player will be at low volume already)
+        if (player.hasNextMediaItem()) {
+            player.seekToNextMediaItem()
+        }
+        
+        // Re-sync state
+        currentMediaMetadata.value = player.currentMetadata
     }
 
     companion object {

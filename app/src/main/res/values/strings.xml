@@ -288,6 +288,17 @@
     <string name="auto_skip_next_on_error_desc">Ensure your continuous playback experience</string>
     <string name="stop_music_on_task_clear">Stop music on task clear</string>
     <string name="equalizer">Equalizer</string>
+    
+    <!-- Crossfade & Automix -->
+    <string name="crossfade_and_automix">Crossfade &amp; Automix</string>
+    <string name="crossfade">Crossfade</string>
+    <string name="crossfade_desc">Smoothly blend between songs for seamless transitions</string>
+    <string name="crossfade_duration">Crossfade duration</string>
+    <string name="crossfade_duration_value">%d seconds</string>
+    <string name="skip_gapless_albums">Skip for gapless albums</string>
+    <string name="skip_gapless_albums_desc">Disable crossfade for consecutive tracks from the same album</string>
+    <string name="automix">Automix</string>
+    <string name="automix_desc">DJ-style transitions with beat detection and alignment (requires aubio)</string>
 
     <string name="storage">Storage</string>
     <string name="cache">Cache</string>
