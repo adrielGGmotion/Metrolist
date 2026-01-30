@@ -229,6 +229,8 @@ class PlayerConnection(
             castHandler.skipToNext()
             return
         }
+        // Cancel any active crossfade before manual skip
+        service.cancelCrossfade()
         player.seekToNext()
         if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
             player.prepare()
@@ -246,6 +248,9 @@ class PlayerConnection(
             castHandler.skipToPrevious()
             return
         }
+        
+        // Cancel any active crossfade before manual skip
+        service.cancelCrossfade()
 
         // Logic to mimic standard seekToPrevious behavior but with explicit callbacks
         // If we are more than 3 seconds in, just restart the song

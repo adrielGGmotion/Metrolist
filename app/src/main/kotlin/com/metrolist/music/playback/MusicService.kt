@@ -325,9 +325,19 @@ class MusicService :
         private set
     
     // Crossfade support
-    private var crossfadeManager: CrossfadeManager? = null
+    internal var crossfadeManager: CrossfadeManager? = null
+        private set
     private var crossfadeMonitorJob: Job? = null
     private var crossfadePrepared = false
+    
+    /**
+     * Cancel any active crossfade and reset state.
+     * Called when user manually skips to next/previous track.
+     */
+    fun cancelCrossfade() {
+        crossfadeManager?.cancelCrossfade(player)
+        crossfadePrepared = false
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -2674,25 +2684,24 @@ class MusicService :
     }
     
     /**
-     * Handle crossfade completion - swap players
+     * Handle crossfade completion - update state after CrossfadeManager has synced the primary player
      */
     private fun handleCrossfadeComplete(newPrimaryPlayer: ExoPlayer) {
-        Log.d(TAG, "Crossfade complete, advancing to next track")
+        Log.d(TAG, "Crossfade complete, updating state")
         
         // Reset crossfade prepared flag
         crossfadePrepared = false
         
-        // The new primary player is already playing the next track.
-        // We need to advance the queue position without interrupting playback.
-        // Since the fade player is playing the "next" track, we just need to
-        // update our internal state and skip to next in the primary player's queue.
+        // The CrossfadeManager.completeCrossfade() has already:
+        // 1. Advanced primary player to next track via seekToNextMediaItem()
+        // 2. Synced position with where the fade player was
+        // 3. Restored volume and started playback
+        // 4. Stopped and cleared the fade player
+        //
+        // We MUST NOT call seekToNextMediaItem() again here - that would cause
+        // a double-advance bug where metadata jumps to song N+2 instead of N+1
         
-        // Simply advance to next track in queue (the primary player will be at low volume already)
-        if (player.hasNextMediaItem()) {
-            player.seekToNextMediaItem()
-        }
-        
-        // Re-sync state
+        // Just update the metadata state to reflect current track
         currentMediaMetadata.value = player.currentMetadata
     }
 

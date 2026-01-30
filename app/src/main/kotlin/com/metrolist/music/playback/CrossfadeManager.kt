@@ -172,8 +172,8 @@ class CrossfadeManager(
     /**
      * Start the crossfade transition.
      * 
-     * @param primaryPlayer The currently playing ExoPlayer
-     * @param durationMs Override crossfade duration (for automix beat-aligned transitions)
+     * @param primaryPlayer The currently playing ExoPlayer (Master)
+     * @param durationMs Override crossfade duration
      */
     fun startCrossfade(
         primaryPlayer: ExoPlayer,
@@ -192,7 +192,7 @@ class CrossfadeManager(
         Log.d(TAG, "Starting crossfade with duration: ${durationMs}ms")
         _isCrossfading.value = true
         
-        // Start the fade player
+        // Start the fade player (this is playing the NEXT track)
         fade.play()
         
         // Start volume transition
@@ -205,31 +205,29 @@ class CrossfadeManager(
                 val elapsed = System.currentTimeMillis() - startTime
                 val progress = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
                 
-                // Use logarithmic curve for more natural volume fade
                 val fadeOutVolume = calculateFadeOutVolume(progress, initialPrimaryVolume)
                 val fadeInVolume = calculateFadeInVolume(progress)
                 
                 handler.post {
                     try {
+                        // Fade out outgoing track on primary
                         primaryPlayer.volume = fadeOutVolume
+                        // Fade in incoming track on fade player
                         fade.volume = fadeInVolume
                     } catch (e: Exception) {
                         Log.e(TAG, "Error setting volume", e)
                     }
                 }
                 
-                if (progress >= 1f) {
-                    break
-                }
-                
+                if (progress >= 1f) break
                 delay(FADE_UPDATE_INTERVAL_MS)
             }
             
-            // Crossfade complete
+            // Crossfade volume transition complete
             completeCrossfade(primaryPlayer)
         }
     }
-    
+
     /**
      * Calculate fade-out volume using logarithmic curve for natural sound
      */
@@ -251,34 +249,53 @@ class CrossfadeManager(
         val volume = 1f - kotlin.math.exp((-k * progress).toDouble()).toFloat()
         return volume.coerceIn(0f, 1f)
     }
-    
+
     /**
-     * Complete the crossfade and swap players
+     * Sync the primary player to the state of the fade player and finish.
      */
-    private fun completeCrossfade(oldPrimaryPlayer: ExoPlayer) {
-        Log.d(TAG, "Crossfade complete")
+    private fun completeCrossfade(primaryPlayer: ExoPlayer) {
+        Log.d(TAG, "Crossfade volume transition complete, syncing primary player")
         
-        val newPrimary = fadePlayer
+        val incomingPlayer = fadePlayer ?: return
+        val currentFadePosition = incomingPlayer.currentPosition
         
-        // Stop the old primary player
         handler.post {
-            oldPrimaryPlayer.stop()
-            oldPrimaryPlayer.volume = 1f // Reset volume for next use
+            try {
+                // 1. Advance primary player to the next track
+                if (primaryPlayer.hasNextMediaItem()) {
+                    primaryPlayer.seekToNextMediaItem()
+                    
+                    // 2. Sync position with where the fade player is
+                    primaryPlayer.seekTo(currentFadePosition)
+                    
+                    // 3. Restore volume and start playing on primary
+                    primaryPlayer.volume = 1.0f
+                    primaryPlayer.play()
+                    
+                    Log.d(TAG, "Primary player synced to next track at ${currentFadePosition}ms")
+                }
+                
+                // 4. Stop and reset the fade player immediately to prevent "phantom audio"
+                incomingPlayer.stop()
+                incomingPlayer.volume = 0f
+                incomingPlayer.clearMediaItems()
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during crossfade sync", e)
+            } finally {
+                _isCrossfading.value = false
+                fadeMediaItem = null
+                onCrossfadeComplete?.invoke(primaryPlayer)
+            }
         }
-        
-        // The fade player is now the primary player
-        fadePlayer = oldPrimaryPlayer // Reuse for next crossfade
-        fadeMediaItem = null
-        _isCrossfading.value = false
-        
-        // Notify that crossfade is complete and players should be swapped
-        newPrimary?.let { onCrossfadeComplete?.invoke(it) }
     }
     
     /**
-     * Cancel any ongoing crossfade
+     * Cancel any ongoing crossfade and restore primary player state
+     * 
+     * @param primaryPlayer The primary player to restore volume on (optional)
      */
-    fun cancelCrossfade() {
+    fun cancelCrossfade(primaryPlayer: ExoPlayer? = null) {
         fadeJob?.cancel()
         fadeJob = null
         
@@ -286,6 +303,11 @@ class CrossfadeManager(
             stop()
             clearMediaItems()
             volume = 0f
+        }
+        
+        // Restore primary player volume if crossfade was in progress
+        if (_isCrossfading.value && primaryPlayer != null) {
+            primaryPlayer.volume = 1.0f
         }
         
         fadeMediaItem = null
