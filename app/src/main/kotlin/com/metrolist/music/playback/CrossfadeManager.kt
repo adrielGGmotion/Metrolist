@@ -257,25 +257,38 @@ class CrossfadeManager(
         Log.d(TAG, "Crossfade volume transition complete, syncing primary player")
         
         val incomingPlayer = fadePlayer ?: return
+        val fadeItemMediaId = fadeMediaItem?.mediaId
         val currentFadePosition = incomingPlayer.currentPosition
         
         handler.post {
             try {
-                // 1. Advance primary player to the next track
-                if (primaryPlayer.hasNextMediaItem()) {
+                // Check if the primary player has ALREADY transitioned to the fade item
+                // This can happen if Song 1 naturally ended before our crossfade completed
+                val currentPrimaryMediaId = primaryPlayer.currentMediaItem?.mediaId
+                val alreadyOnFadeItem = fadeItemMediaId != null && currentPrimaryMediaId == fadeItemMediaId
+                
+                if (alreadyOnFadeItem) {
+                    // Song 1 ended naturally, primary player already advanced to Song 2
+                    // Just sync position and restore volume, DON'T advance again
+                    Log.d(TAG, "Primary player already on fade item, just syncing position")
+                    primaryPlayer.seekTo(currentFadePosition)
+                    primaryPlayer.volume = 1.0f
+                    primaryPlayer.play()
+                } else if (primaryPlayer.hasNextMediaItem()) {
+                    // Normal case: advance primary player to the next track
                     primaryPlayer.seekToNextMediaItem()
                     
-                    // 2. Sync position with where the fade player is
+                    // Sync position with where the fade player is
                     primaryPlayer.seekTo(currentFadePosition)
                     
-                    // 3. Restore volume and start playing on primary
+                    // Restore volume and start playing on primary
                     primaryPlayer.volume = 1.0f
                     primaryPlayer.play()
                     
-                    Log.d(TAG, "Primary player synced to next track at ${currentFadePosition}ms")
+                    Log.d(TAG, "Primary player advanced and synced to ${currentFadePosition}ms")
                 }
                 
-                // 4. Stop and reset the fade player immediately to prevent "phantom audio"
+                // Stop and reset the fade player immediately to prevent "phantom audio"
                 incomingPlayer.stop()
                 incomingPlayer.volume = 0f
                 incomingPlayer.clearMediaItems()
