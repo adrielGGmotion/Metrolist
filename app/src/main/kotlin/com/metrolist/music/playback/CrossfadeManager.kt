@@ -269,13 +269,15 @@ class CrossfadeManager(
                 
                 if (alreadyOnFadeItem) {
                     // Song 1 ended naturally, primary player already advanced to Song 2
-                    // Just sync position and restore volume, DON'T advance again
-                    Log.d(TAG, "Primary player already on fade item, just syncing position")
-                    primaryPlayer.seekTo(currentFadePosition)
+                    // The primary player is already playing Song 2, so we just need to:
+                    // 1. Restore volume (it was faded out)
+                    // 2. DON'T seek or call play() - that causes pause/unpause glitch
+                    Log.d(TAG, "Primary player already on fade item, just restoring volume")
                     primaryPlayer.volume = 1.0f
-                    primaryPlayer.play()
+                    // Note: We intentionally don't sync position here because seeking
+                    // while playing causes a brief pause. The position difference is minimal.
                 } else if (primaryPlayer.hasNextMediaItem()) {
-                    // Normal case: advance primary player to the next track
+                    // Normal case: Song 1 hasn't ended yet, advance primary player
                     primaryPlayer.seekToNextMediaItem()
                     
                     // Sync position with where the fade player is

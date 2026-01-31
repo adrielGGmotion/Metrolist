@@ -1556,6 +1556,12 @@ class MusicService :
             player.pause()
             return
         }
+        
+        // Cancel crossfade when user pauses playback
+        if (!playWhenReady && crossfadeManager?.isCrossfading?.value == true) {
+            Log.d(TAG, "Cancelling crossfade due to pause")
+            cancelCrossfade()
+        }
 
         if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
             if (playWhenReady) {
