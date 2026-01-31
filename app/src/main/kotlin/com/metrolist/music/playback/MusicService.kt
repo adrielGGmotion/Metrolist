@@ -332,7 +332,7 @@ class MusicService :
     
     /**
      * Cancel any active crossfade and reset state.
-     * Called when user manually skips to next/previous track.
+     * Called when user manually skips to next/previous track or pauses.
      */
     fun cancelCrossfade() {
         crossfadeManager?.cancelCrossfade(player)
@@ -1556,7 +1556,7 @@ class MusicService :
             player.pause()
             return
         }
-        
+
         // Cancel crossfade when user pauses playback
         if (!playWhenReady && crossfadeManager?.isCrossfading?.value == true) {
             Log.d(TAG, "Cancelling crossfade due to pause")
@@ -2697,15 +2697,6 @@ class MusicService :
         
         // Reset crossfade prepared flag
         crossfadePrepared = false
-        
-        // The CrossfadeManager.completeCrossfade() has already:
-        // 1. Advanced primary player to next track via seekToNextMediaItem()
-        // 2. Synced position with where the fade player was
-        // 3. Restored volume and started playback
-        // 4. Stopped and cleared the fade player
-        //
-        // We MUST NOT call seekToNextMediaItem() again here - that would cause
-        // a double-advance bug where metadata jumps to song N+2 instead of N+1
         
         // Just update the metadata state to reflect current track
         currentMediaMetadata.value = player.currentMetadata
