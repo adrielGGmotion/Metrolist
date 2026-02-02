@@ -89,6 +89,8 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.AudioNormalizationKey
 import com.metrolist.music.constants.AudioOffload
 import com.metrolist.music.constants.AudioQualityKey
+import com.metrolist.music.constants.CrossfadeEnabledKey
+import com.metrolist.music.constants.CrossfadeDurationKey
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AutoLoadMoreKey
 import com.metrolist.music.constants.AutoSkipNextOnErrorKey
@@ -322,6 +324,10 @@ class MusicService :
     var castConnectionHandler: CastConnectionHandler? = null
         private set
 
+    // Crossfade support
+    var crossfadeManager: CrossfadeManager? = null
+        private set
+
     override fun onCreate() {
         super.onCreate()
 
@@ -435,6 +441,9 @@ class MusicService :
 
         // Initialize Google Cast
         initializeCast()
+
+        // Initialize Crossfade
+        initializeCrossfade()
 
         // 4. Watch for EQ profile changes
         scope.launch {
@@ -1450,6 +1459,11 @@ class MusicService :
     ) {
         lastPlaybackSpeed = -1.0f // force update song
 
+        // Cancel crossfade if user manually skipped (not auto-advance)
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+            crossfadeManager?.cancelCrossfade()
+        }
+
         setupLoudnessEnhancer()
 
         discordUpdateJob?.cancel()
@@ -1546,6 +1560,14 @@ class MusicService :
 
         if (playWhenReady) {
             setupLoudnessEnhancer()
+            // Start crossfade position monitoring when playback starts
+            crossfadeManager?.startPositionMonitoring()
+        } else {
+            // Pause crossfade if user pauses
+            if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
+                crossfadeManager?.pause()
+            }
+            crossfadeManager?.stopPositionMonitoring()
         }
     }
 
@@ -2370,6 +2392,7 @@ class MusicService :
     }
 
     override fun onDestroy() {
+        crossfadeManager?.release()
         castConnectionHandler?.release()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
@@ -2526,6 +2549,84 @@ class MusicService :
                 timber.log.Timber.e(e, "Failed to initialize Google Cast")
             }
         }
+    }
+
+    /**
+     * Initialize Crossfade support with dual ExoPlayer instances
+     */
+    private fun initializeCrossfade() {
+        val crossfadeEnabled = dataStore.get(CrossfadeEnabledKey, false)
+        val crossfadeDuration = dataStore.get(CrossfadeDurationKey, 5)
+        
+        crossfadeManager = CrossfadeManager(
+            context = this,
+            scope = scope,
+            playerBuilder = { createCrossfadeExoPlayer() }
+        ).apply {
+            initialize(crossfadeEnabled, crossfadeDuration)
+            
+            // Provide callback to get next media item
+            getNextMediaItem = {
+                val currentIndex = player.currentMediaItemIndex
+                if (currentIndex < player.mediaItemCount - 1) {
+                    player.getMediaItemAt(currentIndex + 1)
+                } else {
+                    null
+                }
+            }
+            
+            // Provide callback to check if crossfade should happen
+            shouldCrossfade = {
+                val shouldFade = player.repeatMode != Player.REPEAT_MODE_ONE &&
+                    castConnectionHandler?.isCasting?.value != true &&
+                    player.hasNextMediaItem() &&
+                    !instantSilenceSkipEnabled.value // Disable crossfade during silence skip
+                shouldFade
+            }
+            
+            // Handle crossfade completion
+            onCrossfadeComplete = { _, previousIndex ->
+                // Manually advance the primary player's queue
+                if (player.hasNextMediaItem()) {
+                    // Stop the primary from playing its current item
+                    val wasPlaying = player.playWhenReady
+                    player.seekToNextMediaItem()
+                    player.playWhenReady = wasPlaying
+                }
+                // Update metadata
+                currentMediaMetadata.value = player.currentMetadata
+            }
+        }
+        
+        // Watch for crossfade settings changes
+        scope.launch {
+            dataStore.data.collect { prefs ->
+                val enabled = prefs[CrossfadeEnabledKey] ?: false
+                val duration = prefs[CrossfadeDurationKey] ?: 5
+                crossfadeManager?.updateSettings(enabled, duration)
+            }
+        }
+        
+        Log.d(TAG, "Crossfade manager initialized: enabled=$crossfadeEnabled, duration=${crossfadeDuration}s")
+    }
+    
+    /**
+     * Create an ExoPlayer instance for crossfade (shared configuration with main player)
+     */
+    private fun createCrossfadeExoPlayer(): ExoPlayer {
+        return ExoPlayer.Builder(this)
+            .setMediaSourceFactory(createMediaSourceFactory())
+            .setRenderersFactory(createRenderersFactory())
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                false,
+            )
+            .build()
     }
 
     companion object {

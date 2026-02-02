@@ -97,6 +97,10 @@ enum class DecryptionLibrary {
 
 val AudioOffload = booleanPreferencesKey("enableOffload")
 
+// Crossfade
+val CrossfadeEnabledKey = booleanPreferencesKey("crossfadeEnabled")
+val CrossfadeDurationKey = intPreferencesKey("crossfadeDuration") // 1-12 seconds, default 5
+
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
 val PersistentShuffleAcrossQueuesKey = booleanPreferencesKey("persistentShuffleAcrossQueues")
 val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepeat")

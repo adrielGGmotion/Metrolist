@@ -95,6 +95,9 @@ class PlayerConnection(
 
     val waitingForNetworkConnection = service.waitingForNetworkConnection
     
+    // Crossfade state
+    val isCrossfading = service.crossfadeManager?.isCrossfading ?: MutableStateFlow(false)
+    
     // Callback to check if playback changes should be blocked (e.g., Listen Together guest)
     var shouldBlockPlaybackChanges: (() -> Boolean)? = null
     
@@ -218,6 +221,8 @@ class PlayerConnection(
         if (castHandler?.isCasting?.value == true) {
             castHandler.seekTo(position)
         } else {
+            // Cancel any active crossfade on seek
+            service.crossfadeManager?.onSeek()
             player.seekTo(position)
         }
     }
@@ -229,6 +234,8 @@ class PlayerConnection(
             castHandler.skipToNext()
             return
         }
+        // Cancel any active crossfade on manual skip
+        service.crossfadeManager?.onUserSkip()
         player.seekToNext()
         if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
             player.prepare()
@@ -246,6 +253,8 @@ class PlayerConnection(
             castHandler.skipToPrevious()
             return
         }
+        // Cancel any active crossfade on manual skip
+        service.crossfadeManager?.onUserSkip()
 
         // Logic to mimic standard seekToPrevious behavior but with explicit callbacks
         // If we are more than 3 seconds in, just restart the song

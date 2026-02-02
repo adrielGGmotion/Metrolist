@@ -528,4 +528,10 @@
     <string name="error_username_empty">Username is required.</string>
     <string name="listen_together_suggestion_sent">Suggestion sent to host!</string>
     <string name="resync">Resync</string>
+
+    <!-- Crossfade -->
+    <string name="crossfade">Crossfade</string>
+    <string name="crossfade_description">Smoothly blend between tracks during playback</string>
+    <string name="crossfade_duration">Crossfade duration</string>
+    <string name="crossfade_duration_value">%d seconds</string>
 </resources>
