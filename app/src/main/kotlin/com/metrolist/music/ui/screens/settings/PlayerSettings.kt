@@ -56,6 +56,7 @@ import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.PauseOnMute
 import com.metrolist.music.constants.KeepScreenOn
+import com.metrolist.music.constants.ResumeOnConnectKey
 import com.metrolist.music.constants.SeekExtraSeconds
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
@@ -150,6 +151,10 @@ fun PlayerSettings(
     )
     val (keepScreenOn, onKeepScreenOnChange) = rememberPreference(
         KeepScreenOn,
+        defaultValue = false
+    )
+    val (resumeOnConnect, onResumeOnConnectChange) = rememberPreference(
+        ResumeOnConnectKey,
         defaultValue = false
     )
     val (historyDuration, onHistoryDurationChange) = rememberPreference(
@@ -623,6 +628,27 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onKeepScreenOnChange(!keepScreenOn) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.volume_up),
+                    title = { Text(stringResource(R.string.resume_on_headset_connect)) },
+                    description = { Text(stringResource(R.string.resume_on_headset_connect_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = resumeOnConnect,
+                            onCheckedChange = onResumeOnConnectChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (resumeOnConnect) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onResumeOnConnectChange(!resumeOnConnect) }
                 )
             )
         )

@@ -252,6 +252,8 @@
     <string name="disable_load_more_when_repeat_all_desc">Don\'t auto load more songs and similar content when repeat all mode is enabled</string>
     <string name="pause_music_when_media_is_muted">Pause music when media is muted</string>
     <string name="keep_screen_on_when_player_is_expanded">Keep screen on when player is expanded</string>
+    <string name="resume_on_headset_connect">Resume on headset connect</string>
+    <string name="resume_on_headset_connect_desc">Resume playback when a headset or Bluetooth device is connected</string>
 
     <!-- Romanization Settings -->
     <string name="lyrics_romanization_cyrillic">Cyrillic</string>

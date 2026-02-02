@@ -28,6 +28,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.database.SQLException
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
@@ -110,6 +112,7 @@ import com.metrolist.music.constants.MediaSessionConstants.CommandToggleShuffle
 import com.metrolist.music.constants.MediaSessionConstants.CommandToggleStartRadio
 import com.metrolist.music.constants.PauseListenHistoryKey
 import com.metrolist.music.constants.PauseOnMute
+import com.metrolist.music.constants.ResumeOnConnectKey
 import com.metrolist.music.constants.PersistentQueueKey
 import com.metrolist.music.constants.PersistentShuffleAcrossQueuesKey
 import com.metrolist.music.constants.PlayerVolumeKey
@@ -228,6 +231,26 @@ class MusicService :
     private var reentrantFocusGain = false
     private var wasPlayingBeforeVolumeMute = false
     private var isPausedByVolumeMute = false
+
+    private var resumeOnConnectEnabled = false
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            if (!resumeOnConnectEnabled) return
+
+            val isHeadset = addedDevices.any {
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                        it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            }
+
+            if (isHeadset && player.playbackState == Player.STATE_READY && !player.playWhenReady) {
+                if (requestAudioFocus()) {
+                    player.play()
+                }
+            }
+        }
+    }
 
     private var scope = CoroutineScope(Dispatchers.Main) + Job()
     private val binder = MusicBinder()
@@ -470,6 +493,22 @@ class MusicService :
             dataStore.edit { settings ->
                 settings[PlayerVolumeKey] = volume
             }
+        }
+
+        scope.launch {
+            dataStore.data
+                .map { it[ResumeOnConnectKey] ?: false }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    if (resumeOnConnectEnabled != enabled) {
+                        if (enabled) {
+                            audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
+                        } else {
+                            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+                        }
+                        resumeOnConnectEnabled = enabled
+                    }
+                }
         }
 
         currentSong.debounce(1000).collect(scope) { song ->
@@ -2358,6 +2397,9 @@ class MusicService :
         }
         if (discordRpc?.isRpcRunning() == true) {
             discordRpc?.closeRPC()
+        }
+        if (resumeOnConnectEnabled) {
+            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         }
         discordRpc = null
         connectivityObserver.unregister()
