@@ -248,7 +248,7 @@ class PlayerConnection(
             castHandler.skipToPrevious()
             return
         }
-
+        
         // Cancel any active crossfade before manual skip
         service.cancelCrossfade()
 

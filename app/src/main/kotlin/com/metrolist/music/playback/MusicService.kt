@@ -332,7 +332,7 @@ class MusicService :
     
     /**
      * Cancel any active crossfade and reset state.
-     * Called when user manually skips to next/previous track or pauses.
+     * Called when user manually skips to next/previous track.
      */
     fun cancelCrossfade() {
         crossfadeManager?.cancelCrossfade(player)
@@ -1470,6 +1470,17 @@ class MusicService :
     ) {
         lastPlaybackSpeed = -1.0f // force update song
         
+        // CRITICAL: If crossfade is in progress and Song 1 naturally ended,
+        // the primary player has auto-advanced to Song 2. We need to mute it
+        // and let the fade player finish. The crossfade completion will sync.
+        if (crossfadeManager?.isCrossfading?.value == true && 
+            reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+            Log.d(TAG, "Primary player advanced during crossfade, setting volume to 0")
+            player.volume = 0f
+            // Don't reset crossfadePrepared here - let completeCrossfade handle it
+            return // Skip the rest of onMediaItemTransition logic
+        }
+        
         // Reset crossfade state on track change
         crossfadePrepared = false
 
@@ -1556,7 +1567,7 @@ class MusicService :
             player.pause()
             return
         }
-
+        
         // Cancel crossfade when user pauses playback
         if (!playWhenReady && crossfadeManager?.isCrossfading?.value == true) {
             Log.d(TAG, "Cancelling crossfade due to pause")
@@ -2697,6 +2708,15 @@ class MusicService :
         
         // Reset crossfade prepared flag
         crossfadePrepared = false
+        
+        // The CrossfadeManager.completeCrossfade() has already:
+        // 1. Advanced primary player to next track via seekToNextMediaItem()
+        // 2. Synced position with where the fade player was
+        // 3. Restored volume and started playback
+        // 4. Stopped and cleared the fade player
+        //
+        // We MUST NOT call seekToNextMediaItem() again here - that would cause
+        // a double-advance bug where metadata jumps to song N+2 instead of N+1
         
         // Just update the metadata state to reflect current track
         currentMediaMetadata.value = player.currentMetadata
