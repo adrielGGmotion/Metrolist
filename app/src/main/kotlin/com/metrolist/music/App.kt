@@ -33,6 +33,7 @@ import com.metrolist.music.extensions.toInetSocketAddress
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
+import com.metrolist.music.utils.CrashHandler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +60,7 @@ class App : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        Thread.setDefaultUncaughtExceptionHandler(CrashHandler(this))
         Timber.plant(Timber.DebugTree())
 
         // تهيئة إعدادات التطبيق عند الإقلاع

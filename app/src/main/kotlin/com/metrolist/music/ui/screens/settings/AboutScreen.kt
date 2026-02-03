@@ -255,6 +255,18 @@ fun AboutScreen(
         )
 
         Spacer(Modifier.height(32.dp))
+
+        // Hidden crash test button
+        Text(
+            text = "Test Crash",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.surfaceContainer, // Blends with background
+            modifier = Modifier
+                .clickable {
+                    throw RuntimeException("Test Crash: This is a test exception from AboutScreen")
+                }
+                .padding(16.dp)
+        )
     }
 
     TopAppBar(
