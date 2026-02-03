@@ -181,8 +181,11 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 import okhttp3.OkHttpClient
@@ -293,6 +296,9 @@ class MusicService :
     private var retryJob: Job? = null
     private var retryCount = 0
     private var silenceSkipJob: Job? = null
+
+    // Mutex for sequential file I/O
+    private val saveMutex = Mutex()
     
     // URL cache for stream URLs - class-level so it can be invalidated on errors
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
@@ -1322,6 +1328,12 @@ class MusicService :
             return
         }
 
+        // Recreate enhancer if audio session ID has changed
+        if (loudnessEnhancer != null && loudnessEnhancer!!.audioSessionId != audioSessionId) {
+            Log.d(TAG, "Audio session ID changed (${loudnessEnhancer!!.audioSessionId} -> $audioSessionId), recreating LoudnessEnhancer")
+            releaseLoudnessEnhancer()
+        }
+
         // Create or recreate enhancer if needed
         if (loudnessEnhancer == null) {
             try {
@@ -1680,6 +1692,12 @@ class MusicService :
                     }
                 }
             }
+        }
+    }
+
+    override fun onAudioSessionIdChanged(audioSessionId: Int) {
+        if (audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+            setupLoudnessEnhancer()
         }
     }
 
@@ -2310,40 +2328,44 @@ class MusicService :
                 playbackState = player.playbackState
             )
 
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistQueue)
+            scope.launch(Dispatchers.IO) {
+                saveMutex.withLock {
+                    runCatching {
+                        filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
+                            ObjectOutputStream(fos).use { oos ->
+                                oos.writeObject(persistQueue)
+                            }
+                        }
+                        Log.d(TAG, "Queue saved successfully")
+                    }.onFailure {
+                        Log.e(TAG, "Failed to save queue", it)
+                        reportException(it)
+                    }
+
+                    runCatching {
+                        filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
+                            ObjectOutputStream(fos).use { oos ->
+                                oos.writeObject(persistAutomix)
+                            }
+                        }
+                        Log.d(TAG, "Automix saved successfully")
+                    }.onFailure {
+                        Log.e(TAG, "Failed to save automix", it)
+                        reportException(it)
+                    }
+
+                    runCatching {
+                        filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
+                            ObjectOutputStream(fos).use { oos ->
+                                oos.writeObject(persistPlayerState)
+                            }
+                        }
+                        Log.d(TAG, "Player state saved successfully")
+                    }.onFailure {
+                        Log.e(TAG, "Failed to save player state", it)
+                        reportException(it)
                     }
                 }
-                Log.d(TAG, "Queue saved successfully")
-            }.onFailure {
-                Log.e(TAG, "Failed to save queue", it)
-                reportException(it)
-            }
-            
-            runCatching {
-                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistAutomix)
-                    }
-                }
-                Log.d(TAG, "Automix saved successfully")
-            }.onFailure {
-                Log.e(TAG, "Failed to save automix", it)
-                reportException(it)
-            }
-            
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistPlayerState)
-                    }
-                }
-                Log.d(TAG, "Player state saved successfully")
-            }.onFailure {
-                Log.e(TAG, "Failed to save player state", it)
-                reportException(it)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error during queue save operation", e)
