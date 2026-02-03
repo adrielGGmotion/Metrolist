@@ -5,71 +5,83 @@
 
 package com.metrolist.music.ui.screens.settings
 
-import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.materialkolor.PaletteStyle
+import com.materialkolor.rememberDynamicColorScheme
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.ChipSortTypeKey
+import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
-import com.metrolist.music.constants.EnableDynamicIconKey
 import com.metrolist.music.constants.DynamicThemeKey
+import com.metrolist.music.constants.EnableDynamicIconKey
 import com.metrolist.music.constants.GridItemSize
 import com.metrolist.music.constants.GridItemsSizeKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
 import com.metrolist.music.constants.LibraryFilter
-import com.metrolist.music.constants.LyricsClickKey
-import com.metrolist.music.constants.LyricsScrollKey
-import com.metrolist.music.constants.LyricsTextPositionKey
 import com.metrolist.music.constants.LyricsAnimationStyle
 import com.metrolist.music.constants.LyricsAnimationStyleKey
-import com.metrolist.music.constants.LyricsTextSizeKey
-import com.metrolist.music.constants.LyricsLineSpacingKey
+import com.metrolist.music.constants.LyricsClickKey
 import com.metrolist.music.constants.LyricsGlowEffectKey
+import com.metrolist.music.constants.LyricsLineSpacingKey
+import com.metrolist.music.constants.LyricsScrollKey
+import com.metrolist.music.constants.LyricsTextPositionKey
+import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.MiniPlayerOutlineKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
@@ -84,35 +96,80 @@ import com.metrolist.music.constants.ShowTopPlaylistKey
 import com.metrolist.music.constants.ShowUploadedPlaylistKey
 import com.metrolist.music.constants.SliderStyle
 import com.metrolist.music.constants.SliderStyleKey
-import com.metrolist.music.constants.SquigglySliderKey
 import com.metrolist.music.constants.SlimNavBarKey
+import com.metrolist.music.constants.SquigglySliderKey
 import com.metrolist.music.constants.SwipeSensitivityKey
 import com.metrolist.music.constants.SwipeThumbnailKey
-import com.metrolist.music.constants.SwipeToSongKey
 import com.metrolist.music.constants.SwipeToRemoveSongKey
+import com.metrolist.music.constants.SwipeToSongKey
+import com.metrolist.music.constants.ThemeSeedColorKey
+import com.metrolist.music.constants.UseMaterialYouKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumDialog
-import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.PlayerSliderTrack
+import com.metrolist.music.ui.component.WavySlider
+import com.metrolist.music.ui.theme.DefaultThemeColor
 import com.metrolist.music.ui.theme.PlayerSliderColors
-import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.IconUtils
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
-import com.metrolist.music.ui.component.WavySlider
+import kotlinx.coroutines.launch
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
+import android.os.Build
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import android.content.Intent
 import android.app.Activity
-import androidx.compose.material3.SnackbarHostState
-import com.metrolist.music.constants.CropAlbumArtKey
+
+@Composable
+private fun ColorThemeItem(
+    selected: Boolean,
+    colorInt: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val seedColor = Color(colorInt)
+    val colorScheme = rememberDynamicColorScheme(
+        seedColor = seedColor,
+        isDark = isSystemInDarkTheme(),
+        style = PaletteStyle.TonalSpot
+    )
+
+    Box(
+        modifier = modifier
+            .size(100.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(colorScheme.surfaceContainer)
+            .border(
+                width = if (selected) 4.dp else 0.dp,
+                color = if (selected) colorScheme.primary else Color.Transparent,
+                shape = RoundedCornerShape(24.dp)
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        // Doughnut Graphic
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(colorScheme.secondaryContainer), // Outer Ring
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp) // Inner Circle
+                    .clip(CircleShape)
+                    .background(colorScheme.primary)
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,11 +183,19 @@ fun AppearanceSettings(
         DynamicThemeKey,
         defaultValue = true
     )
+    val (useMaterialYou, onUseMaterialYouChange) = rememberPreference(
+        UseMaterialYouKey,
+        defaultValue = true
+    )
+    val (themeSeedColor, onThemeSeedColorChange) = rememberPreference(
+        ThemeSeedColorKey,
+        defaultValue = DefaultThemeColor.toArgb()
+    )
     val (enableDynamicIcon, onEnableDynamicIconChange) = rememberPreference(
         EnableDynamicIconKey,
         defaultValue = true
     )
-    val coroutineScope = rememberCoroutineScope()
+
 
     fun handleIconChange(enabled: Boolean) {
         onEnableDynamicIconChange(enabled)
@@ -812,7 +877,59 @@ fun AppearanceSettings(
         Material3SettingsGroup(
             title = stringResource(R.string.theme),
             items = buildList {
+                 // Sync with Music (Dynamic Theme) - Priority 1
                 add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text("Sync with music") },
+                        description = { Text("Extract colors from album art") },
+                        trailingContent = {
+                            Switch(
+                                checked = dynamicTheme,
+                                onCheckedChange = onDynamicThemeChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (dynamicTheme) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onDynamicThemeChange(!dynamicTheme) }
+                    )
+                )
+
+                // Material You / Custom Themes Section
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.palette),
+                            title = { Text("Material You themes") },
+                            description = { Text("Material You custom themes for all android versions.") },
+                            trailingContent = {
+                                Switch(
+                                    checked = useMaterialYou,
+                                    onCheckedChange = onUseMaterialYouChange,
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (useMaterialYou) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    }
+                                )
+                            },
+                            onClick = { onUseMaterialYouChange(!useMaterialYou) }
+                        )
+                    )
+                }
+
+                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.ic_dynamic_icon),
                         title = { Text(stringResource(R.string.enable_dynamic_icon)) },
@@ -834,28 +951,7 @@ fun AppearanceSettings(
                         onClick = { handleIconChange(!enableDynamicIcon) }
                     )
                 )
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.enable_dynamic_theme)) },
-                        trailingContent = {
-                            Switch(
-                                checked = dynamicTheme,
-                                onCheckedChange = onDynamicThemeChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (dynamicTheme) R.drawable.check else R.drawable.close
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-                                    )
-                                }
-                            )
-                        },
-                        onClick = { onDynamicThemeChange(!dynamicTheme) }
-                    )
-                )
+
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.dark_mode),
@@ -898,6 +994,45 @@ fun AppearanceSettings(
                 }
             }
         )
+
+        // Custom Color Row (Visible if Material You is OFF)
+        if (!useMaterialYou) {
+             val colors = listOf(
+                0xFFED5564.toInt(), // Metrolist Pink
+                0xFFD32F2F.toInt(), // Red
+                0xFFC2185B.toInt(), // Pink
+                0xFF7B1FA2.toInt(), // Purple
+                0xFF512DA8.toInt(), // Deep Purple
+                0xFF303F9F.toInt(), // Indigo
+                0xFF1976D2.toInt(), // Blue
+                0xFF0288D1.toInt(), // Light Blue
+                0xFF0097A7.toInt(), // Cyan
+                0xFF00796B.toInt(), // Teal
+                0xFF388E3C.toInt(), // Green
+                0xFF689F38.toInt(), // Light Green
+                0xFFFBC02D.toInt(), // Yellow
+                0xFFFFA000.toInt(), // Amber
+                0xFFF57C00.toInt(), // Orange
+                0xFFE64A19.toInt(), // Deep Orange
+                0xFF5D4037.toInt(), // Brown
+                0xFF616161.toInt(), // Grey
+                0xFF455A64.toInt()  // Blue Grey
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                items(colors) { colorInt ->
+                    ColorThemeItem(
+                        selected = themeSeedColor == colorInt,
+                        colorInt = colorInt,
+                        onClick = { onThemeSeedColorChange(colorInt) }
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(27.dp))
 
