@@ -139,6 +139,8 @@ import com.metrolist.music.constants.SlimNavBarHeight
 import com.metrolist.music.constants.SlimNavBarKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
+import com.metrolist.music.constants.ThemeSeedColorKey
+import com.metrolist.music.constants.UseMaterialYouKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
@@ -372,6 +374,9 @@ class MainActivity : ComponentActivity() {
         }
 
         val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
+        val useMaterialYou by rememberPreference(UseMaterialYouKey, defaultValue = true)
+        val themeSeedColor by rememberPreference(ThemeSeedColorKey, defaultValue = DefaultThemeColor.toArgb())
+
         val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
         val isSystemInDarkTheme = isSystemInDarkTheme()
         val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
@@ -390,37 +395,44 @@ class MainActivity : ComponentActivity() {
         var themeColor by rememberSaveable(stateSaver = ColorSaver) {
             mutableStateOf(DefaultThemeColor)
         }
+        var useDynamicColor by rememberSaveable { mutableStateOf(true) }
 
-        LaunchedEffect(playerConnection, enableDynamicTheme) {
+        LaunchedEffect(playerConnection, enableDynamicTheme, useMaterialYou, themeSeedColor) {
             val playerConnection = playerConnection
-            if (!enableDynamicTheme || playerConnection == null) {
-                themeColor = DefaultThemeColor
-                return@LaunchedEffect
-            }
-
-            playerConnection.service.currentMediaMetadata.collectLatest { song ->
-                if (song?.thumbnailUrl != null) {
-                    withContext(Dispatchers.IO) {
-                        try {
-                            val result = imageLoader.execute(
-                                ImageRequest.Builder(this@MainActivity)
-                                    .data(song.thumbnailUrl)
-                                    .allowHardware(false)
-                                    .memoryCachePolicy(CachePolicy.ENABLED)
-                                    .diskCachePolicy(CachePolicy.ENABLED)
-                                    .networkCachePolicy(CachePolicy.ENABLED)
-                                    .crossfade(false)
-                                    .build()
-                            )
-                            themeColor = result.image?.toBitmap()?.extractThemeColor() ?: DefaultThemeColor
-                        } catch (e: Exception) {
-                            // Fallback to default on error
-                            themeColor = DefaultThemeColor
+            
+            // Priority 1: Sync with Music (if enabled and playing)
+            if (enableDynamicTheme && playerConnection != null) {
+                playerConnection.service.currentMediaMetadata.collectLatest { song ->
+                    if (song?.thumbnailUrl != null) {
+                        withContext(Dispatchers.IO) {
+                            try {
+                                val result = imageLoader.execute(
+                                    ImageRequest.Builder(this@MainActivity)
+                                        .data(song.thumbnailUrl)
+                                        .allowHardware(false)
+                                        .memoryCachePolicy(CachePolicy.ENABLED)
+                                        .diskCachePolicy(CachePolicy.ENABLED)
+                                        .networkCachePolicy(CachePolicy.ENABLED)
+                                        .crossfade(false)
+                                        .build()
+                                )
+                                themeColor = result.image?.toBitmap()?.extractThemeColor() ?: Color(themeSeedColor)
+                                useDynamicColor = false // We are using a specific seed
+                            } catch (e: Exception) {
+                                // Fallback
+                                themeColor = Color(themeSeedColor)
+                                useDynamicColor = useMaterialYou
+                            }
                         }
+                    } else {
+                        themeColor = Color(themeSeedColor)
+                        useDynamicColor = useMaterialYou
                     }
-                } else {
-                    themeColor = DefaultThemeColor
                 }
+            } else {
+                // Priority 2: Manual Preferences
+                themeColor = Color(themeSeedColor)
+                useDynamicColor = useMaterialYou
             }
         }
 
@@ -428,6 +440,7 @@ class MainActivity : ComponentActivity() {
             darkTheme = useDarkTheme,
             pureBlack = pureBlack,
             themeColor = themeColor,
+            useDynamicColor = useDynamicColor,
         ) {
             BoxWithConstraints(
                 modifier = Modifier

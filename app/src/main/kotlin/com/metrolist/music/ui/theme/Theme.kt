@@ -32,12 +32,13 @@ val DefaultThemeColor = Color(0xFFED5564)
 fun MetrolistTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     pureBlack: Boolean = false,
+    useDynamicColor: Boolean = true,
     themeColor: Color = DefaultThemeColor,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    // Determine if system dynamic colors should be used (Android S+ and default theme color)
-    val useSystemDynamicColor = (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+    // Determine if system dynamic colors should be used (Android S+ and requested)
+    val useSystemDynamicColor = useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     // Select the appropriate color scheme generation method
     val baseColorScheme = if (useSystemDynamicColor) {

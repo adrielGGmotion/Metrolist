@@ -39,6 +39,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -108,12 +109,14 @@ import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumDialog
+import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.PlayerSliderTrack
 import com.metrolist.music.ui.component.WavySlider
 import com.metrolist.music.ui.theme.DefaultThemeColor
 import com.metrolist.music.ui.theme.PlayerSliderColors
+import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.IconUtils
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
@@ -195,7 +198,7 @@ fun AppearanceSettings(
         EnableDynamicIconKey,
         defaultValue = true
     )
-
+    val coroutineScope = rememberCoroutineScope()
 
     fun handleIconChange(enabled: Boolean) {
         onEnableDynamicIconChange(enabled)
