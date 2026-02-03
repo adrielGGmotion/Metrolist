@@ -718,8 +718,8 @@ class MusicService :
 
             AudioManager.AUDIOFOCUS_LOSS -> {
                 hasAudioFocus = false
-                wasPlayingBeforeAudioFocusLoss = player.isPlaying
                 if (player.isPlaying) {
+                    wasPlayingBeforeAudioFocusLoss = true
                     player.pause()
                 }
                 abandonAudioFocus()
@@ -728,8 +728,8 @@ class MusicService :
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 hasAudioFocus = false
-                wasPlayingBeforeAudioFocusLoss = player.isPlaying
                 if (player.isPlaying) {
+                    wasPlayingBeforeAudioFocusLoss = true
                     player.pause()
                 }
                 lastAudioFocusState = focusChange
@@ -737,8 +737,8 @@ class MusicService :
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 hasAudioFocus = false
-                wasPlayingBeforeAudioFocusLoss = player.isPlaying
                 if (player.isPlaying) {
+                    wasPlayingBeforeAudioFocusLoss = true
                     player.volume = (playerVolume.value * 0.2f)
                 }
                 lastAudioFocusState = focusChange
