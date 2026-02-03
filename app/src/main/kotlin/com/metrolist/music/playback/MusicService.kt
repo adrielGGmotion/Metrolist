@@ -280,6 +280,7 @@ class MusicService :
 
     private var isAudioEffectSessionOpened = false
     private var loudnessEnhancer: LoudnessEnhancer? = null
+    private var currentEnhancerSessionId: Int = C.AUDIO_SESSION_ID_UNSET
 
     private var discordRpc: DiscordRPC? = null
     private var lastPlaybackSpeed = 1.0f
@@ -1329,8 +1330,8 @@ class MusicService :
         }
 
         // Recreate enhancer if audio session ID has changed
-        if (loudnessEnhancer != null && loudnessEnhancer!!.audioSessionId != audioSessionId) {
-            Log.d(TAG, "Audio session ID changed (${loudnessEnhancer!!.audioSessionId} -> $audioSessionId), recreating LoudnessEnhancer")
+        if (loudnessEnhancer != null && currentEnhancerSessionId != audioSessionId) {
+            Log.d(TAG, "Audio session ID changed ($currentEnhancerSessionId -> $audioSessionId), recreating LoudnessEnhancer")
             releaseLoudnessEnhancer()
         }
 
@@ -1338,10 +1339,12 @@ class MusicService :
         if (loudnessEnhancer == null) {
             try {
                 loudnessEnhancer = LoudnessEnhancer(audioSessionId)
+                currentEnhancerSessionId = audioSessionId
                 Log.d(TAG, "LoudnessEnhancer created for sessionId=$audioSessionId")
             } catch (e: Exception) {
                 reportException(e)
                 loudnessEnhancer = null
+                currentEnhancerSessionId = C.AUDIO_SESSION_ID_UNSET
                 return
             }
         }
@@ -1412,6 +1415,7 @@ class MusicService :
             Log.e(TAG, "Error releasing LoudnessEnhancer: ${e.message}")
         } finally {
             loudnessEnhancer = null
+            currentEnhancerSessionId = C.AUDIO_SESSION_ID_UNSET
         }
     }
 
