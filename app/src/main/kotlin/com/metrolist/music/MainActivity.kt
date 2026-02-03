@@ -127,6 +127,7 @@ import com.metrolist.music.constants.CheckForUpdatesKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
 import com.metrolist.music.constants.DisableScreenshotKey
+import com.metrolist.music.constants.CustomThemeColorKey
 import com.metrolist.music.constants.DynamicThemeKey
 import com.metrolist.music.constants.MiniPlayerBottomSpacing
 import com.metrolist.music.constants.MiniPlayerHeight
@@ -372,6 +373,7 @@ class MainActivity : ComponentActivity() {
         }
 
         val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
+        val customThemeColor by rememberPreference(CustomThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
         val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
         val isSystemInDarkTheme = isSystemInDarkTheme()
         val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
@@ -391,10 +393,10 @@ class MainActivity : ComponentActivity() {
             mutableStateOf(DefaultThemeColor)
         }
 
-        LaunchedEffect(playerConnection, enableDynamicTheme) {
+        LaunchedEffect(playerConnection, enableDynamicTheme, customThemeColor) {
             val playerConnection = playerConnection
             if (!enableDynamicTheme || playerConnection == null) {
-                themeColor = DefaultThemeColor
+                themeColor = Color(customThemeColor)
                 return@LaunchedEffect
             }
 
@@ -412,14 +414,14 @@ class MainActivity : ComponentActivity() {
                                     .crossfade(false)
                                     .build()
                             )
-                            themeColor = result.image?.toBitmap()?.extractThemeColor() ?: DefaultThemeColor
+                            themeColor = result.image?.toBitmap()?.extractThemeColor() ?: Color(customThemeColor)
                         } catch (e: Exception) {
                             // Fallback to default on error
-                            themeColor = DefaultThemeColor
+                            themeColor = Color(customThemeColor)
                         }
                     }
                 } else {
-                    themeColor = DefaultThemeColor
+                    themeColor = Color(customThemeColor)
                 }
             }
         }

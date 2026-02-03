@@ -6,10 +6,12 @@
 package com.metrolist.music.ui.screens.settings
 
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,6 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -54,6 +62,7 @@ import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.ChipSortTypeKey
+import com.metrolist.music.constants.CustomThemeColorKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
 import com.metrolist.music.constants.EnableDynamicIconKey
@@ -92,12 +101,14 @@ import com.metrolist.music.constants.SwipeToSongKey
 import com.metrolist.music.constants.SwipeToRemoveSongKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.ui.component.ColorPickerDialog
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.PlayerSliderTrack
+import com.metrolist.music.ui.theme.DefaultThemeColor
 import com.metrolist.music.ui.theme.PlayerSliderColors
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.IconUtils
@@ -126,6 +137,12 @@ fun AppearanceSettings(
         DynamicThemeKey,
         defaultValue = true
     )
+    val (customThemeColor, onCustomThemeColorChange) = rememberPreference(
+        CustomThemeColorKey,
+        defaultValue = DefaultThemeColor.toArgb()
+    )
+    var showColorPicker by remember { mutableStateOf(false) }
+
     val (enableDynamicIcon, onEnableDynamicIconChange) = rememberPreference(
         EnableDynamicIconKey,
         defaultValue = true
@@ -304,6 +321,17 @@ fun AppearanceSettings(
 
     var showLyricsLineSpacingDialog by rememberSaveable {
         mutableStateOf(false)
+    }
+
+    if (showColorPicker) {
+        ColorPickerDialog(
+            initialColor = Color(customThemeColor),
+            onDismiss = { showColorPicker = false },
+            onColorSelected = {
+                onCustomThemeColorChange(it.toArgb())
+                showColorPicker = false
+            }
+        )
     }
 
     if (showLyricsPositionDialog) {
@@ -854,6 +882,73 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onDynamicThemeChange(!dynamicTheme) }
+                    )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text(stringResource(R.string.theme_color)) },
+                        description = {
+                            val presets = remember {
+                                listOf(
+                                    Color(0xFFED5564), // Default
+                                    Color(0xFFF44336), // Red
+                                    Color(0xFFFF9800), // Orange
+                                    Color(0xFFFFEB3B), // Yellow
+                                    Color(0xFF4CAF50), // Green
+                                    Color(0xFF2196F3), // Blue
+                                    Color(0xFF9C27B0), // Purple
+                                    Color(0xFFE91E63), // Pink
+                                )
+                            }
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(top = 8.dp)
+                            ) {
+                                items(presets) { color ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(color)
+                                            .border(
+                                                width = if (color.toArgb() == customThemeColor) 2.dp else 0.dp,
+                                                color = if (color.toArgb() == customThemeColor) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                                shape = CircleShape
+                                            )
+                                            .clickable { onCustomThemeColorChange(color.toArgb()) }
+                                    )
+                                }
+                                item {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                Brush.sweepGradient(
+                                                    listOf(
+                                                        Color.Red,
+                                                        Color.Green,
+                                                        Color.Blue,
+                                                        Color.Red
+                                                    )
+                                                )
+                                            )
+                                            .clickable { showColorPicker = true }
+                                    ) {
+                                        if (presets.none { it.toArgb() == customThemeColor }) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.White)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     )
                 )
                 add(

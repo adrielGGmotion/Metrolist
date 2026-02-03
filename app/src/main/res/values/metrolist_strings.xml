@@ -278,6 +278,7 @@
     <string name="lyrics_offset">Lyrics Offset</string>
 
     <!-- Material 3 Settings Sections -->
+    <string name="theme_color">Theme color</string>
     <string name="settings_section_ui">Interface</string>
     <string name="settings_section_privacy">Privacy &amp; Security</string>
     <string name="settings_section_player">Player &amp; Media</string>
