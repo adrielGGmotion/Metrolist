@@ -1,5 +1,6 @@
 package com.metrolist.music.ui.screens.settings
 
+import android.content.res.Configuration
 import android.os.Build
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -18,12 +19,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -111,6 +114,8 @@ fun ThemeScreen(
 
     val selectedThemeColor = Color(selectedThemeColorInt)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -129,20 +134,103 @@ fun ThemeScreen(
             )
         }
     ) { innerPadding ->
+        if (isLandscape) {
+            LandscapeThemeLayout(
+                innerPadding = innerPadding,
+                darkMode = darkMode,
+                onDarkModeChange = onDarkModeChange,
+                pureBlack = pureBlack,
+                onPureBlackChange = onPureBlackChange,
+                selectedThemeColor = selectedThemeColor,
+                onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
+            )
+        } else {
+            PortraitThemeLayout(
+                innerPadding = innerPadding,
+                darkMode = darkMode,
+                onDarkModeChange = onDarkModeChange,
+                pureBlack = pureBlack,
+                onPureBlackChange = onPureBlackChange,
+                selectedThemeColor = selectedThemeColor,
+                onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
+            )
+        }
+    }
+}
+
+@Composable
+fun PortraitThemeLayout(
+    innerPadding: PaddingValues,
+    darkMode: DarkMode,
+    onDarkModeChange: (DarkMode) -> Unit,
+    pureBlack: Boolean,
+    onPureBlackChange: (Boolean) -> Unit,
+    selectedThemeColor: Color,
+    onSelectedThemeColorChange: (Color) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.55f)
+                .height(220.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            ThemeMockup(
+                darkMode = darkMode,
+                pureBlack = pureBlack,
+                themeColor = selectedThemeColor
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        ThemeControls(
+            darkMode = darkMode,
+            onDarkModeChange = onDarkModeChange,
+            pureBlack = pureBlack,
+            onPureBlackChange = onPureBlackChange,
+            selectedThemeColor = selectedThemeColor,
+            onSelectedThemeColorChange = onSelectedThemeColorChange
+        )
+
+        Spacer(modifier = Modifier.height(120.dp))
+    }
+}
+
+@Composable
+fun LandscapeThemeLayout(
+    innerPadding: PaddingValues,
+    darkMode: DarkMode,
+    onDarkModeChange: (DarkMode) -> Unit,
+    pureBlack: Boolean,
+    onPureBlackChange: (Boolean) -> Unit,
+    selectedThemeColor: Color,
+    onSelectedThemeColorChange: (Color) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .weight(0.4f)
+                .fillMaxHeight()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.55f)
-                    .heightIn(max = 240.dp),
+                    .fillMaxWidth(0.8f)
+                    .heightIn(max = 300.dp),
                 contentAlignment = Alignment.Center
             ) {
                 ThemeMockup(
@@ -151,17 +239,25 @@ fun ThemeScreen(
                     themeColor = selectedThemeColor
                 )
             }
+        }
 
+        Column(
+            modifier = Modifier
+                .weight(0.6f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(end = 16.dp, top = 16.dp, bottom = 16.dp)
+        ) {
             ThemeControls(
                 darkMode = darkMode,
                 onDarkModeChange = onDarkModeChange,
                 pureBlack = pureBlack,
                 onPureBlackChange = onPureBlackChange,
                 selectedThemeColor = selectedThemeColor,
-                onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
+                onSelectedThemeColorChange = onSelectedThemeColorChange
             )
 
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
@@ -445,15 +541,6 @@ fun ThemeMockup(
         DarkMode.ON -> true
         DarkMode.OFF -> false
     }
-    
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-    
-    val mockupAspectRatio = if (isLandscape) {
-        configuration.screenHeightDp.toFloat() / configuration.screenWidthDp.toFloat()
-    } else {
-        configuration.screenWidthDp.toFloat() / configuration.screenHeightDp.toFloat()
-    }
 
     MetrolistTheme(
         darkTheme = useDark,
@@ -462,8 +549,8 @@ fun ThemeMockup(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(mockupAspectRatio.coerceIn(0.5f, 0.7f)),
+                .fillMaxSize()
+                .aspectRatio(9f / 18f),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
