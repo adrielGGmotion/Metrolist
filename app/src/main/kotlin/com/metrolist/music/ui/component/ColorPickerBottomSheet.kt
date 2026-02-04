@@ -99,104 +99,161 @@ fun ColorPickerContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(180.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                .height(150.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
         ) {
             MetrolistTheme(
                 themeColor = selectedColor,
-                darkTheme = true // Force dark for preview or follow system? Let's use dark for consistency with "Couleurs" dark bg
+                darkTheme = true
             ) {
-                // Mockup content
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start
                 ) {
-                    // Header
-                    Row(
+                    // Left Square
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(16.dp)
+                            .size(60.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    )
+
+                    // Lines
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             modifier = Modifier
+                                .width(200.dp)
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.onSurface)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(140.dp)
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+
+                // Bottom Secondary/Tertiary Preview
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 16.dp, bottom = 16.dp)
+                ) {
+                     Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                     ) {
+                         // Overwrite the first box logic above to match the reference
+                         // Reference has a dark square, then a light square below it? No.
+                         // Reference:
+                         // [ Dark Square ]  [ Long White Line ]
+                         //                  [ Med  Color Line ]
+                         //
+                         // [ Light Square]  [ Long White Line ]
+                         //                  [ Med  Color Line? No, just lines]
+
+                         // Wait, let's look at the reference image logic again.
+                         // Top part: Music Note Icon in Circle (Preview Title)
+                         // Content:
+                         // 1. Dark Grey Square | White Line (Long)
+                         //                     | Purple Line (Med)
+                         // 2. Pink Square      | White Line (Long)
+                         //                     | Dark Grey Line (Short)
+
+                         // My Previous Mockup was closer but colors were off. Let's align with the reference image exactly.
+                     }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.music_note),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
                                 .size(32.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                        ) {
-                             Icon(
-                                 painter = painterResource(R.drawable.music_note),
-                                 contentDescription = null,
-                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                 modifier = Modifier.align(Alignment.Center).size(20.dp)
-                             )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape)
+                                .padding(6.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Preview",
+                            text = stringResource(R.string.preview),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
-                    // List Items
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Row 1
+                    Row(verticalAlignment = Alignment.Top) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .width(180.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface) // Whiteish
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Box(
-                                    modifier = Modifier
-                                        .width(120.dp)
-                                        .height(12.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.onSurface)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .width(80.dp)
-                                        .height(10.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
+                            Box(
+                                modifier = Modifier
+                                    .width(120.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer) // Colored
+                            )
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Row 2
+                    Row(verticalAlignment = Alignment.Top) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer) // Pinkish
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.tertiaryContainer)
+                                    .width(150.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.onSurface)
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Box(
-                                    modifier = Modifier
-                                        .width(100.dp)
-                                        .height(12.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.onSurface)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .width(60.dp)
-                                        .height(10.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.onSurfaceVariant)
-                                )
-                            }
+                            Box(
+                                modifier = Modifier
+                                    .width(90.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                            )
                         }
                     }
                 }

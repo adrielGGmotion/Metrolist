@@ -830,7 +830,7 @@ fun AppearanceSettings(
             .padding(horizontal = 16.dp),
     ) {
         Material3SettingsGroup(
-            title = stringResource(R.string.theme),
+            title = "", // Empty title as the group seems untitled in the reference, or we can use "Appearance" if appropriate
             items = buildList {
                 add(
                     Material3SettingsItem(
@@ -857,7 +857,7 @@ fun AppearanceSettings(
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),
-                        title = { Text("Dynamic player theme") },
+                        title = { Text(stringResource(R.string.dynamic_player_theme)) },
                         trailingContent = {
                             Switch(
                                 checked = dynamicTheme,
@@ -880,7 +880,7 @@ fun AppearanceSettings(
                     add(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.palette),
-                            title = { Text("Dynamic app theme") },
+                            title = { Text(stringResource(R.string.dynamic_app_theme)) },
                             trailingContent = {
                                 Switch(
                                     checked = applyDynamicThemeToApp,
@@ -906,7 +906,7 @@ fun AppearanceSettings(
                         add(
                             Material3SettingsItem(
                                 icon = painterResource(R.drawable.palette),
-                                title = { Text("Use system colors") },
+                                title = { Text(stringResource(R.string.use_system_colors)) },
                                 trailingContent = {
                                     Switch(
                                         checked = useSystemMaterialYou,
@@ -923,26 +923,6 @@ fun AppearanceSettings(
                                     )
                                 },
                                 onClick = { onUseSystemMaterialYouChange(!useSystemMaterialYou) }
-                            )
-                        )
-                    }
-
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !useSystemMaterialYou) {
-                        add(
-                            Material3SettingsItem(
-                                icon = painterResource(R.drawable.palette),
-                                title = { Text(stringResource(R.string.customize_colors)) },
-                                onClick = {
-                                    menuState.show {
-                                        ColorPickerContent(
-                                            initialColor = staticThemeColor,
-                                            onColorSelected = {
-                                                onStaticThemeColorChange(it)
-                                            },
-                                            onDismiss = { menuState.dismiss() }
-                                        )
-                                    }
-                                }
                             )
                         )
                     }
@@ -989,6 +969,18 @@ fun AppearanceSettings(
                 }
             }
         )
+
+        // Theme Color Section
+        if ((!dynamicTheme || !applyDynamicThemeToApp) && (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !useSystemMaterialYou)) {
+            Spacer(modifier = Modifier.height(24.dp))
+            ColorPickerContent(
+                initialColor = staticThemeColor,
+                onColorSelected = {
+                    onStaticThemeColorChange(it)
+                },
+                onDismiss = { /* Inline, no dismiss needed */ }
+            )
+        }
 
         Spacer(modifier = Modifier.height(27.dp))
 
