@@ -856,6 +856,14 @@ fun AppearanceSettings(
                         onClick = { onDynamicThemeChange(!dynamicTheme) }
                     )
                 )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text("Theme") },
+                        description = { Text("Customize app colors") },
+                        onClick = { navController.navigate("settings/appearance/theme") }
+                    )
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.dark_mode),

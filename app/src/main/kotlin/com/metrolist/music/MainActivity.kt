@@ -134,6 +134,8 @@ import com.metrolist.music.constants.NavigationBarAnimationSpec
 import com.metrolist.music.constants.NavigationBarHeight
 import com.metrolist.music.constants.PauseSearchHistoryKey
 import com.metrolist.music.constants.PureBlackKey
+import com.metrolist.music.constants.StaticThemeColorKey
+import com.metrolist.music.constants.UseMaterialYouKey
 import com.metrolist.music.constants.SYSTEM_DEFAULT
 import com.metrolist.music.constants.SlimNavBarHeight
 import com.metrolist.music.constants.SlimNavBarKey
@@ -391,36 +393,45 @@ class MainActivity : ComponentActivity() {
             mutableStateOf(DefaultThemeColor)
         }
 
-        LaunchedEffect(playerConnection, enableDynamicTheme) {
-            val playerConnection = playerConnection
-            if (!enableDynamicTheme || playerConnection == null) {
-                themeColor = DefaultThemeColor
-                return@LaunchedEffect
-            }
+        val useMaterialYou by rememberPreference(UseMaterialYouKey, defaultValue = false)
+        val staticThemeColorInt by rememberPreference(StaticThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
 
-            playerConnection.service.currentMediaMetadata.collectLatest { song ->
-                if (song?.thumbnailUrl != null) {
-                    withContext(Dispatchers.IO) {
-                        try {
-                            val result = imageLoader.execute(
-                                ImageRequest.Builder(this@MainActivity)
-                                    .data(song.thumbnailUrl)
-                                    .allowHardware(false)
-                                    .memoryCachePolicy(CachePolicy.ENABLED)
-                                    .diskCachePolicy(CachePolicy.ENABLED)
-                                    .networkCachePolicy(CachePolicy.ENABLED)
-                                    .crossfade(false)
-                                    .build()
-                            )
-                            themeColor = result.image?.toBitmap()?.extractThemeColor() ?: DefaultThemeColor
-                        } catch (e: Exception) {
-                            // Fallback to default on error
-                            themeColor = DefaultThemeColor
+        fun getFallbackThemeColor(): Color {
+            return if (useMaterialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                DefaultThemeColor
+            } else {
+                Color(staticThemeColorInt)
+            }
+        }
+
+        LaunchedEffect(playerConnection, enableDynamicTheme, useMaterialYou, staticThemeColorInt) {
+            val playerConnection = playerConnection
+            if (enableDynamicTheme && playerConnection != null) {
+                playerConnection.service.currentMediaMetadata.collectLatest { song ->
+                    if (song?.thumbnailUrl != null) {
+                        withContext(Dispatchers.IO) {
+                            try {
+                                val result = imageLoader.execute(
+                                    ImageRequest.Builder(this@MainActivity)
+                                        .data(song.thumbnailUrl)
+                                        .allowHardware(false)
+                                        .memoryCachePolicy(CachePolicy.ENABLED)
+                                        .diskCachePolicy(CachePolicy.ENABLED)
+                                        .networkCachePolicy(CachePolicy.ENABLED)
+                                        .crossfade(false)
+                                        .build()
+                                )
+                                themeColor = result.image?.toBitmap()?.extractThemeColor() ?: getFallbackThemeColor()
+                            } catch (e: Exception) {
+                                themeColor = getFallbackThemeColor()
+                            }
                         }
+                    } else {
+                        themeColor = getFallbackThemeColor()
                     }
-                } else {
-                    themeColor = DefaultThemeColor
                 }
+            } else {
+                themeColor = getFallbackThemeColor()
             }
         }
 

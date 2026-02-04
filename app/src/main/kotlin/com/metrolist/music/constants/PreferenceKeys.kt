@@ -15,6 +15,8 @@ import java.time.ZoneOffset
 
 val EnableDynamicIconKey = booleanPreferencesKey("enableDynamicIcon")
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
+val StaticThemeColorKey = intPreferencesKey("staticThemeColor")
+val UseMaterialYouKey = booleanPreferencesKey("useMaterialYou")
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
 val PureBlackMiniPlayerKey = booleanPreferencesKey("pureBlackMiniPlayer")

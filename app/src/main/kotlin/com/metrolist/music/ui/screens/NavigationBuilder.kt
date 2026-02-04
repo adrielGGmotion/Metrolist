@@ -42,6 +42,7 @@ import com.metrolist.music.ui.screens.search.SearchScreen
 import com.metrolist.music.ui.screens.settings.AboutScreen
 import com.metrolist.music.ui.screens.settings.AccountSettings
 import com.metrolist.music.ui.screens.settings.AppearanceSettings
+import com.metrolist.music.ui.screens.settings.ThemePickerScreen
 import com.metrolist.music.ui.screens.settings.BackupAndRestore
 import com.metrolist.music.ui.screens.settings.ContentSettings
 import com.metrolist.music.ui.screens.settings.DarkMode
@@ -314,6 +315,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable(route = "settings/appearance", content = {
         AppearanceSettings(navController, scrollBehavior, activity, snackbarHostState)
+    })
+
+    composable(route = "settings/appearance/theme", content = {
+        ThemePickerScreen()
     })
 
     composable(route = "settings/content", content = {
