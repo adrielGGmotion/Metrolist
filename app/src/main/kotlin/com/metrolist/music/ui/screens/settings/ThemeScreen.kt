@@ -29,10 +29,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -119,8 +115,8 @@ fun ThemeScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
+                            painter = painterResource(R.drawable.arrow_back),
+                            contentDescription = "Back"
                         )
                     }
                 }
@@ -267,7 +263,7 @@ fun ThemeControls(
                 isSelected = darkMode == DarkMode.AUTO,
                 icon = {
                     Icon(
-                        imageVector = Icons.Rounded.Sync,
+                        painter = painterResource(R.drawable.sync),
                         contentDescription = "System",
                         tint = Color.Black
                     )
@@ -303,7 +299,7 @@ fun ThemeControls(
                 thumbContent = if (useSystemColors) {
                     {
                         Icon(
-                            imageVector = Icons.Rounded.Check,
+                            painter = painterResource(R.drawable.check),
                             contentDescription = null,
                             modifier = Modifier.size(SwitchDefaults.IconSize),
                         )

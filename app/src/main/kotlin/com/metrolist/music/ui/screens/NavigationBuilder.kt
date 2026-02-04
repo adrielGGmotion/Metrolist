@@ -51,6 +51,7 @@ import com.metrolist.music.ui.screens.settings.PrivacySettings
 import com.metrolist.music.ui.screens.settings.RomanizationSettings
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.screens.settings.StorageSettings
+import com.metrolist.music.ui.screens.settings.ThemeScreen
 import com.metrolist.music.ui.screens.settings.UpdaterScreen
 import com.metrolist.music.ui.screens.settings.integrations.DiscordSettings
 import com.metrolist.music.ui.screens.settings.integrations.IntegrationScreen
@@ -312,9 +313,7 @@ fun NavGraphBuilder.navigationBuilder(
         SettingsScreen(navController, scrollBehavior, latestVersionName)
     })
 
-import com.metrolist.music.ui.screens.settings.ThemeScreen
-
-// ...
+    // ...
 
     composable(route = "settings/appearance", content = {
         AppearanceSettings(navController, scrollBehavior, activity, snackbarHostState)
