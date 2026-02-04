@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -135,15 +134,15 @@ fun ThemeScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Box(
                 modifier = Modifier
-                    .fillMaxHeight(0.4f)
                     .fillMaxWidth(0.55f)
-                    .heightIn(min = 250.dp),
+                    .heightIn(max = 240.dp),
                 contentAlignment = Alignment.Center
             ) {
                 ThemeMockup(
@@ -152,8 +151,6 @@ fun ThemeScreen(
                     themeColor = selectedThemeColor
                 )
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             ThemeControls(
                 darkMode = darkMode,
@@ -164,7 +161,7 @@ fun ThemeScreen(
                 onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
@@ -182,7 +179,7 @@ fun ThemeControls(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
@@ -465,7 +462,7 @@ fun ThemeMockup(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .aspectRatio(mockupAspectRatio.coerceIn(0.5f, 0.7f)),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
@@ -480,9 +477,9 @@ fun ThemeMockup(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(40.dp)
                         .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(12.dp),
+                        .padding(10.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(
@@ -492,12 +489,12 @@ fun ThemeMockup(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(18.dp)
                                 .background(MaterialTheme.colorScheme.primary, CircleShape)
                         )
                         Box(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(18.dp)
                                 .background(MaterialTheme.colorScheme.secondary, CircleShape)
                         )
                     }
@@ -506,31 +503,31 @@ fun ThemeMockup(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(40.dp)
+                            .height(32.dp)
                             .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
                     )
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(50.dp)
+                                .height(40.dp)
                                 .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(6.dp))
                         )
                         
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(50.dp)
+                                .height(40.dp)
                                 .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
                         )
                     }
@@ -539,12 +536,12 @@ fun ThemeMockup(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(10.dp),
                     contentAlignment = Alignment.BottomEnd
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(30.dp)
                             .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
                     )
                 }
