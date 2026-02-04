@@ -156,7 +156,7 @@ fun LibrarySongsScreen(
                             // Uploaded feature is temporarily disabled
                             // SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
                             SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
-                            SongFilter.LOCAL to "Local",
+                            SongFilter.LOCAL to stringResource(R.string.filter_local),
                         ),
                         currentValue = filter,
                         onValueUpdate = {

@@ -99,9 +99,9 @@ class LocalMusicScanner @Inject constructor(
     }
 
     private suspend fun saveToDatabase(songs: List<LocalSongData>) {
-        songs.forEach { songData ->
-            try {
-                database.withTransaction {
+        try {
+            database.withTransaction {
+                songs.forEach { songData ->
                     // 1. Insert/Update Artist
                     val artistId = "local:${songData.artist}"
                     val existingArtist = database.artist(artistId).firstOrNull()?.artist
@@ -189,9 +189,9 @@ class LocalMusicScanner @Inject constructor(
                         )
                     )
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "Error saving song to DB: ${songData.title}")
             }
+        } catch (e: Exception) {
+            Timber.e(e, "Error saving local songs to DB")
         }
     }
 

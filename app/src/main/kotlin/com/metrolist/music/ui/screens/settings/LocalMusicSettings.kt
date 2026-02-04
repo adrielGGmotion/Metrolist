@@ -61,12 +61,12 @@ fun LocalMusicSettings(
             .padding(horizontal = 16.dp),
     ) {
         Material3SettingsGroup(
-            title = "Manage Folders",
+            title = androidx.compose.ui.res.stringResource(R.string.manage_folders),
             items = buildList {
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.library_add),
-                        title = { Text("Add Folder") },
+                        title = { Text(androidx.compose.ui.res.stringResource(R.string.add_folder)) },
                         onClick = { folderPickerLauncher.launch(null) }
                     )
                 )
@@ -74,7 +74,7 @@ fun LocalMusicSettings(
                     add(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.sync),
-                            title = { Text("Scan Now") },
+                            title = { Text(androidx.compose.ui.res.stringResource(R.string.scan_now)) },
                             onClick = { viewModel.scanLocalFiles(localFolders) }
                         )
                     )
@@ -84,7 +84,7 @@ fun LocalMusicSettings(
 
         if (localFolders.isNotEmpty()) {
             Material3SettingsGroup(
-                title = "Added Folders",
+                title = androidx.compose.ui.res.stringResource(R.string.added_folders),
                 items = localFolders.map { uriString ->
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.library_music),
@@ -100,7 +100,7 @@ fun LocalMusicSettings(
                                             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                                         )
                                     } catch (e: Exception) {
-                                        // Ignore
+                                        timber.log.Timber.w(e, "Failed to release persistable URI permission for %s", uriString)
                                     }
                                 }
                             ) {
@@ -117,7 +117,7 @@ fun LocalMusicSettings(
     }
 
     TopAppBar(
-        title = { Text("Local Music") },
+        title = { Text(androidx.compose.ui.res.stringResource(R.string.local_music)) },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,

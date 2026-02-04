@@ -1059,14 +1059,14 @@ interface DatabaseDao {
     ) = when (sortType) {
         SongSortType.CREATE_DATE -> localSongsByCreateDateAsc()
         SongSortType.NAME ->
-            localSongsByNameAsc().map { songs ->
+            localSongsByCreateDateAsc().map { songs ->
                 val collator = Collator.getInstance(Locale.getDefault())
                 collator.strength = Collator.PRIMARY
                 songs.sortedWith(compareBy(collator) { it.song.title })
             }
 
         SongSortType.ARTIST ->
-            localSongsByNameAsc().map { songs ->
+            localSongsByCreateDateAsc().map { songs ->
                 val collator = Collator.getInstance(Locale.getDefault())
                 collator.strength = Collator.PRIMARY
                 songs.sortedWith(compareBy(collator) { song ->
