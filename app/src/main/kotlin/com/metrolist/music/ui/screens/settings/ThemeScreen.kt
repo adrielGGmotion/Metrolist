@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -133,18 +134,26 @@ fun ThemeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            ThemeMockup(
-                darkMode = darkMode,
-                pureBlack = pureBlack,
-                themeColor = selectedThemeColor
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(0.4f)
+                    .fillMaxWidth(0.55f)
+                    .heightIn(min = 250.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                ThemeMockup(
+                    darkMode = darkMode,
+                    pureBlack = pureBlack,
+                    themeColor = selectedThemeColor
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
 
             ThemeControls(
                 darkMode = darkMode,
@@ -155,7 +164,7 @@ fun ThemeScreen(
                 onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
             )
 
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -170,8 +179,10 @@ fun ThemeControls(
     onSelectedThemeColorChange: (Color) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
@@ -454,14 +465,13 @@ fun ThemeMockup(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.65f)
-                .heightIn(max = 400.dp)
+                .fillMaxSize()
                 .aspectRatio(mockupAspectRatio.coerceIn(0.5f, 0.7f)),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
