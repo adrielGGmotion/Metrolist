@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -69,7 +70,6 @@ import com.metrolist.music.ui.theme.MetrolistTheme
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 
-// Define 19 color palettes with descriptive names for accessibility
 data class ThemePalette(
     val name: String,
     val seedColor: Color
@@ -128,28 +128,25 @@ fun ThemeScreen(
                 scrollBehavior = scrollBehavior
             )
         }
-    ) { paddingValues ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Upper Section - Mockup Stage (weighted to fill remaining space)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                ThemeMockup(
-                    darkMode = darkMode,
-                    pureBlack = pureBlack,
-                    themeColor = selectedThemeColor
-                )
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Lower Section - Floating Controls Card
-            FloatingControlsCard(
+            ThemeMockup(
+                darkMode = darkMode,
+                pureBlack = pureBlack,
+                themeColor = selectedThemeColor
+            )
+
+            ThemeControls(
                 darkMode = darkMode,
                 onDarkModeChange = onDarkModeChange,
                 pureBlack = pureBlack,
@@ -158,14 +155,13 @@ fun ThemeScreen(
                 onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
             )
 
-            // Bottom spacer for mini-player clearance
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
 
 @Composable
-fun FloatingControlsCard(
+fun ThemeControls(
     darkMode: DarkMode,
     onDarkModeChange: (DarkMode) -> Unit,
     pureBlack: Boolean,
@@ -174,9 +170,7 @@ fun FloatingControlsCard(
     onSelectedThemeColorChange: (Color) -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -184,24 +178,32 @@ fun FloatingControlsCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Theme Mode Section
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = stringResource(R.string.theme_mode),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
-                // Mode Selector Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
                 ) {
+                    ModeCircle(
+                        darkMode = darkMode,
+                        pureBlack = pureBlack,
+                        targetMode = DarkMode.AUTO,
+                        targetPureBlack = false,
+                        onClick = {
+                            onDarkModeChange(DarkMode.AUTO)
+                            onPureBlackChange(false)
+                        },
+                        showIcon = true
+                    )
+                    
                     ModeCircle(
                         darkMode = darkMode,
                         pureBlack = pureBlack,
@@ -229,18 +231,6 @@ fun FloatingControlsCard(
                     ModeCircle(
                         darkMode = darkMode,
                         pureBlack = pureBlack,
-                        targetMode = DarkMode.AUTO,
-                        targetPureBlack = false,
-                        onClick = {
-                            onDarkModeChange(DarkMode.AUTO)
-                            onPureBlackChange(false)
-                        },
-                        showIcon = true
-                    )
-                    
-                    ModeCircle(
-                        darkMode = darkMode,
-                        pureBlack = pureBlack,
                         targetMode = DarkMode.ON,
                         targetPureBlack = true,
                         onClick = {
@@ -252,12 +242,11 @@ fun FloatingControlsCard(
                 }
             }
 
-            // Color Palette Section
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = stringResource(R.string.color_palette),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 LazyRow(
@@ -465,7 +454,8 @@ fun ThemeMockup(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.6f)
+                .fillMaxWidth(0.65f)
+                .heightIn(max = 400.dp)
                 .aspectRatio(mockupAspectRatio.coerceIn(0.5f, 0.7f)),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
