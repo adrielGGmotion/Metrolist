@@ -43,6 +43,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
@@ -64,6 +66,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -87,6 +90,7 @@ data class ThemePalette(
 )
 
 val PaletteColors = listOf(
+    ThemePalette("Black & White", Color(0xFF808080)), // Gray for near-monochrome look
     ThemePalette("Crimson", Color(0xFFED5564)),
     ThemePalette("Rose", Color(0xFFD81B60)),
     ThemePalette("Purple", Color(0xFF8E24AA)),
@@ -398,6 +402,7 @@ fun ModeCircle(
     showIcon: Boolean,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val isSystemDark = isSystemInDarkTheme()
     val isSelected = darkMode == targetMode && pureBlack == targetPureBlack
     
@@ -407,11 +412,16 @@ fun ModeCircle(
         DarkMode.OFF -> false
     }
     
-    val modeColorScheme = rememberDynamicColorScheme(
-        seedColor = DefaultThemeColor,
-        isDark = effectiveDark,
-        style = PaletteStyle.TonalSpot
-    )
+    // Use actual system colors for AUTO mode on Android 12+
+    val modeColorScheme = if (targetMode == DarkMode.AUTO && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (effectiveDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        rememberDynamicColorScheme(
+            seedColor = DefaultThemeColor,
+            isDark = effectiveDark,
+            style = PaletteStyle.TonalSpot
+        )
+    }
     
     val fillColor = when {
         targetPureBlack -> Color.Black
