@@ -2,9 +2,16 @@ package com.metrolist.music.ui.screens.settings
 
 import android.content.res.Configuration
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -53,6 +60,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
@@ -294,8 +302,10 @@ fun ThemeControls(
                 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // System mode (separated)
                     ModeCircle(
                         darkMode = darkMode,
                         pureBlack = pureBlack,
@@ -308,6 +318,15 @@ fun ThemeControls(
                         showIcon = true
                     )
                     
+                    // Vertical divider to separate System from manual modes
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(32.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant)
+                    )
+                    
+                    // Manual modes (Light, Dark, Pure Black)
                     ModeCircle(
                         darkMode = darkMode,
                         pureBlack = pureBlack,
@@ -400,17 +419,41 @@ fun ModeCircle(
         else -> modeColorScheme.surface
     }
     
+    // Animated border width
+    val borderWidth by animateDpAsState(
+        targetValue = if (isSelected) 3.dp else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "borderWidth"
+    )
+    
+    // Animated scale for the entire circle
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "scale"
+    )
+    
     val interactionSource = remember { MutableInteractionSource() }
     
     Box(
         modifier = Modifier
             .size(48.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(CircleShape)
             .background(fillColor)
             .then(
-                if (isSelected) {
+                if (borderWidth > 0.dp) {
                     Modifier.border(
-                        width = 3.dp,
+                        width = borderWidth,
                         color = MaterialTheme.colorScheme.inversePrimary,
                         shape = CircleShape
                     )
@@ -443,12 +486,27 @@ fun ModeCircle(
                 )
             }
             isSelected -> {
-                Icon(
-                    painter = painterResource(R.drawable.check),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.inversePrimary,
-                    modifier = Modifier.size(20.dp)
-                )
+                AnimatedVisibility(
+                    visible = isSelected,
+                    enter = fadeIn(animationSpec = tween(300)) + scaleIn(
+                        initialScale = 0.3f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        )
+                    ),
+                    exit = fadeOut(animationSpec = tween(150)) + scaleOut(
+                        targetScale = 0.3f,
+                        animationSpec = tween(150)
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.check),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.inversePrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -477,17 +535,39 @@ fun PaletteItem(
         label = "cornerRadius"
     )
     
+    val borderWidth by animateDpAsState(
+        targetValue = if (isSelected) 3.dp else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "borderWidth"
+    )
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.08f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "scale"
+    )
+    
     val shape = RoundedCornerShape(cornerRadius)
     val interactionSource = remember { MutableInteractionSource() }
     
     Box(
         modifier = Modifier
             .size(48.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(shape)
             .then(
-                if (isSelected) {
+                if (borderWidth > 0.dp) {
                     Modifier.border(
-                        width = 3.dp,
+                        width = borderWidth,
                         color = MaterialTheme.colorScheme.inversePrimary,
                         shape = shape
                     )
