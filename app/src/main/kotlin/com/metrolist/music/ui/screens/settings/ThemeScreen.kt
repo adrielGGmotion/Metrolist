@@ -1,12 +1,14 @@
 package com.metrolist.music.ui.screens.settings
 
 import android.os.Build
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,11 +26,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,12 +38,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -54,10 +53,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.metrolist.music.R
 import com.metrolist.music.constants.DarkModeKey
@@ -68,26 +68,32 @@ import com.metrolist.music.ui.theme.MetrolistTheme
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 
+// Define 19 color palettes with descriptive names for accessibility
+data class ThemePalette(
+    val name: String,
+    val seedColor: Color
+)
+
 val PaletteColors = listOf(
-    Color(0xFFED5564), // Default Red
-    Color(0xFFD81B60), // Pink
-    Color(0xFF8E24AA), // Purple
-    Color(0xFF5E35B1), // Deep Purple
-    Color(0xFF3949AB), // Indigo
-    Color(0xFF1E88E5), // Blue
-    Color(0xFF039BE5), // Light Blue
-    Color(0xFF00ACC1), // Cyan
-    Color(0xFF00897B), // Teal
-    Color(0xFF43A047), // Green
-    Color(0xFF7CB342), // Light Green
-    Color(0xFFC0CA33), // Lime
-    Color(0xFFFDD835), // Yellow
-    Color(0xFFFFB300), // Amber
-    Color(0xFFFB8C00), // Orange
-    Color(0xFFF4511E), // Deep Orange
-    Color(0xFF6D4C41), // Brown
-    Color(0xFF757575), // Grey
-    Color(0xFF546E7A), // Blue Grey
+    ThemePalette("Crimson", Color(0xFFED5564)),
+    ThemePalette("Rose", Color(0xFFD81B60)),
+    ThemePalette("Purple", Color(0xFF8E24AA)),
+    ThemePalette("Deep Purple", Color(0xFF5E35B1)),
+    ThemePalette("Indigo", Color(0xFF3949AB)),
+    ThemePalette("Blue", Color(0xFF1E88E5)),
+    ThemePalette("Sky Blue", Color(0xFF039BE5)),
+    ThemePalette("Cyan", Color(0xFF00ACC1)),
+    ThemePalette("Teal", Color(0xFF00897B)),
+    ThemePalette("Green", Color(0xFF43A047)),
+    ThemePalette("Light Green", Color(0xFF7CB342)),
+    ThemePalette("Lime", Color(0xFFC0CA33)),
+    ThemePalette("Yellow", Color(0xFFFDD835)),
+    ThemePalette("Amber", Color(0xFFFFB300)),
+    ThemePalette("Orange", Color(0xFFFB8C00)),
+    ThemePalette("Deep Orange", Color(0xFFF4511E)),
+    ThemePalette("Brown", Color(0xFF6D4C41)),
+    ThemePalette("Grey", Color(0xFF757575)),
+    ThemePalette("Blue Grey", Color(0xFF546E7A)),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -160,18 +166,7 @@ fun ThemeScreen(
                             pureBlack = pureBlack,
                             onPureBlackChange = onPureBlackChange,
                             selectedThemeColor = selectedThemeColor,
-                            onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) },
-                            useSystemColors = useSystemColors,
-                            onUseSystemColorsChange = { useSystem ->
-                                if (useSystem) {
-                                    onSelectedThemeColorChange(DefaultThemeColor.toArgb())
-                                } else {
-                                    // If switching off system, pick first color if current is default
-                                    if (selectedThemeColor == DefaultThemeColor) {
-                                        onSelectedThemeColorChange(PaletteColors.first().toArgb())
-                                    }
-                                }
-                            }
+                            onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
                         )
                     }
                 }
@@ -204,17 +199,7 @@ fun ThemeScreen(
                             pureBlack = pureBlack,
                             onPureBlackChange = onPureBlackChange,
                             selectedThemeColor = selectedThemeColor,
-                            onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) },
-                            useSystemColors = useSystemColors,
-                            onUseSystemColorsChange = { useSystem ->
-                                if (useSystem) {
-                                    onSelectedThemeColorChange(DefaultThemeColor.toArgb())
-                                } else {
-                                    if (selectedThemeColor == DefaultThemeColor) {
-                                        onSelectedThemeColorChange(PaletteColors.first().toArgb())
-                                    }
-                                }
-                            }
+                            onSelectedThemeColorChange = { onSelectedThemeColorChange(it.toArgb()) }
                         )
                     }
                 }
@@ -230,9 +215,7 @@ fun ThemeControls(
     pureBlack: Boolean,
     onPureBlackChange: (Boolean) -> Unit,
     selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit,
-    useSystemColors: Boolean,
-    onUseSystemColorsChange: (Boolean) -> Unit
+    onSelectedThemeColorChange: (Color) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -240,87 +223,75 @@ fun ThemeControls(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Mode Switcher
+        // Mode Selector Row (Light/Dark/System/Pure Black)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Light Mode
             ModeCircle(
-                color = Color(0xFFE0E0E0), // Light Grey
-                isSelected = darkMode == DarkMode.OFF,
-                onClick = { onDarkModeChange(DarkMode.OFF) }
+                darkMode = darkMode,
+                pureBlack = pureBlack,
+                targetMode = DarkMode.OFF,
+                targetPureBlack = false,
+                onClick = {
+                    onDarkModeChange(DarkMode.OFF)
+                    onPureBlackChange(false)
+                },
+                showIcon = false
             )
+            
+            // Dark Mode
             ModeCircle(
-                color = Color(0xFF424242), // Dark Grey
-                isSelected = darkMode == DarkMode.ON && !pureBlack,
+                darkMode = darkMode,
+                pureBlack = pureBlack,
+                targetMode = DarkMode.ON,
+                targetPureBlack = false,
                 onClick = {
                     onDarkModeChange(DarkMode.ON)
                     onPureBlackChange(false)
-                }
-            )
-            ModeCircle(
-                color = Color(0xFF9E9E9E), // Medium Grey (System)
-                isSelected = darkMode == DarkMode.AUTO,
-                icon = {
-                    Icon(
-                        painter = painterResource(R.drawable.sync),
-                        contentDescription = "System",
-                        tint = Color.Black
-                    )
                 },
-                onClick = { onDarkModeChange(DarkMode.AUTO) }
+                showIcon = false
             )
+            
+            // System Mode (with sync arrows)
             ModeCircle(
-                color = Color.Black,
-                isSelected = pureBlack && darkMode == DarkMode.ON,
+                darkMode = darkMode,
+                pureBlack = pureBlack,
+                targetMode = DarkMode.AUTO,
+                targetPureBlack = false,
+                onClick = {
+                    onDarkModeChange(DarkMode.AUTO)
+                    onPureBlackChange(false)
+                },
+                showIcon = true
+            )
+            
+            // Pure Black Mode
+            ModeCircle(
+                darkMode = darkMode,
+                pureBlack = pureBlack,
+                targetMode = DarkMode.ON,
+                targetPureBlack = true,
                 onClick = {
                     onDarkModeChange(DarkMode.ON)
                     onPureBlackChange(true)
-                }
-            )
-        }
-
-        // System Colors Toggle
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onUseSystemColorsChange(!useSystemColors) }
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.use_system_colors),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Switch(
-                checked = useSystemColors,
-                onCheckedChange = onUseSystemColorsChange,
-                thumbContent = if (useSystemColors) {
-                    {
-                        Icon(
-                            painter = painterResource(R.drawable.check),
-                            contentDescription = null,
-                            modifier = Modifier.size(SwitchDefaults.IconSize),
-                        )
-                    }
-                } else null
+                },
+                showIcon = false
             )
         }
 
         // Palette List
-        if (!useSystemColors) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp)
-            ) {
-                items(PaletteColors) { color ->
-                    PaletteCircle(
-                        seedColor = color,
-                        isSelected = selectedThemeColor == color,
-                        onClick = { onSelectedThemeColorChange(color) }
-                    )
-                }
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(PaletteColors) { palette ->
+                PaletteItem(
+                    palette = palette,
+                    isSelected = selectedThemeColor == palette.seedColor,
+                    onClick = { onSelectedThemeColorChange(palette.seedColor) }
+                )
             }
         }
     }
@@ -328,75 +299,153 @@ fun ThemeControls(
 
 @Composable
 fun ModeCircle(
-    color: Color,
-    isSelected: Boolean,
-    icon: (@Composable () -> Unit)? = null,
+    darkMode: DarkMode,
+    pureBlack: Boolean,
+    targetMode: DarkMode,
+    targetPureBlack: Boolean,
+    showIcon: Boolean,
     onClick: () -> Unit
 ) {
-    val shape = if (isSelected) RoundedCornerShape(16.dp) else CircleShape
-    val borderStroke = if (isSelected) 3.dp else 0.dp
-    val borderColor = MaterialTheme.colorScheme.primary
-
+    val isSystemDark = isSystemInDarkTheme()
+    val isSelected = darkMode == targetMode && pureBlack == targetPureBlack
+    
+    // Determine effective dark theme for color generation
+    val effectiveDark = when (targetMode) {
+        DarkMode.AUTO -> isSystemDark
+        DarkMode.ON -> true
+        DarkMode.OFF -> false
+    }
+    
+    // Generate appropriate color scheme for this mode
+    val modeColorScheme = rememberDynamicColorScheme(
+        seedColor = DefaultThemeColor,
+        isDark = effectiveDark,
+        style = PaletteStyle.TonalSpot
+    )
+    
+    // Choose the fill color based on mode
+    val fillColor = when {
+        targetPureBlack -> Color.Black
+        effectiveDark -> modeColorScheme.surface
+        else -> modeColorScheme.surface
+    }
+    
+    val interactionSource = remember { MutableInteractionSource() }
+    
     Box(
         modifier = Modifier
-            .size(56.dp)
-            .clip(shape)
-            .background(color)
-            .border(borderStroke, borderColor, shape)
-            .clickable(onClick = onClick),
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(fillColor)
+            .border(
+                width = if (isSelected) 3.dp else 0.dp,
+                color = MaterialTheme.colorScheme.inversePrimary,
+                shape = CircleShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = rememberRipple(),
+                onClick = onClick
+            )
+            .semantics {
+                contentDescription = when {
+                    targetPureBlack -> "Pure Black mode"
+                    targetMode == DarkMode.OFF -> "Light mode"
+                    targetMode == DarkMode.ON -> "Dark mode"
+                    else -> "System mode"
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
-        icon?.invoke()
+        when {
+            showIcon -> {
+                // System mode - show sync icon
+                Icon(
+                    painter = painterResource(R.drawable.sync),
+                    contentDescription = null,
+                    tint = modeColorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            isSelected -> {
+                // Selected - show checkmark
+                Icon(
+                    painter = painterResource(R.drawable.check),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.inversePrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun PaletteCircle(
-    seedColor: Color,
+fun PaletteItem(
+    palette: ThemePalette,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val cornerRadius by animateDpAsState(
-        targetValue = if (isSelected) 16.dp else 50.dp, // 50.dp for circle (half size), 16.dp for rect
-        label = "cornerRadius"
-    )
-    val shape = RoundedCornerShape(cornerRadius)
+    val isSystemDark = isSystemInDarkTheme()
     
+    // Generate color scheme from seed color
     val colorScheme = rememberDynamicColorScheme(
-        seedColor = seedColor,
-        isDark = isSystemInDarkTheme(), // Use current system/app state for preview
+        seedColor = palette.seedColor,
+        isDark = isSystemDark,
         style = PaletteStyle.TonalSpot
     )
-
+    
+    // Animate corner radius with spring animation
+    val cornerRadius by animateDpAsState(
+        targetValue = if (isSelected) 48.dp * 0.25f else 24.dp, // 25% of 48dp = 12dp for squircle
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "cornerRadius"
+    )
+    
+    val shape = RoundedCornerShape(cornerRadius)
+    val interactionSource = remember { MutableInteractionSource() }
+    
     Box(
         modifier = Modifier
-            .size(56.dp)
+            .size(48.dp)
             .clip(shape)
             .background(Color.Transparent)
             .border(
                 width = if (isSelected) 3.dp else 0.dp,
-                color = colorScheme.primary,
+                color = MaterialTheme.colorScheme.inversePrimary,
                 shape = shape
             )
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = rememberRipple(),
+                onClick = onClick
+            )
+            .semantics {
+                contentDescription = "${palette.name} palette"
+            }
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
-
-            // Top Half - Primary
+            
+            // Top Half - OnPrimary (0° to 180°)
             drawRect(
-                color = colorScheme.primary,
+                color = colorScheme.onPrimary,
                 topLeft = Offset(0f, 0f),
                 size = Size(width, height / 2)
             )
-            // Bottom Left - Secondary
+            
+            // Bottom Left Quarter - Secondary (180° to 270°)
             drawRect(
                 color = colorScheme.secondary,
                 topLeft = Offset(0f, height / 2),
                 size = Size(width / 2, height / 2)
             )
-            // Bottom Right - Tertiary
+            
+            // Bottom Right Quarter - Tertiary (270° to 360°)
             drawRect(
                 color = colorScheme.tertiary,
                 topLeft = Offset(width / 2, height / 2),
@@ -440,59 +489,80 @@ fun ThemeMockup(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
+                        .background(MaterialTheme.colorScheme.surface)
                         .padding(16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                         Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .background(MaterialTheme.colorScheme.onSurface, CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .height(14.dp)
+                                    .width(80.dp)
+                                    .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(4.dp))
+                            )
+                        }
                         Box(
                             modifier = Modifier
-                                .height(16.dp)
-                                .width(120.dp)
-                                .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(4.dp))
+                                .size(24.dp)
+                                .background(MaterialTheme.colorScheme.secondary, CircleShape)
                         )
                     }
                 }
 
-                // Mock Content List
+                // Color blocks demonstration area
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    repeat(6) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(8.dp))
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .height(12.dp)
-                                        .fillMaxWidth(0.7f)
-                                        .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(4.dp))
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .height(10.dp)
-                                        .fillMaxWidth(0.4f)
-                                        .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(4.dp))
-                                )
-                            }
-                        }
+                    // Primary color block
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Secondary color block
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(80.dp)
+                                .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(8.dp))
+                        )
+                        
+                        // Tertiary color block
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(80.dp)
+                                .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(8.dp))
+                        )
                     }
+                    
+                    // Surface variant
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                    )
                 }
 
                 // Mock Mini Player
@@ -509,18 +579,18 @@ fun ThemeMockup(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                         Box(
+                        Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
                         )
                         Column(
-                             modifier = Modifier
+                            modifier = Modifier
                                 .padding(start = 12.dp)
                                 .weight(1f),
-                             verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                             Box(
+                            Box(
                                 modifier = Modifier
                                     .height(10.dp)
                                     .fillMaxWidth(0.5f)
@@ -528,7 +598,7 @@ fun ThemeMockup(
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                             Box(
+                            Box(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .background(MaterialTheme.colorScheme.primary, CircleShape)
@@ -536,9 +606,9 @@ fun ThemeMockup(
                         }
                     }
                 }
-                
+
                 // Mock Nav Bar
-                 Box(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
@@ -551,7 +621,7 @@ fun ThemeMockup(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         repeat(3) {
-                             Box(
+                            Box(
                                 modifier = Modifier
                                     .size(24.dp)
                                     .background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape)
