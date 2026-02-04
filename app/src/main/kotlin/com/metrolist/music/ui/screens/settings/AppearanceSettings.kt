@@ -113,6 +113,13 @@ import android.content.Intent
 import android.app.Activity
 import androidx.compose.material3.SnackbarHostState
 import com.metrolist.music.constants.CropAlbumArtKey
+import com.metrolist.music.constants.ApplyDynamicThemeToAppKey
+import com.metrolist.music.constants.StaticThemeColorKey
+import com.metrolist.music.constants.UseSystemMaterialYouKey
+import com.metrolist.music.ui.theme.DefaultThemeColor
+import com.metrolist.music.ui.component.ColorPickerContent
+import com.metrolist.music.ui.component.LocalMenuState
+import androidx.compose.ui.graphics.toArgb
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +133,19 @@ fun AppearanceSettings(
         DynamicThemeKey,
         defaultValue = true
     )
+    val (applyDynamicThemeToApp, onApplyDynamicThemeToAppChange) = rememberPreference(
+        ApplyDynamicThemeToAppKey,
+        defaultValue = true
+    )
+    val (useSystemMaterialYou, onUseSystemMaterialYouChange) = rememberPreference(
+        UseSystemMaterialYouKey,
+        defaultValue = true
+    )
+    val (staticThemeColor, onStaticThemeColorChange) = rememberPreference(
+        StaticThemeColorKey,
+        defaultValue = DefaultThemeColor.toArgb()
+    )
+    val menuState = LocalMenuState.current
     val (enableDynamicIcon, onEnableDynamicIconChange) = rememberPreference(
         EnableDynamicIconKey,
         defaultValue = true
@@ -837,7 +857,7 @@ fun AppearanceSettings(
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.enable_dynamic_theme)) },
+                        title = { Text("Dynamic player theme") },
                         trailingContent = {
                             Switch(
                                 checked = dynamicTheme,
@@ -856,6 +876,77 @@ fun AppearanceSettings(
                         onClick = { onDynamicThemeChange(!dynamicTheme) }
                     )
                 )
+                if (dynamicTheme) {
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.palette),
+                            title = { Text("Dynamic app theme") },
+                            trailingContent = {
+                                Switch(
+                                    checked = applyDynamicThemeToApp,
+                                    onCheckedChange = onApplyDynamicThemeToAppChange,
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (applyDynamicThemeToApp) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    }
+                                )
+                            },
+                            onClick = { onApplyDynamicThemeToAppChange(!applyDynamicThemeToApp) }
+                        )
+                    )
+                }
+
+                if (!dynamicTheme || !applyDynamicThemeToApp) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        add(
+                            Material3SettingsItem(
+                                icon = painterResource(R.drawable.palette),
+                                title = { Text("Use system colors") },
+                                trailingContent = {
+                                    Switch(
+                                        checked = useSystemMaterialYou,
+                                        onCheckedChange = onUseSystemMaterialYouChange,
+                                        thumbContent = {
+                                            Icon(
+                                                painter = painterResource(
+                                                    id = if (useSystemMaterialYou) R.drawable.check else R.drawable.close
+                                                ),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                            )
+                                        }
+                                    )
+                                },
+                                onClick = { onUseSystemMaterialYouChange(!useSystemMaterialYou) }
+                            )
+                        )
+                    }
+
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !useSystemMaterialYou) {
+                        add(
+                            Material3SettingsItem(
+                                icon = painterResource(R.drawable.palette),
+                                title = { Text(stringResource(R.string.customize_colors)) },
+                                onClick = {
+                                    menuState.show {
+                                        ColorPickerContent(
+                                            initialColor = staticThemeColor,
+                                            onColorSelected = {
+                                                onStaticThemeColorChange(it)
+                                            },
+                                            onDismiss = { menuState.dismiss() }
+                                        )
+                                    }
+                                }
+                            )
+                        )
+                    }
+                }
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.dark_mode),

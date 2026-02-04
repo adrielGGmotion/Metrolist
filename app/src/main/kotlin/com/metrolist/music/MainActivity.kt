@@ -123,6 +123,7 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.constants.AppBarHeight
 import com.metrolist.music.constants.AppLanguageKey
+import com.metrolist.music.constants.ApplyDynamicThemeToAppKey
 import com.metrolist.music.constants.CheckForUpdatesKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
@@ -137,9 +138,11 @@ import com.metrolist.music.constants.PureBlackKey
 import com.metrolist.music.constants.SYSTEM_DEFAULT
 import com.metrolist.music.constants.SlimNavBarHeight
 import com.metrolist.music.constants.SlimNavBarKey
+import com.metrolist.music.constants.StaticThemeColorKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
+import com.metrolist.music.constants.UseSystemMaterialYouKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.extensions.toEnum
@@ -371,7 +374,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
+        val dynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
+        val applyDynamicThemeToApp by rememberPreference(ApplyDynamicThemeToAppKey, defaultValue = true)
+        val useSystemMaterialYou by rememberPreference(UseSystemMaterialYouKey, defaultValue = true)
+        val staticThemeColor by rememberPreference(StaticThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
+
         val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
         val isSystemInDarkTheme = isSystemInDarkTheme()
         val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
@@ -387,14 +394,14 @@ class MainActivity : ComponentActivity() {
             pureBlackEnabled && useDarkTheme
         }
 
-        var themeColor by rememberSaveable(stateSaver = ColorSaver) {
+        var albumArtColor by rememberSaveable(stateSaver = ColorSaver) {
             mutableStateOf(DefaultThemeColor)
         }
 
-        LaunchedEffect(playerConnection, enableDynamicTheme) {
+        LaunchedEffect(playerConnection, dynamicTheme) {
             val playerConnection = playerConnection
-            if (!enableDynamicTheme || playerConnection == null) {
-                themeColor = DefaultThemeColor
+            if (!dynamicTheme || playerConnection == null) {
+                albumArtColor = DefaultThemeColor
                 return@LaunchedEffect
             }
 
@@ -412,22 +419,40 @@ class MainActivity : ComponentActivity() {
                                     .crossfade(false)
                                     .build()
                             )
-                            themeColor = result.image?.toBitmap()?.extractThemeColor() ?: DefaultThemeColor
+                            albumArtColor = result.image?.toBitmap()?.extractThemeColor() ?: DefaultThemeColor
                         } catch (e: Exception) {
                             // Fallback to default on error
-                            themeColor = DefaultThemeColor
+                            albumArtColor = DefaultThemeColor
                         }
                     }
                 } else {
-                    themeColor = DefaultThemeColor
+                    albumArtColor = DefaultThemeColor
                 }
+            }
+        }
+
+        val appThemeColor = remember(albumArtColor, dynamicTheme, applyDynamicThemeToApp, useSystemMaterialYou, staticThemeColor) {
+            if (dynamicTheme && applyDynamicThemeToApp && albumArtColor != DefaultThemeColor) {
+                albumArtColor
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && useSystemMaterialYou) {
+                DefaultThemeColor
+            } else {
+                Color(staticThemeColor)
+            }
+        }
+
+        val playerThemeColor = remember(albumArtColor, dynamicTheme, appThemeColor) {
+            if (dynamicTheme && albumArtColor != DefaultThemeColor) {
+                albumArtColor
+            } else {
+                appThemeColor
             }
         }
 
         MetrolistTheme(
             darkTheme = useDarkTheme,
             pureBlack = pureBlack,
-            themeColor = themeColor,
+            themeColor = appThemeColor,
         ) {
             BoxWithConstraints(
                 modifier = Modifier
@@ -789,11 +814,17 @@ class MainActivity : ComponentActivity() {
 
                             if (!showRail && currentRoute != "wrapped") {
                                 Box {
-                                    BottomSheetPlayer(
-                                        state = playerBottomSheetState,
-                                        navController = navController,
-                                        pureBlack = pureBlack
-                                    )
+                                    MetrolistTheme(
+                                        darkTheme = useDarkTheme,
+                                        pureBlack = pureBlack,
+                                        themeColor = playerThemeColor,
+                                    ) {
+                                        BottomSheetPlayer(
+                                            state = playerBottomSheetState,
+                                            navController = navController,
+                                            pureBlack = pureBlack
+                                        )
+                                    }
 
                                     AppNavigationBar(
                                         navigationItems = navigationItems,
@@ -837,11 +868,17 @@ class MainActivity : ComponentActivity() {
                                 }
                             } else {
                                 if (currentRoute != "wrapped") {
-                                    BottomSheetPlayer(
-                                        state = playerBottomSheetState,
-                                        navController = navController,
-                                        pureBlack = pureBlack
-                                    )
+                                    MetrolistTheme(
+                                        darkTheme = useDarkTheme,
+                                        pureBlack = pureBlack,
+                                        themeColor = playerThemeColor,
+                                    ) {
+                                        BottomSheetPlayer(
+                                            state = playerBottomSheetState,
+                                            navController = navController,
+                                            pureBlack = pureBlack
+                                        )
+                                    }
                                 }
 
                                 Box(
