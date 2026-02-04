@@ -29,6 +29,12 @@
     <string name="cached_playlist">Cached</string>
     <string name="uploaded_playlist">Uploaded</string>
     <string name="filter_uploaded">Uploaded</string>
+    <string name="filter_local">Local</string>
+    <string name="local_music">Local Music</string>
+    <string name="manage_folders">Manage Folders</string>
+    <string name="add_folder">Add Folder</string>
+    <string name="scan_now">Scan Now</string>
+    <string name="added_folders">Added Folders</string>
     <string name="sync_playlist">Sync playlist</string>
     <string name="sync_disabled">Sync disabled</string>
     <string name="elements_selected">%1$d elements selected</string>

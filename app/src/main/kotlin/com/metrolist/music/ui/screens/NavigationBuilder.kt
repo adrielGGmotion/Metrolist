@@ -327,6 +327,10 @@ fun NavGraphBuilder.navigationBuilder(
         ContentSettings(navController, scrollBehavior)
     })
 
+    composable(route = "settings/content/local_music", content = {
+        com.metrolist.music.ui.screens.settings.LocalMusicSettings(navController, scrollBehavior)
+    })
+
     composable(route = "settings/content/romanization", content = {
         RomanizationSettings(navController, scrollBehavior)
     })

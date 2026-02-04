@@ -70,6 +70,7 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
@@ -911,6 +912,8 @@ class MusicService :
         playbackData: YTPlayerUtils.PlaybackData? = null
     ) {
         val song = database.song(mediaId).first()
+        if (song?.song?.isLocal == true) return
+
         val mediaMetadata = withContext(Dispatchers.Main) {
             player.findNextMediaItemById(mediaId)?.metadata
         } ?: return
@@ -1278,14 +1281,16 @@ class MusicService :
                 val isInLibrary = it.song.inLibrary != null
                 val token = if (isInLibrary) it.song.libraryRemoveToken else it.song.libraryAddToken
                 
-                // Call YouTube API with feedback token if available
-                token?.let { feedbackToken ->
-                    YouTube.feedback(listOf(feedbackToken))
+                if (!it.song.isLocal) {
+                    // Call YouTube API with feedback token if available
+                    token?.let { feedbackToken ->
+                        YouTube.feedback(listOf(feedbackToken))
+                    }
                 }
                 
                 // Update local database
                 database.query {
-                    update(it.song.toggleLibrary())
+                    update(it.song.toggleLibrary(syncToYouTube = !it.song.isLocal))
                 }
                 currentMediaMetadata.value = player.currentMetadata
             }
@@ -1296,13 +1301,15 @@ class MusicService :
         scope.launch {
             val songToToggle = currentSong.first()
             songToToggle?.let {
-                val song = it.song.toggleLike()
+                val song = if (it.song.isLocal) it.song.localToggleLike() else it.song.toggleLike()
                 database.query {
                     update(song)
-                    syncUtils.likeSong(song)
+                    if (!song.isLocal) {
+                        syncUtils.likeSong(song)
+                    }
 
                     // Check if auto-download on like is enabled and the song is now liked
-                    if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
+                    if (!song.isLocal && dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
                         // Trigger download for the liked song
                         val downloadRequest =
                             androidx.media3.exoplayer.offline.DownloadRequest
@@ -2128,6 +2135,12 @@ class MusicService :
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
+            // Check if local song
+            val isLocal = database.getSongByIdBlocking(mediaId)?.song?.isLocal == true
+            if (isLocal) {
+                return@Factory dataSpec.withUri(mediaId.toUri())
+            }
+
             if (downloadCache.isCached(
                     mediaId,
                     dataSpec.position,
@@ -2221,9 +2234,7 @@ class MusicService :
     private fun createMediaSourceFactory() =
         DefaultMediaSourceFactory(
             createDataSourceFactory(),
-            ExtractorsFactory {
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor())
-            },
+            DefaultExtractorsFactory(),
         )
 
     private fun createRenderersFactory() =
