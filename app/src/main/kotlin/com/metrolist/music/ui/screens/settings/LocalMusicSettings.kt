@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -17,6 +18,8 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,6 +43,7 @@ fun LocalMusicSettings(
 ) {
     val context = LocalContext.current
     val (localFolders, onLocalFoldersChange) = rememberPreference(LocalFoldersKey, emptySet())
+    val isScanning by viewModel.isScanning.collectAsState()
 
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -75,7 +79,12 @@ fun LocalMusicSettings(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.sync),
                             title = { Text(androidx.compose.ui.res.stringResource(R.string.scan_now)) },
-                            onClick = { viewModel.scanLocalFiles(localFolders) }
+                            onClick = { viewModel.scanLocalFiles(localFolders) },
+                            trailingContent = {
+                                if (isScanning) {
+                                    CircularProgressIndicator()
+                                }
+                            }
                         )
                     )
                 }

@@ -71,6 +71,7 @@ fun LibrarySongsScreen(
     navController: NavController,
     onDeselect: () -> Unit,
     viewModel: LibrarySongsViewModel = hiltViewModel(),
+    initialFilter: SongFilter? = null
 ) {
     val context = LocalContext.current
     val menuState = LocalMenuState.current
@@ -90,6 +91,12 @@ fun LibrarySongsScreen(
     val songs by viewModel.allSongs.collectAsState()
 
     var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIKED)
+
+    LaunchedEffect(initialFilter) {
+        if (initialFilter != null) {
+            filter = initialFilter
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (ytmSync) {

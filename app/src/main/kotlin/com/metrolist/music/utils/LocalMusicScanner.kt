@@ -67,15 +67,22 @@ class LocalMusicScanner @Inject constructor(
             // DocumentFile uri works with MediaMetadataRetriever setDataSource(Context, Uri)
             retriever.setDataSource(context, uri)
 
-            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) ?: file.name?.substringBeforeLast('.') ?: "Unknown Title"
-            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "Unknown Artist"
-            val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "Unknown Album"
+            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                ?.takeIf { it.isNotBlank() }
+                ?: file.name?.substringBeforeLast('.')
+                ?: "Unknown Title"
+            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?.takeIf { it.isNotBlank() }
+                ?: "Unknown Artist"
+            val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                ?.takeIf { it.isNotBlank() }
+                ?: "Unknown Album"
             val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val durationMs = durationStr?.toLongOrNull() ?: 0L
             val yearStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
             val year = yearStr?.toIntOrNull()
             val trackNumberStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
-            val trackNumber = trackNumberStr?.split("/")?.firstOrNull()?.toIntOrNull() ?: 0
+            val trackNumber = trackNumberStr?.split("/")?.firstOrNull()?.trim()?.toIntOrNull() ?: 0
 
             LocalSongData(
                 uri = uri.toString(),

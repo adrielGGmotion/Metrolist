@@ -33,6 +33,7 @@ fun LibraryScreen(navController: NavController) {
                     LibraryFilter.SONGS to stringResource(R.string.filter_songs),
                     LibraryFilter.ALBUMS to stringResource(R.string.filter_albums),
                     LibraryFilter.ARTISTS to stringResource(R.string.filter_artists),
+                    LibraryFilter.LOCAL to stringResource(R.string.filter_local),
                 ),
                 currentValue = filterType,
                 onValueUpdate = {
@@ -65,6 +66,12 @@ fun LibraryScreen(navController: NavController) {
             LibraryFilter.ARTISTS -> LibraryArtistsScreen(
                 navController,
                 { filterType = LibraryFilter.LIBRARY })
+
+            LibraryFilter.LOCAL -> com.metrolist.music.ui.screens.library.LibrarySongsScreen(
+                navController,
+                { filterType = LibraryFilter.LIBRARY },
+                initialFilter = com.metrolist.music.constants.SongFilter.LOCAL
+            )
         }
     }
 }
