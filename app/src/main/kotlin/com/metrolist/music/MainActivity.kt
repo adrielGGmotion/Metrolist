@@ -387,14 +387,25 @@ class MainActivity : ComponentActivity() {
             pureBlackEnabled && useDarkTheme
         }
 
+        import com.metrolist.music.constants.SelectedThemeColorKey
+
+        val (selectedThemeColorInt) = rememberPreference(SelectedThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
+        val selectedThemeColor = Color(selectedThemeColorInt)
+
         var themeColor by rememberSaveable(stateSaver = ColorSaver) {
-            mutableStateOf(DefaultThemeColor)
+            mutableStateOf(selectedThemeColor)
         }
 
-        LaunchedEffect(playerConnection, enableDynamicTheme) {
+        LaunchedEffect(selectedThemeColor) {
+            if (!enableDynamicTheme) {
+                themeColor = selectedThemeColor
+            }
+        }
+
+        LaunchedEffect(playerConnection, enableDynamicTheme, selectedThemeColor) {
             val playerConnection = playerConnection
             if (!enableDynamicTheme || playerConnection == null) {
-                themeColor = DefaultThemeColor
+                themeColor = selectedThemeColor
                 return@LaunchedEffect
             }
 
@@ -412,14 +423,14 @@ class MainActivity : ComponentActivity() {
                                     .crossfade(false)
                                     .build()
                             )
-                            themeColor = result.image?.toBitmap()?.extractThemeColor() ?: DefaultThemeColor
+                            themeColor = result.image?.toBitmap()?.extractThemeColor() ?: selectedThemeColor
                         } catch (e: Exception) {
                             // Fallback to default on error
-                            themeColor = DefaultThemeColor
+                            themeColor = selectedThemeColor
                         }
                     }
                 } else {
-                    themeColor = DefaultThemeColor
+                    themeColor = selectedThemeColor
                 }
             }
         }

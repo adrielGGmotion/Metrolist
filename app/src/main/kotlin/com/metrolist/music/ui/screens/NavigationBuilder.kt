@@ -312,8 +312,16 @@ fun NavGraphBuilder.navigationBuilder(
         SettingsScreen(navController, scrollBehavior, latestVersionName)
     })
 
+import com.metrolist.music.ui.screens.settings.ThemeScreen
+
+// ...
+
     composable(route = "settings/appearance", content = {
         AppearanceSettings(navController, scrollBehavior, activity, snackbarHostState)
+    })
+
+    composable(route = "settings/appearance/theme", content = {
+        ThemeScreen(navController)
     })
 
     composable(route = "settings/content", content = {
