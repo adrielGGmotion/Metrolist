@@ -178,11 +178,11 @@ fun PortraitThemeLayout(
 
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.55f)
-                .height(220.dp),
+                .width(100.dp)
+                .height(200.dp),
             contentAlignment = Alignment.Center
         ) {
-            ThemeMockup(
+            ThemeMockupPortrait(
                 darkMode = darkMode,
                 pureBlack = pureBlack,
                 themeColor = selectedThemeColor
@@ -629,6 +629,119 @@ fun ThemeMockup(
                     Box(
                         modifier = Modifier
                             .size(30.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ThemeMockupPortrait(
+    darkMode: DarkMode,
+    pureBlack: Boolean,
+    themeColor: Color
+) {
+    val isSystemDark = isSystemInDarkTheme()
+    val useDark = when (darkMode) {
+        DarkMode.AUTO -> isSystemDark
+        DarkMode.ON -> true
+        DarkMode.OFF -> false
+    }
+
+    MetrolistTheme(
+        darkTheme = useDark,
+        pureBlack = pureBlack,
+        themeColor = themeColor
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxSize(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Header (20% of height)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.2f)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(6.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(MaterialTheme.colorScheme.secondary, CircleShape)
+                        )
+                    }
+                }
+
+                // Main Content (60% of height)
+                Column(
+                    modifier = Modifier
+                        .weight(0.6f)
+                        .padding(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
+                    )
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1.2f),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(4.dp))
+                        )
+                        
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(4.dp))
+                        )
+                    }
+                }
+
+                // FAB Area (20% of height)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.2f)
+                        .padding(6.dp),
+                    contentAlignment = Alignment.BottomEnd
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
                             .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
                     )
                 }
