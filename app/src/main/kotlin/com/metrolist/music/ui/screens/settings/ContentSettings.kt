@@ -392,6 +392,11 @@ fun ContentSettings(
             title = stringResource(R.string.general),
             items = listOf(
                 Material3SettingsItem(
+                    icon = painterResource(R.drawable.library_music),
+                    title = { Text("Local Music") },
+                    onClick = { navController.navigate("settings/content/local_music") }
+                ),
+                Material3SettingsItem(
                     icon = painterResource(R.drawable.language),
                     title = { Text(stringResource(R.string.content_language)) },
                     description = {

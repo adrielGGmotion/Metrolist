@@ -162,6 +162,8 @@ val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val ShowWrappedCardKey = booleanPreferencesKey("show_wrapped_card")
 val WrappedSeenKey = booleanPreferencesKey("wrapped_seen")
 
+val LocalFoldersKey = androidx.datastore.preferences.core.stringSetPreferencesKey("localFolders")
+
 val ShowLikedPlaylistKey = booleanPreferencesKey("show_liked_playlist")
 val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist")
 val ShowTopPlaylistKey = booleanPreferencesKey("show_top_playlist")
@@ -184,7 +186,8 @@ enum class SongFilter {
     LIBRARY,
     LIKED,
     DOWNLOADED,
-    UPLOADED
+    UPLOADED,
+    LOCAL
 }
 
 enum class ArtistFilter {

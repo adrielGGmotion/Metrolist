@@ -67,6 +67,7 @@ sealed class SyncOperation {
     data class LikeSong(val song: SongEntity) : SyncOperation()
     data object CleanupDuplicates : SyncOperation()
     data object ClearAllSynced : SyncOperation()
+    data class LocalFiles(val uris: Set<String>) : SyncOperation()
 }
 
 sealed class SyncStatus {
@@ -81,6 +82,7 @@ data class SyncState(
     val likedSongs: SyncStatus = SyncStatus.Idle,
     val librarySongs: SyncStatus = SyncStatus.Idle,
     val uploadedSongs: SyncStatus = SyncStatus.Idle,
+    val localFiles: SyncStatus = SyncStatus.Idle,
     val likedAlbums: SyncStatus = SyncStatus.Idle,
     val uploadedAlbums: SyncStatus = SyncStatus.Idle,
     val artists: SyncStatus = SyncStatus.Idle,
@@ -92,6 +94,7 @@ data class SyncState(
 class SyncUtils @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: MusicDatabase,
+    private val localMusicScanner: LocalMusicScanner,
 ) {
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         if (throwable !is CancellationException) {
@@ -156,6 +159,7 @@ class SyncUtils @Inject constructor(
             is SyncOperation.LikeSong -> executeLikeSong(operation.song)
             is SyncOperation.CleanupDuplicates -> executeCleanupDuplicatePlaylists()
             is SyncOperation.ClearAllSynced -> executeClearAllSyncedContent()
+            is SyncOperation.LocalFiles -> executeSyncLocalFiles(operation.uris)
         }
     }
 
@@ -322,6 +326,12 @@ class SyncUtils @Inject constructor(
     fun clearAllSyncedContent() {
         syncScope.launch {
             syncChannel.send(SyncOperation.ClearAllSynced)
+        }
+    }
+
+    fun syncLocalFiles(uris: Set<String>) {
+        syncScope.launch {
+            syncChannel.send(SyncOperation.LocalFiles(uris))
         }
     }
 
@@ -999,6 +1009,20 @@ class SyncUtils @Inject constructor(
             }
         } catch (e: Exception) {
             Timber.e(e, "Error cleaning up duplicate playlists")
+        }
+    }
+
+    private suspend fun executeSyncLocalFiles(uris: Set<String>) = withContext(Dispatchers.IO) {
+        Timber.d("executeSyncLocalFiles: Starting scan for ${uris.size} folders")
+        updateState { copy(localFiles = SyncStatus.Syncing, currentOperation = "Scanning local files") }
+
+        try {
+            localMusicScanner.scanLocalFiles(uris)
+            updateState { copy(localFiles = SyncStatus.Completed, currentOperation = "") }
+            Timber.d("executeSyncLocalFiles: Scan completed")
+        } catch (e: Exception) {
+            Timber.e(e, "Error scanning local files")
+            updateState { copy(localFiles = SyncStatus.Error(e.message ?: "Unknown error"), currentOperation = "") }
         }
     }
 
