@@ -540,6 +540,7 @@
     <string name="crash_close">Close</string>
     <string name="crash_no_log">No crash log available</string>
 
+<<<<<<< HEAD
     <!-- Theme Palette Names -->
     <string name="palette_dynamic">Dynamic</string>
     <string name="palette_crimson">Crimson</string>
@@ -569,4 +570,49 @@
     <string name="cd_dark_mode">Dark mode</string>
     <string name="cd_system_mode">System mode</string>
     <string name="cd_palette_item">%1$s palette</string>
+
+    <!-- Theme Palette Names -->
+    <string name="palette_dynamic">Dynamic</string>
+    <string name="palette_crimson">Crimson</string>
+    <string name="palette_rose">Rose</string>
+    <string name="palette_purple">Purple</string>
+    <string name="palette_deep_purple">Deep Purple</string>
+    <string name="palette_indigo">Indigo</string>
+    <string name="palette_blue">Blue</string>
+    <string name="palette_sky_blue">Sky Blue</string>
+    <string name="palette_cyan">Cyan</string>
+    <string name="palette_teal">Teal</string>
+    <string name="palette_green">Green</string>
+    <string name="palette_light_green">Light Green</string>
+    <string name="palette_lime">Lime</string>
+    <string name="palette_yellow">Yellow</string>
+    <string name="palette_amber">Amber</string>
+    <string name="palette_orange">Orange</string>
+    <string name="palette_deep_orange">Deep Orange</string>
+    <string name="palette_brown">Brown</string>
+    <string name="palette_grey">Grey</string>
+    <string name="palette_blue_grey">Blue Grey</string>
+
+    <!-- Blocked Content -->
+    <string name="library">Library</string>
+    <string name="blocked_content">Blocked Content</string>
+    <string name="blocked_songs">Blocked Songs</string>
+    <string name="blocked_artists">Blocked Artists</string>
+    <string name="blocked_albums">Blocked Albums</string>
+    <string name="block_song">Block song</string>
+    <string name="block_artist">Block artist</string>
+    <string name="block_album">Block album</string>
+    <string name="unblock">Unblock</string>
+    <string name="confirm_block_song">Block %s?</string>
+    <string name="confirm_block_artist">Block %s?</string>
+    <string name="confirm_block_album">Block %s?</string>
+    <string name="block_warning">This will remove it from your queue and prevent it from playing.</string>
+    <string name="delete_downloads_prompt">Delete downloaded content?</string>
+    <string name="delete_downloads_message">This item is downloaded. Do you want to delete it from storage?</string>
+    <string name="song_blocked">Song blocked</string>
+    <string name="artist_blocked">Artist blocked</string>
+    <string name="album_blocked">Album blocked</string>
+    <string name="blocked_item">Blocked Item</string>
+    <string name="no_blocked_content">No blocked content</string>
+
 </resources>
