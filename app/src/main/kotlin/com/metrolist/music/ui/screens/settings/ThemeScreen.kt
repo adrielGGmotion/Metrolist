@@ -190,8 +190,8 @@ fun PortraitThemeLayout(
 
         Box(
             modifier = Modifier
-                .width(100.dp)
-                .height(200.dp),
+                .width(120.dp)
+                .height(240.dp),
             contentAlignment = Alignment.Center
         ) {
             ThemeMockupPortrait(
