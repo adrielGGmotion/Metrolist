@@ -355,13 +355,20 @@ fun HomeScreen(
                 .combinedClickable(
                     onClick = {
                         when (item) {
-                            is SongItem -> playerConnection.playQueue(
-                                YouTubeQueue(
-                                    item.endpoint ?: WatchEndpoint(
-                                        videoId = item.id
-                                    ), item.toMediaMetadata()
-                                )
-                            )
+                            is SongItem -> {
+                                scope.launch {
+                                    val isBlocked = database.isSongBlocked(item.id).first()
+                                    if (!isBlocked) {
+                                        playerConnection.playQueue(
+                                            YouTubeQueue(
+                                                item.endpoint ?: WatchEndpoint(
+                                                    videoId = item.id
+                                                ), item.toMediaMetadata()
+                                            )
+                                        )
+                                    }
+                                }
+                            }
 
                             is AlbumItem -> navController.navigate("album/${item.id}")
                             is ArtistItem -> navController.navigate("artist/${item.id}")

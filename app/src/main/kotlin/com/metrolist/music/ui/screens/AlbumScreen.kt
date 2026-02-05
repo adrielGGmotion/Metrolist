@@ -114,6 +114,8 @@ import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.AlbumViewModel
 import com.metrolist.music.utils.makeTimeString
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -344,10 +346,15 @@ fun AlbumScreen(
                         // Play Button - Larger primary circular button
                         Surface(
                             onClick = {
-                                playerConnection.service.getAutomix(playlistId)
-                                playerConnection.playQueue(
-                                    LocalAlbumRadio(albumWithSongs),
-                                )
+                                scope.launch {
+                                    val isBlocked = database.isAlbumBlocked(albumWithSongs.album.id).first()
+                                    if (!isBlocked) {
+                                        playerConnection.service.getAutomix(playlistId)
+                                        playerConnection.playQueue(
+                                            LocalAlbumRadio(albumWithSongs),
+                                        )
+                                    }
+                                }
                             },
                             color = MaterialTheme.colorScheme.primary,
                             shape = CircleShape,
@@ -454,10 +461,15 @@ fun AlbumScreen(
                                     } else if (song.id == mediaMetadata?.id) {
                                         playerConnection.togglePlayPause()
                                     } else {
-                                        playerConnection.service.getAutomix(playlistId)
-                                        playerConnection.playQueue(
-                                            LocalAlbumRadio(albumWithSongs, startIndex = index),
-                                        )
+                                        scope.launch {
+                                            val isBlocked = database.isSongBlocked(song.id).first()
+                                            if (!isBlocked) {
+                                                playerConnection.service.getAutomix(playlistId)
+                                                playerConnection.playQueue(
+                                                    LocalAlbumRadio(albumWithSongs, startIndex = index),
+                                                )
+                                            }
+                                        }
                                     }
                                 },
                                 onLongClick = {
