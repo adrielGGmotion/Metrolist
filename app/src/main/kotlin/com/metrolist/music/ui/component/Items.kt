@@ -298,6 +298,7 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    isBlocked: Boolean = false,
 ) {
     val gridHeight = currentGridThumbnailHeight()
     Column(
@@ -309,7 +310,7 @@ fun GridItem(
             modifier
                 .padding(12.dp)
                 .width(gridHeight * thumbnailRatio)
-        }
+        }.let { if (isBlocked) it.alpha(0.5f) else it }
     ) {
         BoxWithConstraints(
             contentAlignment = Alignment.Center,
@@ -321,6 +322,25 @@ fun GridItem(
                 .aspectRatio(thumbnailRatio)
         ) {
             thumbnailContent()
+            if (isBlocked) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Color.Black.copy(alpha = 0.4f),
+                            if (thumbnailRatio == 1f) CircleShape else RoundedCornerShape(ThumbnailCornerRadius)
+                        )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.block),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.Center)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -344,6 +364,7 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    isBlocked: Boolean = false,
 ) = GridItem(
     modifier = modifier,
     title = {
@@ -368,7 +389,8 @@ fun GridItem(
     },
     thumbnailContent = thumbnailContent,
     thumbnailRatio = thumbnailRatio,
-    fillMaxWidth = fillMaxWidth
+    fillMaxWidth = fillMaxWidth,
+    isBlocked = isBlocked
 )
 
 @Composable
@@ -422,15 +444,15 @@ fun SongListItem(
                     isPlaying = isPlaying,
                     shape = RoundedCornerShape(ThumbnailCornerRadius),
                     modifier = Modifier.size(ListThumbnailSize)
-                )
-            },
-            trailingContent = trailingContent,
-            modifier = modifier,
-            isSelected = isSelected,
-            isActive = isActive,
-            isBlocked = isBlocked
-        )
-    }
+            )
+        },
+        trailingContent = trailingContent,
+        modifier = modifier,
+        isSelected = isSelected,
+        isActive = isActive,
+        isBlocked = isBlocked
+    )
+}
 
     if (isSwipeable && swipeEnabled) {
         SwipeToSongBox(
@@ -466,7 +488,11 @@ fun SongGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
-) = GridItem(
+) = run {
+    val database = LocalDatabase.current
+    val isBlocked by database.isSongBlocked(song.id).collectAsState(initial = false)
+
+    GridItem(
     title = {
         Text(
             text = song.song.title,
@@ -506,8 +532,10 @@ fun SongGridItem(
         }
     },
     fillMaxWidth = fillMaxWidth,
-    modifier = modifier
+    modifier = modifier,
+    isBlocked = isBlocked
 )
+}
 
 @Composable
 fun ArtistListItem(
@@ -526,8 +554,12 @@ fun ArtistListItem(
         }
     },
     trailingContent: @Composable RowScope.() -> Unit = {},
-) = ListItem(
-    title = artist.artist.name,
+) {
+    val database = LocalDatabase.current
+    val isBlocked by database.isArtistBlocked(artist.id).collectAsState(initial = false)
+
+    ListItem(
+        title = artist.artist.name,
     subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
     badges = badges,
     thumbnailContent = {
@@ -546,7 +578,9 @@ fun ArtistListItem(
     },
     trailingContent = trailingContent,
     modifier = modifier,
+    isBlocked = isBlocked
 )
+}
 
 @Composable
 fun ArtistGridItem(
@@ -554,32 +588,44 @@ fun ArtistGridItem(
     modifier: Modifier = Modifier,
     badges: @Composable RowScope.() -> Unit = {
         if (artist.artist.bookmarkedAt != null) {
-            Icon.Favorite()
+            Icon(
+                painter = painterResource(R.drawable.favorite),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(end = 2.dp),
+            )
         }
     },
     fillMaxWidth: Boolean = false,
-) = GridItem(
+) = run {
+    val database = LocalDatabase.current
+    val isBlocked by database.isArtistBlocked(artist.id).collectAsState(initial = false)
+
+    GridItem(
     title = artist.artist.name,
     subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
-    badges = badges,
-    thumbnailContent = {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(artist.artist.thumbnailUrl)
-                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .build(),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(CircleShape)
-        )
-    },
-    fillMaxWidth = fillMaxWidth,
-    modifier = modifier
-)
+        badges = badges,
+        thumbnailContent = {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(artist.artist.thumbnailUrl)
+                    .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                    .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                    .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(ListThumbnailSize)
+                    .clip(CircleShape)
+            )
+        },
+        modifier = modifier,
+        isBlocked = isBlocked
+    )
+}
 
 @Composable
 fun AlbumListItem(
@@ -589,7 +635,7 @@ fun AlbumListItem(
     badges: @Composable RowScope.() -> Unit = {
         val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
-
+        
         val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
             withContext(Dispatchers.IO) {
                 value = database.albumSongs(album.id).first()
@@ -620,29 +666,38 @@ fun AlbumListItem(
         }
         Icon.Download(downloadState)
     },
+    isSelected: Boolean = false,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
-) = ListItem(
-    title = album.album.title,
-    subtitle = joinByBullet(
-        album.artists.joinToString { it.name },
-        pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount),
-        album.album.year?.toString()
-    ),
-    badges = badges,
-    thumbnailContent = {
-        ItemThumbnail(
-            thumbnailUrl = album.album.thumbnailUrl,
-            isActive = isActive,
-            isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
-            modifier = Modifier.size(ListThumbnailSize)
-        )
-    },
-    trailingContent = trailingContent,
-    modifier = modifier
-)
+) {
+    val database = LocalDatabase.current
+    val isBlocked by database.isAlbumBlocked(album.id).collectAsState(initial = false)
+
+    ListItem(
+        title = album.album.title,
+        subtitle = joinByBullet(
+            album.artists.joinToString { it.name },
+            pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount),
+            album.album.year?.toString()
+        ),
+        badges = badges,
+        thumbnailContent = {
+            ItemThumbnail(
+                thumbnailUrl = album.album.thumbnailUrl,
+                isActive = isActive,
+                isPlaying = isPlaying,
+                shape = RoundedCornerShape(ThumbnailCornerRadius),
+                modifier = Modifier.size(ListThumbnailSize)
+            )
+        },
+        trailingContent = trailingContent,
+        modifier = modifier,
+        isSelected = isSelected,
+        isActive = isActive,
+        isBlocked = isBlocked
+    )
+}
 
 @Composable
 fun AlbumGridItem(
@@ -686,7 +741,11 @@ fun AlbumGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
-) = GridItem(
+) = run {
+    val database = LocalDatabase.current
+    val isBlocked by database.isAlbumBlocked(album.id).collectAsState(initial = false)
+
+    GridItem(
     title = {
         Text(
             text = album.album.title,
@@ -734,8 +793,10 @@ fun AlbumGridItem(
         )
     },
     fillMaxWidth = fillMaxWidth,
-    modifier = modifier
+    modifier = modifier,
+    isBlocked = isBlocked
 )
+}
 
 @Composable
 fun PlaylistListItem(
@@ -1077,7 +1138,20 @@ fun YouTubeGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
-) = GridItem(
+) = run {
+    val database = LocalDatabase.current
+    val isBlocked by produceState(initialValue = false, item.id) {
+        if (item is SongItem) {
+            value = database.isSongBlocked(item.id).first() || 
+                    database.isArtistBlocked(item.artists.firstOrNull()?.id ?: "").first()
+        } else if (item is ArtistItem) {
+            value = database.isArtistBlocked(item.id).first()
+        } else if (item is AlbumItem) {
+            value = database.isAlbumBlocked(item.id).first()
+        }
+    }
+
+    GridItem(
     title = {
         Text(
             text = item.title,
@@ -1150,8 +1224,10 @@ fun YouTubeGridItem(
     },
     thumbnailRatio = thumbnailRatio,
     fillMaxWidth = fillMaxWidth,
-    modifier = modifier
+    modifier = modifier,
+    isBlocked = isBlocked
 )
+}
 
 @Composable
 fun LocalSongsGrid(

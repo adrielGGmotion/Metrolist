@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 
+import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.models.toMediaMetadata
@@ -80,6 +81,7 @@ import com.metrolist.music.ui.menu.YouTubeAlbumMenu
 import com.metrolist.music.ui.menu.YouTubeArtistMenu
 import com.metrolist.music.ui.menu.YouTubePlaylistMenu
 import com.metrolist.music.ui.menu.YouTubeSongMenu
+import kotlinx.coroutines.flow.first
 
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ARTIST
@@ -126,6 +128,7 @@ fun OnlineSearchResult(
     pureBlack: Boolean = false
 ) {
     val menuState = LocalMenuState.current
+    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
@@ -249,23 +252,34 @@ fun OnlineSearchResult(
             Modifier
                 .combinedClickable(
                     onClick = {
-                        when (item) {
-                            is SongItem -> {
-                                if (item.id == mediaMetadata?.id) {
-                                    playerConnection.togglePlayPause()
-                                } else {
-                                    playerConnection.playQueue(
-                                        YouTubeQueue(
-                                            WatchEndpoint(videoId = item.id),
-                                            item.toMediaMetadata()
-                                        )
-                                    )
-                                }
+                        coroutineScope.launch {
+                            val isBlocked = when (item) {
+                                is SongItem -> database.isSongBlocked(item.id).first()
+                                is ArtistItem -> database.isArtistBlocked(item.id).first()
+                                is AlbumItem -> database.isAlbumBlocked(item.id).first()
+                                else -> false
                             }
 
-                            is AlbumItem -> navController.navigate("album/${item.id}")
-                            is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            if (!isBlocked) {
+                                when (item) {
+                                    is SongItem -> {
+                                        if (item.id == mediaMetadata?.id) {
+                                            playerConnection.togglePlayPause()
+                                        } else {
+                                            playerConnection.playQueue(
+                                                YouTubeQueue(
+                                                    WatchEndpoint(videoId = item.id),
+                                                    item.toMediaMetadata()
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    is AlbumItem -> navController.navigate("album/${item.id}")
+                                    is ArtistItem -> navController.navigate("artist/${item.id}")
+                                    is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                }
+                            }
                         }
                     },
                     onLongClick = longClick,

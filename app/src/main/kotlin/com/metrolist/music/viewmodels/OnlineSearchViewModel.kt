@@ -56,9 +56,7 @@ constructor(
                                 val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
                                 val filtered = it.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs)
                                 summaryPage = filtered.copy(
-                                    summaries = filtered.summaries.map { summary ->
-                                        summary.copy(items = blockedRepository.filterBlockedYTItems(summary.items))
-                                    }.filter { summary -> summary.items.isNotEmpty() }
+                                    summaries = filtered.summaries.filter { summary -> summary.items.isNotEmpty() }
                                 )
                             }.onFailure {
                                 reportException(it)
@@ -73,14 +71,12 @@ constructor(
                                 val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
                                 viewStateMap[filter.value] =
                                     ItemsPage(
-                                        blockedRepository.filterBlockedYTItems(
-                                            result.items
-                                                .distinctBy { it.id }
-                                                .filterExplicit(
-                                                    hideExplicit,
-                                                )
-                                                .filterVideoSongs(hideVideoSongs)
-                                        ),
+                                        result.items
+                                            .distinctBy { it.id }
+                                            .filterExplicit(
+                                                hideExplicit,
+                                            )
+                                            .filterVideoSongs(hideVideoSongs),
                                         result.continuation,
                                     )
                             }.onFailure {
@@ -103,11 +99,9 @@ constructor(
                     YouTube.searchContinuation(continuation).getOrNull() ?: return@launch
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
                 val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
-                val newItems = blockedRepository.filterBlockedYTItems(
-                    searchResult.items
+                val newItems = searchResult.items
                         .filterExplicit(hideExplicit)
                         .filterVideoSongs(hideVideoSongs)
-                )
                 viewStateMap[filter] = ItemsPage(
                     (viewState.items + newItems).distinctBy { it.id },
                     searchResult.continuation

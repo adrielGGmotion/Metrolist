@@ -57,9 +57,9 @@ constructor(
                 when (filter) {
                     LocalFilter.ALL ->
                         combine(
-                            database.searchSongs(query, PREVIEW_SIZE).map { blockedRepository.filterBlocked(it) },
-                            database.searchAlbums(query, PREVIEW_SIZE).map { blockedRepository.filterBlockedAlbums(it) },
-                            database.searchArtists(query, PREVIEW_SIZE).map { blockedRepository.filterBlockedArtists(it) },
+                            database.searchSongs(query, PREVIEW_SIZE),
+                            database.searchAlbums(query, PREVIEW_SIZE),
+                            database.searchArtists(query, PREVIEW_SIZE),
                             database.searchPlaylists(query, PREVIEW_SIZE),
                         ) { songs, albums, artists, playlists ->
                             val filteredSongs = if (hideVideoSongs) songs.filter { !it.song.isVideo } else songs
@@ -67,11 +67,10 @@ constructor(
                         }
 
                     LocalFilter.SONG -> database.searchSongs(query).map { songs ->
-                        val filtered = blockedRepository.filterBlocked(songs)
-                        if (hideVideoSongs) filtered.filter { !it.song.isVideo } else filtered
+                        if (hideVideoSongs) songs.filter { !it.song.isVideo } else songs
                     }
-                    LocalFilter.ALBUM -> database.searchAlbums(query).map { blockedRepository.filterBlockedAlbums(it) }
-                    LocalFilter.ARTIST -> database.searchArtists(query).map { blockedRepository.filterBlockedArtists(it) }
+                    LocalFilter.ALBUM -> database.searchAlbums(query)
+                    LocalFilter.ARTIST -> database.searchArtists(query)
                     LocalFilter.PLAYLIST -> database.searchPlaylists(query)
                 }.map { list ->
                     LocalSearchResult(

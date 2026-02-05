@@ -42,6 +42,9 @@ import com.metrolist.music.viewmodels.LocalFilter
 import com.metrolist.music.viewmodels.LocalSearchViewModel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import com.metrolist.music.LocalDatabase
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -56,6 +59,8 @@ fun LocalSearchScreen(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val menuState = LocalMenuState.current
+    val database = LocalDatabase.current
+    val scope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
 
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
@@ -182,20 +187,25 @@ fun LocalSearchScreen(
                             modifier = Modifier
                                 .combinedClickable(
                                     onClick = {
-                                        if (item.id == mediaMetadata?.id) {
-                                            playerConnection.togglePlayPause()
-                                        } else {
-                                            val songs = result.map
-                                                .getOrDefault(LocalFilter.SONG, emptyList())
-                                                .filterIsInstance<Song>()
-                                                .map { it.toMediaItem() }
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = context.getString(R.string.queue_searched_songs),
-                                                    items = songs,
-                                                    startIndex = songs.indexOfFirst { it.mediaId == item.id },
-                                                )
-                                            )
+                                        scope.launch {
+                                            val isBlocked = database.isSongBlocked(item.id).first()
+                                            if (!isBlocked) {
+                                                if (item.id == mediaMetadata?.id) {
+                                                    playerConnection.togglePlayPause()
+                                                } else {
+                                                    val songs = result.map
+                                                        .getOrDefault(LocalFilter.SONG, emptyList())
+                                                        .filterIsInstance<Song>()
+                                                        .map { it.toMediaItem() }
+                                                    playerConnection.playQueue(
+                                                        ListQueue(
+                                                            title = context.getString(R.string.queue_searched_songs),
+                                                            items = songs,
+                                                            startIndex = songs.indexOfFirst { it.mediaId == item.id },
+                                                        )
+                                                    )
+                                                }
+                                            }
                                         }
                                     },
                                     onLongClick = {
@@ -221,8 +231,13 @@ fun LocalSearchScreen(
                             isPlaying = isPlaying,
                             modifier = Modifier
                                 .clickable {
-                                    onDismiss()
-                                    navController.navigate("album/${item.id}")
+                                    scope.launch {
+                                        val isBlocked = database.isAlbumBlocked(item.id).first()
+                                        if (!isBlocked) {
+                                            onDismiss()
+                                            navController.navigate("album/${item.id}")
+                                        }
+                                    }
                                 }
                                 .animateItem(),
                         )
@@ -231,8 +246,13 @@ fun LocalSearchScreen(
                             artist = item,
                             modifier = Modifier
                                 .clickable {
-                                    onDismiss()
-                                    navController.navigate("artist/${item.id}")
+                                    scope.launch {
+                                        val isBlocked = database.isArtistBlocked(item.id).first()
+                                        if (!isBlocked) {
+                                            onDismiss()
+                                            navController.navigate("artist/${item.id}")
+                                        }
+                                    }
                                 }
                                 .animateItem(),
                         )
