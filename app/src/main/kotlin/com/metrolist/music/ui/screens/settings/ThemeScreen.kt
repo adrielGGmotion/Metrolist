@@ -85,31 +85,31 @@ import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 
 data class ThemePalette(
-    val name: String,
+    val nameRes: Int,
     val seedColor: Color
 )
 
 val PaletteColors = listOf(
-    ThemePalette("Dynamic", Color.Transparent), // Sentinel for System/Dynamic colors
-    ThemePalette("Crimson", Color(0xFFEC5464)), // Slightly shifted from DefaultThemeColor (0xFFED5564) to avoid conflict
-    ThemePalette("Rose", Color(0xFFD81B60)),
-    ThemePalette("Purple", Color(0xFF8E24AA)),
-    ThemePalette("Deep Purple", Color(0xFF5E35B1)),
-    ThemePalette("Indigo", Color(0xFF3949AB)),
-    ThemePalette("Blue", Color(0xFF1E88E5)),
-    ThemePalette("Sky Blue", Color(0xFF039BE5)),
-    ThemePalette("Cyan", Color(0xFF00ACC1)),
-    ThemePalette("Teal", Color(0xFF00897B)),
-    ThemePalette("Green", Color(0xFF43A047)),
-    ThemePalette("Light Green", Color(0xFF7CB342)),
-    ThemePalette("Lime", Color(0xFFC0CA33)),
-    ThemePalette("Yellow", Color(0xFFFDD835)),
-    ThemePalette("Amber", Color(0xFFFFB300)),
-    ThemePalette("Orange", Color(0xFFFB8C00)),
-    ThemePalette("Deep Orange", Color(0xFFF4511E)),
-    ThemePalette("Brown", Color(0xFF6D4C41)),
-    ThemePalette("Grey", Color(0xFF757575)),
-    ThemePalette("Blue Grey", Color(0xFF546E7A)),
+    ThemePalette(R.string.palette_dynamic, Color.Transparent), // Sentinel for System/Dynamic colors
+    ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)), // Slightly shifted from DefaultThemeColor (0xFFED5564) to avoid conflict
+    ThemePalette(R.string.palette_rose, Color(0xFFD81B60)),
+    ThemePalette(R.string.palette_purple, Color(0xFF8E24AA)),
+    ThemePalette(R.string.palette_deep_purple, Color(0xFF5E35B1)),
+    ThemePalette(R.string.palette_indigo, Color(0xFF3949AB)),
+    ThemePalette(R.string.palette_blue, Color(0xFF1E88E5)),
+    ThemePalette(R.string.palette_sky_blue, Color(0xFF039BE5)),
+    ThemePalette(R.string.palette_cyan, Color(0xFF00ACC1)),
+    ThemePalette(R.string.palette_teal, Color(0xFF00897B)),
+    ThemePalette(R.string.palette_green, Color(0xFF43A047)),
+    ThemePalette(R.string.palette_light_green, Color(0xFF7CB342)),
+    ThemePalette(R.string.palette_lime, Color(0xFFC0CA33)),
+    ThemePalette(R.string.palette_yellow, Color(0xFFFDD835)),
+    ThemePalette(R.string.palette_amber, Color(0xFFFFB300)),
+    ThemePalette(R.string.palette_orange, Color(0xFFFB8C00)),
+    ThemePalette(R.string.palette_deep_orange, Color(0xFFF4511E)),
+    ThemePalette(R.string.palette_brown, Color(0xFF6D4C41)),
+    ThemePalette(R.string.palette_grey, Color(0xFF757575)),
+    ThemePalette(R.string.palette_blue_grey, Color(0xFF546E7A)),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -138,7 +138,7 @@ fun ThemeScreen(
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.cd_back)
                         )
                     }
                 },
@@ -461,6 +461,13 @@ fun ModeCircle(
     
     val interactionSource = remember { MutableInteractionSource() }
     
+    val contentDesc = when {
+        targetPureBlack -> stringResource(R.string.cd_pure_black_mode)
+        targetMode == DarkMode.OFF -> stringResource(R.string.cd_light_mode)
+        targetMode == DarkMode.ON -> stringResource(R.string.cd_dark_mode)
+        else -> stringResource(R.string.cd_system_mode)
+    }
+    
     Box(
         modifier = Modifier
             .size(48.dp)
@@ -487,12 +494,7 @@ fun ModeCircle(
                 onClick = onClick
             )
             .semantics {
-                contentDescription = when {
-                    targetPureBlack -> "Pure Black mode"
-                    targetMode == DarkMode.OFF -> "Light mode"
-                    targetMode == DarkMode.ON -> "Dark mode"
-                    else -> "System mode"
-                }
+                contentDescription = contentDesc
             },
         contentAlignment = Alignment.Center
     ) {
@@ -576,6 +578,9 @@ fun PaletteItem(
     val shape = RoundedCornerShape(cornerRadius)
     val interactionSource = remember { MutableInteractionSource() }
     
+    val paletteName = stringResource(palette.nameRes)
+    val contentDesc = stringResource(R.string.cd_palette_item, paletteName)
+    
     Box(
         modifier = Modifier
             .size(48.dp)
@@ -601,7 +606,7 @@ fun PaletteItem(
                 onClick = onClick
             )
             .semantics {
-                contentDescription = "${palette.name} palette"
+                contentDescription = contentDesc
             }
     ) {
         if (palette.seedColor == Color.Transparent) {
