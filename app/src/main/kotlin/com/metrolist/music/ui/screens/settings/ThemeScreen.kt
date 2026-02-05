@@ -605,21 +605,19 @@ fun PaletteItem(
             }
     ) {
         if (palette.seedColor == Color.Transparent) {
-            // Draw Dynamic/System icon (4-color quadrant)
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val width = size.width
-                val height = size.height
-                val midX = width / 2
-                val midY = height / 2
-                
-                // Top-Left: Blue
-                drawRect(color = Color(0xFF4285F4), topLeft = Offset(0f, 0f), size = Size(midX, midY))
-                // Top-Right: Red
-                drawRect(color = Color(0xFFDB4437), topLeft = Offset(midX, 0f), size = Size(midX, midY))
-                // Bottom-Left: Yellow
-                drawRect(color = Color(0xFFF4B400), topLeft = Offset(0f, midY), size = Size(midX, midY))
-                // Bottom-Right: Green
-                drawRect(color = Color(0xFF0F9D58), topLeft = Offset(midX, midY), size = Size(midX, midY))
+            // Draw Dynamic/System icon using Material Design icon
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.palette),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         } else {
             Canvas(modifier = Modifier.fillMaxSize()) {
