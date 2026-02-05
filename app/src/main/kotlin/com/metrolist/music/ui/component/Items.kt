@@ -25,6 +25,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -133,6 +134,7 @@ import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -227,27 +229,26 @@ inline fun ListItem(
                         modifier = Modifier
                             .size(ListThumbnailSize / 2)
                             .align(Alignment.Center)
-                            .graphicsLayer { alpha = 1f }
                     )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 6.dp)
+            modifier = Modifier.weight(1f)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-
-            if (subtitle != null) {
+            subtitle?.let {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    subtitle()
+                    it()
                 }
             }
         }
@@ -256,7 +257,6 @@ inline fun ListItem(
     }
 }
 
-// merge badges and subtitle text and pass to basic list item
 @Composable
 fun ListItem(
     modifier: Modifier = Modifier,
@@ -426,8 +426,7 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id)
-                .collectAsState(initial = null)
+            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
             Icon.Download(download?.state)
         }
     },
@@ -441,7 +440,14 @@ fun SongListItem(
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
     val database = LocalDatabase.current
-    val isBlocked by database.isSongBlocked(song.id).collectAsState(initial = false)
+    val isBlocked by produceState(initialValue = false, song.id) {
+        val flows = mutableListOf(database.isSongBlocked(song.id))
+        song.artists.forEach {
+            flows.add(database.isArtistBlocked(it.id))
+        }
+        combine(*flows.toTypedArray()) { flags -> flags.any { it } }
+            .collect { value = it }
+    }
 
     val content: @Composable () -> Unit = {
         ListItem(
@@ -460,21 +466,21 @@ fun SongListItem(
                     isPlaying = isPlaying,
                     shape = RoundedCornerShape(ThumbnailCornerRadius),
                     modifier = Modifier.size(ListThumbnailSize)
-            )
-        },
-        trailingContent = trailingContent,
-        modifier = if (onClick != null) {
-            modifier.combinedClickable(
-                enabled = !isBlocked,
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-        } else modifier,
-        isSelected = isSelected,
-        isActive = isActive,
-        isBlocked = isBlocked
-    )
-}
+                )
+            },
+            trailingContent = trailingContent,
+            modifier = if (onClick != null) {
+                modifier.combinedClickable(
+                    enabled = !isBlocked,
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
+            } else modifier,
+            isSelected = isSelected,
+            isActive = isActive,
+            isBlocked = isBlocked
+        )
+    }
 
     if (isSwipeable && swipeEnabled) {
         SwipeToSongBox(
@@ -515,7 +521,14 @@ fun SongGridItem(
     onLongClick: (() -> Unit)? = null,
 ) {
     val database = LocalDatabase.current
-    val isBlocked by database.isSongBlocked(song.id).collectAsState(initial = false)
+    val isBlocked by produceState(initialValue = false, song.id) {
+        val flows = mutableListOf(database.isSongBlocked(song.id))
+        song.artists.forEach {
+            flows.add(database.isArtistBlocked(it.id))
+        }
+        combine(*flows.toTypedArray()) { flags -> flags.any { it } }
+            .collect { value = it }
+    }
 
     GridItem(
     title = {
@@ -530,26 +543,22 @@ fun SongGridItem(
     },
     subtitle = {
         Text(
-            text = joinByBullet(
-                song.artists.joinToString { it.name },
-                makeTimeString(song.song.duration * 1000L)
-            ),
+            text = song.artists.joinToString { it.name },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     },
     badges = badges,
     thumbnailContent = {
-        val gridHeight = currentGridThumbnailHeight()
         ItemThumbnail(
             thumbnailUrl = song.song.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
             shape = RoundedCornerShape(ThumbnailCornerRadius),
-            modifier = Modifier.size(gridHeight)
         )
+
         if (!isActive && !isBlocked) {
             OverlayPlayButton(
                 visible = true
@@ -641,32 +650,38 @@ fun ArtistGridItem(
     fillMaxWidth: Boolean = false,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-) = run {
+) {
     val database = LocalDatabase.current
     val isBlocked by database.isArtistBlocked(artist.id).collectAsState(initial = false)
 
     GridItem(
     title = artist.artist.name,
     subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
-        badges = badges,
-        thumbnailContent = {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(artist.artist.thumbnailUrl)
-                    .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(ListThumbnailSize)
-                    .clip(CircleShape)
-            )
-        },
-        modifier = modifier,
-        isBlocked = isBlocked
-    )
+    badges = badges,
+    thumbnailContent = {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(artist.artist.thumbnailUrl)
+                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+        )
+    },
+    fillMaxWidth = fillMaxWidth,
+    modifier = modifier.combinedClickable(
+        enabled = !isBlocked,
+        onClick = onClick,
+        onLongClick = onLongClick
+    ),
+    isBlocked = isBlocked,
+    shape = CircleShape
+)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -678,7 +693,7 @@ fun AlbumListItem(
     badges: @Composable RowScope.() -> Unit = {
         val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
-        
+
         val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
             withContext(Dispatchers.IO) {
                 value = database.albumSongs(album.id).first()
@@ -755,47 +770,47 @@ fun AlbumListItem(
 fun AlbumGridItem(
     album: Album,
     modifier: Modifier = Modifier,
-    coroutineScope: CoroutineScope,
+    coroutineScope: CoroutineScope? = null,
+    showLikedIcon: Boolean = true,
+    showDownloadIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
-        val database = LocalDatabase.current
-
-        val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
-            withContext(Dispatchers.IO) {
-                value = database.albumSongs(album.id).first()
-            }
-        }
-
-        val allDownloads by downloadUtil.downloads.collectAsState()
-
-        val downloadState by remember(songs, allDownloads) {
-            mutableStateOf(
-                if (songs.isEmpty()) {
-                    Download.STATE_STOPPED
-                } else {
-                    when {
-                        songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-                        songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
-                        else -> Download.STATE_STOPPED
-                    }
-                }
-            )
-        }
-
-        if (album.album.bookmarkedAt != null) {
+        if (showLikedIcon && album.album.bookmarkedAt != null) {
             Icon.Favorite()
         }
         if (album.album.explicit) {
             Icon.Explicit()
         }
-        Icon.Download(downloadState)
+        if (showDownloadIcon) {
+            val downloadUtil = LocalDownloadUtil.current
+            val database = LocalDatabase.current
+            val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
+                withContext(Dispatchers.IO) {
+                    value = database.albumSongs(album.id).first()
+                }
+            }
+            val allDownloads by downloadUtil.downloads.collectAsState()
+            val downloadState by remember(songs, allDownloads) {
+                mutableStateOf(
+                    if (songs.isEmpty()) {
+                        Download.STATE_STOPPED
+                    } else {
+                        when {
+                            songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
+                            songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
+                            else -> Download.STATE_STOPPED
+                        }
+                    }
+                )
+            }
+            Icon.Download(downloadState)
+        }
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-) = run {
+) {
     val database = LocalDatabase.current
     val isBlocked by database.isAlbumBlocked(album.id).collectAsState(initial = false)
 
@@ -812,10 +827,13 @@ fun AlbumGridItem(
     },
     subtitle = {
         Text(
-            text = album.artists.joinToString { it.name },
+            text = joinByBullet(
+                album.artists.joinToString { it.name },
+                album.album.year?.toString()
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     },
@@ -849,7 +867,11 @@ fun AlbumGridItem(
         }
     },
     fillMaxWidth = fillMaxWidth,
-    modifier = modifier,
+    modifier = modifier.combinedClickable(
+        enabled = !isBlocked,
+        onClick = onClick,
+        onLongClick = onLongClick
+    ),
     isBlocked = isBlocked
 )
 }
@@ -1104,76 +1126,79 @@ fun YouTubeListItem(
         ) {
             Icon.Favorite()
         }
-        if (item.explicit) Icon.Explicit()
-        // if (item is SongItem && song?.song?.inLibrary != null) {
-        //     Icon.Library()
-        // }
+        if ((item is SongItem && item.explicit) || (item is AlbumItem && item.explicit)) {
+            Icon.Explicit()
+        }
+        if (item is SongItem && song?.song?.inLibrary != null) {
+            Icon.Library()
+        }
         if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(null)
+            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(initial = null)
             Icon.Download(download?.state)
         }
     },
 ) {
-    val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
     val database = LocalDatabase.current
-    // For online items, we might need to check various things. For simplicity, just check if the ID is blocked.
-    // Ideally we check artist/album too, but that requires async lookups or a unified check.
-    // Let's check song ID if it is a song.
     val isBlocked by produceState(initialValue = false, item.id) {
         if (item is SongItem) {
-            value = database.isSongBlocked(item.id).first() || 
-                    database.isArtistBlocked(item.artists.firstOrNull()?.id ?: "").first()
+            val flows = mutableListOf(database.isSongBlocked(item.id))
+            item.artists.forEach {
+                it.id?.let { id -> flows.add(database.isArtistBlocked(id)) }
+            }
+            combine(*flows.toTypedArray()) { flags -> flags.any { it } }.collect { value = it }
         } else if (item is ArtistItem) {
-            value = database.isArtistBlocked(item.id).first()
+            database.isArtistBlocked(item.id).collect { value = it }
         } else if (item is AlbumItem) {
-            value = database.isAlbumBlocked(item.id).first()
+            database.isAlbumBlocked(item.id).collect { value = it }
         }
     }
 
-    val content: @Composable () -> Unit = {
-        ListItem(
-            title = item.title,
-            subtitle = when (item) {
-                is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
-                is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
-                is ArtistItem -> null
-                is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
-            },
-            badges = badges,
-            thumbnailContent = {
-                ItemThumbnail(
-                    thumbnailUrl = item.thumbnail,
-                    albumIndex = albumIndex,
-                    isSelected = isSelected,
-                    isActive = isActive,
-                    isPlaying = isPlaying,
-                    shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
-                    modifier = Modifier.size(ListThumbnailSize)
-                )
-            },
-            trailingContent = trailingContent,
-            modifier = if (onClick != null) {
-                modifier.combinedClickable(
-                    enabled = !isBlocked,
-                    onClick = onClick,
-                    onLongClick = onLongClick
-                )
-            } else modifier,
-            isActive = isActive,
-            isBlocked = isBlocked
-        )
-    }
+    ListItem(
+        title = item.title,
+        subtitle =
+        when (item) {
+            is SongItem -> listOfNotNull(
+                item.artists.joinToString { it.name.orEmpty() },
+                ""
+            ).joinToString(" • ")
 
-    if (item is SongItem && isSwipeable && swipeEnabled) {
-        SwipeToSongBox(
-            mediaItem = item.copy(thumbnail = item.thumbnail.resize(544,544)).toMediaItem(),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            content()
-        }
-    } else {
-        content()
-    }
+            is AlbumItem -> listOfNotNull(
+                item.artists?.joinToString { it.name },
+                item.year?.toString()
+            ).joinToString(" • ")
+
+            is ArtistItem -> null
+
+            is PlaylistItem -> joinByBullet(
+                item.author?.name,
+                item.songCountText
+            )
+
+            else -> null
+        },
+        badges = badges,
+        thumbnailContent = {
+            ItemThumbnail(
+                thumbnailUrl = item.thumbnail,
+                albumIndex = albumIndex,
+                isSelected = isSelected,
+                isActive = isActive,
+                isPlaying = isPlaying,
+                shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+                modifier = Modifier.size(ListThumbnailSize)
+            )
+        },
+        trailingContent = trailingContent,
+        modifier = if (onClick != null) {
+            modifier.combinedClickable(
+                enabled = !isBlocked,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        } else modifier,
+        isActive = isActive,
+        isBlocked = isBlocked
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -1181,7 +1206,6 @@ fun YouTubeListItem(
 fun YouTubeGridItem(
     item: YTItem,
     modifier: Modifier = Modifier,
-    coroutineScope: CoroutineScope? = null,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
         val song by produceState<Song?>(initialValue = null, item.id) {
@@ -1191,34 +1215,42 @@ fun YouTubeGridItem(
             if (item is AlbumItem) value = database.album(item.id).firstOrNull()
         }
 
-        if (item is SongItem && song?.song?.liked == true ||
-            item is AlbumItem && album?.album?.bookmarkedAt != null
+        if ((item is SongItem && song?.song?.liked == true) ||
+            (item is AlbumItem && album?.album?.bookmarkedAt != null)
         ) {
             Icon.Favorite()
         }
-        if (item.explicit) Icon.Explicit()
-        // if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
+        if ((item is SongItem && item.explicit) || (item is AlbumItem && item.explicit)) {
+            Icon.Explicit()
+        }
+        if (item is SongItem && song?.song?.inLibrary != null) {
+            Icon.Library()
+        }
         if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(null)
+            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(initial = null)
             Icon.Download(download?.state)
         }
     },
-    thumbnailRatio: Float = if (item is SongItem) 16f / 9 else 1f,
+    thumbnailRatio: Float = 1f,
+    coroutineScope: CoroutineScope? = null,
+    fillMaxWidth: Boolean = false,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
-    fillMaxWidth: Boolean = false,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-) = run {
+) {
     val database = LocalDatabase.current
     val isBlocked by produceState(initialValue = false, item.id) {
         if (item is SongItem) {
-            value = database.isSongBlocked(item.id).first() || 
-                    database.isArtistBlocked(item.artists.firstOrNull()?.id ?: "").first()
+            val flows = mutableListOf(database.isSongBlocked(item.id))
+            item.artists.forEach {
+                it.id?.let { id -> flows.add(database.isArtistBlocked(id)) }
+            }
+            combine(*flows.toTypedArray()) { flags -> flags.any { it } }.collect { value = it }
         } else if (item is ArtistItem) {
-            value = database.isArtistBlocked(item.id).first()
+            database.isArtistBlocked(item.id).collect { value = it }
         } else if (item is AlbumItem) {
-            value = database.isAlbumBlocked(item.id).first()
+            database.isAlbumBlocked(item.id).collect { value = it }
         }
     }
     val shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius)
@@ -1231,16 +1263,17 @@ fun YouTubeGridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            textAlign = if (fillMaxWidth) TextAlign.Start else TextAlign.Center,
+            modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier
         )
     },
     subtitle = {
         val subtitle = when (item) {
-            is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
-            is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
+            is SongItem -> item.artists.joinToString { it.name.orEmpty() }
+            is AlbumItem -> item.artists?.joinToString { it.name.orEmpty() }
             is ArtistItem -> null
-            is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
+            is PlaylistItem -> item.author?.name
+            else -> null
         }
         if (subtitle != null) {
             Text(
@@ -1320,8 +1353,26 @@ fun LocalSongsGrid(
     modifier: Modifier = Modifier
 ) {
     GridItem(
-    title = title,
-    subtitle = subtitle,
+    title = {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = if (fillMaxWidth) TextAlign.Start else TextAlign.Center,
+            modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier
+        )
+    },
+    subtitle = {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    },
     badges = badges,
     thumbnailContent = {
         LocalThumbnail(
@@ -1351,8 +1402,26 @@ fun LocalArtistsGrid(
     modifier: Modifier = Modifier
 ) {
     GridItem(
-    title = title,
-    subtitle = subtitle,
+    title = {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = if (fillMaxWidth) TextAlign.Start else TextAlign.Center,
+            modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier
+        )
+    },
+    subtitle = {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    },
     badges = badges,
     thumbnailContent = {
         LocalThumbnail(
@@ -1382,8 +1451,26 @@ fun LocalAlbumsGrid(
     modifier: Modifier = Modifier
 ) {
     GridItem(
-    title = title,
-    subtitle = subtitle,
+    title = {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = if (fillMaxWidth) TextAlign.Start else TextAlign.Center,
+            modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier
+        )
+    },
+    subtitle = {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    },
     badges = badges,
     thumbnailContent = {
         LocalThumbnail(
@@ -1431,6 +1518,8 @@ fun ItemThumbnail(
                     .build(),
                 contentDescription = null,
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
+                placeholder = painterResource(R.drawable.queue_music),
+                error = painterResource(R.drawable.queue_music),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(shape)
@@ -1466,20 +1555,20 @@ fun ItemThumbnail(
             }
         }
 
-        PlayingIndicatorBox(
-            isActive = isActive,
-            playWhenReady = isPlaying,
-            color = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    color = if (albumIndex != null)
-                        Color.Transparent
-                    else
-                        Color.Black.copy(alpha = ActiveBoxAlpha),
-                    shape = shape
+        if (isActive) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(shape)
+                    .background(Color.Black.copy(alpha = 0.5f))
+            ) {
+                MusicBars(
+                    color = Color.White,
+                    isPlaying = isPlaying
                 )
-        )
+            }
+        }
     }
 }
 
@@ -1490,16 +1579,15 @@ fun LocalThumbnail(
     isPlaying: Boolean,
     shape: Shape,
     modifier: Modifier = Modifier,
-    showCenterPlay: Boolean = false,
-    playButtonVisible: Boolean = false,
-    thumbnailRatio: Float = 1f
+    showCenterPlay: Boolean = true,
+    playButtonVisible: Boolean = false
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .aspectRatio(thumbnailRatio)
+            .fillMaxSize()
             .clip(shape)
     ) {
         AsyncImage(
@@ -1511,111 +1599,55 @@ fun LocalThumbnail(
                 .build(),
             contentDescription = null,
             contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
-            modifier = Modifier.fillMaxSize()
+            placeholder = painterResource(R.drawable.queue_music),
+            error = painterResource(R.drawable.queue_music),
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(shape)
         )
 
-        AnimatedVisibility(
-            visible = isActive,
-            enter = fadeIn(tween(500)),
-            exit = fadeOut(tween(500))
-        ) {
+        if (isActive) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f), shape)
+                    .clip(shape)
+                    .background(Color.Black.copy(alpha = 0.5f))
             ) {
-                if (isPlaying) {
-                    PlayingIndicator(
-                        color = Color.White,
-                        modifier = Modifier.height(24.dp)
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-                }
+                MusicBars(
+                    color = Color.White,
+                    isPlaying = isPlaying
+                )
             }
-        }
-
-        if (showCenterPlay) {
-            AnimatedVisibility(
-                visible = !(isActive && isPlaying),
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(8.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.6f))
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-                }
-            }
-        }
-
-        if (playButtonVisible) {
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = ActiveBoxAlpha))
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-                }
-            }
+        } else if (playButtonVisible) {
+             OverlayPlayButton(visible = true)
         }
     }
 }
 
 @Composable
 fun PlaylistThumbnail(
-    thumbnails: List<String>,
+    thumbnails: List<String?>,
     size: Dp,
-    placeHolder: @Composable () -> Unit,
     shape: Shape,
-    cacheKey: String? = null
+    placeHolder: @Composable () -> Unit
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
-    
     when (thumbnails.size) {
-        0 -> Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-        ) {
-            placeHolder()
+        0 -> {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                placeHolder()
+            }
         }
         1 -> AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(thumbnails[0])
-                .apply { /* Removed cache key extensions due to unresolved in env */ }
                 .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1642,7 +1674,6 @@ fun PlaylistThumbnail(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(thumbnails.getOrNull(index))
-                        .apply { /* Removed cache key extensions due to unresolved in env */ }
                         .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                         .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                         .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1656,6 +1687,45 @@ fun PlaylistThumbnail(
                         .size(size / 2)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun MusicBars(
+    color: Color,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier.height(12.dp)
+    ) {
+        repeat(3) {
+            val anim = remember { androidx.compose.animation.core.Animatable(0.2f) }
+            LaunchedEffect(isPlaying) {
+                if (isPlaying) {
+                    while (true) {
+                        anim.animateTo(
+                            targetValue = 1f,
+                            animationSpec = tween(300 + it * 100)
+                        )
+                        anim.animateTo(
+                            targetValue = 0.2f,
+                            animationSpec = tween(300 + it * 100)
+                        )
+                    }
+                } else {
+                    anim.animateTo(0.2f)
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(12.dp * anim.value)
+                    .background(color, CircleShape)
+            )
         }
     }
 }
@@ -1809,10 +1879,9 @@ fun SwipeToSongBox(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .align(Alignment.Center)
-                    .background(bg),
+                    .fillMaxSize()
+                    .background(bg)
+                    .padding(horizontal = 20.dp),
                 contentAlignment = align
             ) {
                 Icon(
