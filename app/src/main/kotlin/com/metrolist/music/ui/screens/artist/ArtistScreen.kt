@@ -100,6 +100,8 @@ import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.YouTubeQueue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.AutoResizeText
 import com.metrolist.music.ui.component.ExpandableText
@@ -574,16 +576,21 @@ fun ArtistScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = {
-                                            if (song.id == mediaMetadata?.id) {
-                                                playerConnection.togglePlayPause()
-                                            } else {
-                                                playerConnection.playQueue(
-                                                    ListQueue(
-                                                        title = libraryArtist?.artist?.name ?: "Unknown Artist",
-                                                        items = librarySongs.map { it.toMediaItem() },
-                                                        startIndex = index
-                                                    )
-                                                )
+                                            coroutineScope.launch {
+                                                val isBlocked = database.isSongBlocked(song.id).first()
+                                                if (!isBlocked) {
+                                                    if (song.id == mediaMetadata?.id) {
+                                                        playerConnection.togglePlayPause()
+                                                    } else {
+                                                        playerConnection.playQueue(
+                                                            ListQueue(
+                                                                title = libraryArtist?.artist?.name ?: "Unknown Artist",
+                                                                items = librarySongs.map { it.toMediaItem() },
+                                                                startIndex = index
+                                                            )
+                                                        )
+                                                    }
+                                                }
                                             }
                                         },
                                         onLongClick = {

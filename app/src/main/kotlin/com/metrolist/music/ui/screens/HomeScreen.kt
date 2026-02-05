@@ -253,12 +253,17 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = {
-                            if (it.id == mediaMetadata?.id) {
-                                playerConnection.togglePlayPause()
-                            } else {
-                                playerConnection.playQueue(
-                                    YouTubeQueue.radio(it.toMediaMetadata()),
-                                )
+                            scope.launch {
+                                val isBlocked = database.isSongBlocked(it.id).first()
+                                if (!isBlocked) {
+                                    if (it.id == mediaMetadata?.id) {
+                                        playerConnection.togglePlayPause()
+                                    } else {
+                                        playerConnection.playQueue(
+                                            YouTubeQueue.radio(it.toMediaMetadata()),
+                                        )
+                                    }
+                                }
                             }
                         },
                         onLongClick = {
@@ -287,7 +292,12 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = {
-                            navController.navigate("album/${it.id}")
+                            scope.launch {
+                                val isBlocked = database.isAlbumBlocked(it.id).first()
+                                if (!isBlocked) {
+                                    navController.navigate("album/${it.id}")
+                                }
+                            }
                         },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -308,7 +318,12 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = {
-                            navController.navigate("artist/${it.id}")
+                            scope.launch {
+                                val isBlocked = database.isArtistBlocked(it.id).first()
+                                if (!isBlocked) {
+                                    navController.navigate("artist/${it.id}")
+                                }
+                            }
                         },
                         onLongClick = {
                             haptic.performHapticFeedback(
@@ -548,14 +563,19 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (song!!.id == mediaMetadata?.id) {
-                                                    playerConnection.togglePlayPause()
-                                                } else {
-                                                    playerConnection.playQueue(
-                                                        YouTubeQueue.radio(
-                                                            song!!.toMediaMetadata()
-                                                        )
-                                                    )
+                                                scope.launch {
+                                                    val isBlocked = database.isSongBlocked(song!!.id).first()
+                                                    if (!isBlocked) {
+                                                        if (song!!.id == mediaMetadata?.id) {
+                                                            playerConnection.togglePlayPause()
+                                                        } else {
+                                                            playerConnection.playQueue(
+                                                                YouTubeQueue.radio(
+                                                                    song!!.toMediaMetadata()
+                                                                )
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             },
                                             onLongClick = {
@@ -719,14 +739,19 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (song!!.id == mediaMetadata?.id) {
-                                                    playerConnection.togglePlayPause()
-                                                } else {
-                                                    playerConnection.playQueue(
-                                                        YouTubeQueue.radio(
-                                                            song!!.toMediaMetadata()
-                                                        )
-                                                    )
+                                                scope.launch {
+                                                    val isBlocked = database.isSongBlocked(song!!.id).first()
+                                                    if (!isBlocked) {
+                                                        if (song!!.id == mediaMetadata?.id) {
+                                                            playerConnection.togglePlayPause()
+                                                        } else {
+                                                            playerConnection.playQueue(
+                                                                YouTubeQueue.radio(
+                                                                    song!!.toMediaMetadata()
+                                                                )
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             },
                                             onLongClick = {
