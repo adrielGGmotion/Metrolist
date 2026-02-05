@@ -321,23 +321,20 @@ fun ExploreScreen(
                                 isActive = mediaMetadata?.album?.id == album.id,
                                 isPlaying = isPlaying,
                                 coroutineScope = coroutineScope,
-                                modifier = Modifier
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("album/${album.id}")
-                                        },
-                                        onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeAlbumMenu(
-                                                    albumItem = album,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        },
-                                    )
-                                    .animateItem(),
+                                modifier = Modifier.animateItem(),
+                                onClick = {
+                                    navController.navigate("album/${album.id}")
+                                },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    menuState.show {
+                                        YouTubeAlbumMenu(
+                                            albumItem = album,
+                                            navController = navController,
+                                            onDismiss = menuState::dismiss,
+                                        )
+                                    }
+                                },
                             )
                         }
                     }
@@ -356,13 +353,12 @@ fun ExploreScreen(
                             items = topVideosSection.items.filterIsInstance<SongItem>().distinctBy { it.id },
                             key = { it.id },
                         ) { video ->
-                            YouTubeGridItem(
-                                item = video,
-                                isActive = video.id == mediaMetadata?.id,
-                                isPlaying = isPlaying,
-                                coroutineScope = coroutineScope,
-                                modifier = Modifier
-                                    .combinedClickable(
+                                    YouTubeGridItem(
+                                        item = video,
+                                        isActive = video.id == mediaMetadata?.id,
+                                        isPlaying = isPlaying,
+                                        coroutineScope = coroutineScope,
+                                        modifier = Modifier.animateItem(),
                                         onClick = {
                                             if (video.id == mediaMetadata?.id) {
                                                 playerConnection.togglePlayPause()
@@ -386,8 +382,6 @@ fun ExploreScreen(
                                             }
                                         },
                                     )
-                                    .animateItem(),
-                            )
                         }
                     }
                 }

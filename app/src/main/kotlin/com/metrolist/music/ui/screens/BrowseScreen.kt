@@ -75,56 +75,54 @@ package com.metrolist.music.ui.screens
                  items = items.distinctBy { it.id },
                  key = { it.id }
              ) { item ->
-                 YouTubeGridItem(
-                     item = item,
-                     isPlaying = isPlaying,
-                     fillMaxWidth = true,
-                     coroutineScope = coroutineScope,
-                     modifier = Modifier
-                         .combinedClickable(
-                             onClick = {
-                                 when (item) {
-                                     is AlbumItem -> navController.navigate("album/${item.id}")
-                                     is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
-                                     is ArtistItem -> navController.navigate("artist/${item.id}")
-                                     else -> {
-                                         // Do nothing
-                                     }
-                                 }
-                             },
-                             onLongClick = {
-                                 menuState.show {
-                                     when (item) {
-                                         is AlbumItem ->
-                                             YouTubeAlbumMenu(
-                                                 albumItem = item,
-                                                 navController = navController,
-                                                 onDismiss = menuState::dismiss
-                                             )
- 
-                                         is PlaylistItem -> {
-                                             YouTubePlaylistMenu(
-                                                 playlist = item,
-                                                 coroutineScope = coroutineScope,
-                                                 onDismiss = menuState::dismiss
-                                             )
-                                         }
- 
-                                         is ArtistItem -> {
-                                             YouTubeArtistMenu(
-                                                 artist = item,
-                                                 onDismiss = menuState::dismiss
-                                             )
-                                         }
- 
-                                         else -> {
-                                             // Do nothing
-                                         }
-                                     }
-                                 }
-                             }
-                         )
-                 )
+                YouTubeGridItem(
+                    item = item,
+                    isPlaying = isPlaying,
+                    fillMaxWidth = true,
+                    coroutineScope = coroutineScope,
+                    modifier = Modifier,
+                    onClick = {
+                        when (item) {
+                            is AlbumItem -> navController.navigate("album/${item.id}")
+                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            is ArtistItem -> navController.navigate("artist/${item.id}")
+                            else -> {
+                                // Do nothing
+                            }
+                        }
+                    },
+                    onLongClick = {
+                        menuState.show {
+                            when (item) {
+                                is AlbumItem ->
+                                    YouTubeAlbumMenu(
+                                        albumItem = item,
+                                        navController = navController,
+                                        onDismiss = menuState::dismiss
+                                    )
+
+                                is PlaylistItem -> {
+                                    YouTubePlaylistMenu(
+                                        playlist = item,
+                                        coroutineScope = coroutineScope,
+                                        onDismiss = menuState::dismiss
+                                    )
+                                }
+
+                                is ArtistItem -> {
+                                    YouTubeArtistMenu(
+                                        artist = item,
+                                        onDismiss = menuState::dismiss
+                                    )
+                                }
+
+                                else -> {
+                                    // Do nothing
+                                }
+                            }
+                        }
+                    }
+                )
              }
  
              if (items.isEmpty()) {

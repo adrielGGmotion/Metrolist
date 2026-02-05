@@ -17,9 +17,11 @@ import androidx.compose.animation.expandIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -393,6 +395,7 @@ fun GridItem(
     isBlocked = isBlocked
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongListItem(
     song: Song,
@@ -422,6 +425,8 @@ fun SongListItem(
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
     trailingContent: @Composable RowScope.() -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
     val database = LocalDatabase.current
@@ -447,7 +452,13 @@ fun SongListItem(
             )
         },
         trailingContent = trailingContent,
-        modifier = modifier,
+        modifier = if (onClick != null) {
+            modifier.combinedClickable(
+                enabled = !isBlocked,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        } else modifier,
         isSelected = isSelected,
         isActive = isActive,
         isBlocked = isBlocked
@@ -466,6 +477,7 @@ fun SongListItem(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongGridItem(
     song: Song,
@@ -488,6 +500,8 @@ fun SongGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) = run {
     val database = LocalDatabase.current
     val isBlocked by database.isSongBlocked(song.id).collectAsState(initial = false)
@@ -532,11 +546,16 @@ fun SongGridItem(
         }
     },
     fillMaxWidth = fillMaxWidth,
-    modifier = modifier,
+    modifier = modifier.combinedClickable(
+        enabled = !isBlocked,
+        onClick = onClick,
+        onLongClick = onLongClick
+    ),
     isBlocked = isBlocked
 )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ArtistListItem(
     artist: Artist,
@@ -554,34 +573,44 @@ fun ArtistListItem(
         }
     },
     trailingContent: @Composable RowScope.() -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val database = LocalDatabase.current
     val isBlocked by database.isArtistBlocked(artist.id).collectAsState(initial = false)
 
     ListItem(
         title = artist.artist.name,
-    subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
-    badges = badges,
-    thumbnailContent = {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(artist.artist.thumbnailUrl)
-                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .build(),
-            contentDescription = null,
-            modifier = Modifier
-                .size(ListThumbnailSize)
-                .clip(CircleShape),
-        )
-    },
-    trailingContent = trailingContent,
-    modifier = modifier,
-    isBlocked = isBlocked
-)
+        subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
+        badges = badges,
+        thumbnailContent = {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(artist.artist.thumbnailUrl)
+                    .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                    .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                    .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(ListThumbnailSize)
+                    .clip(CircleShape)
+            )
+        },
+        trailingContent = trailingContent,
+        modifier = if (onClick != null) {
+            modifier.combinedClickable(
+                enabled = !isBlocked,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        } else modifier,
+        isBlocked = isBlocked
+    )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ArtistGridItem(
     artist: Artist,
@@ -599,6 +628,8 @@ fun ArtistGridItem(
         }
     },
     fillMaxWidth: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) = run {
     val database = LocalDatabase.current
     val isBlocked by database.isArtistBlocked(artist.id).collectAsState(initial = false)
@@ -627,6 +658,7 @@ fun ArtistGridItem(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AlbumListItem(
     album: Album,
@@ -670,6 +702,8 @@ fun AlbumListItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val database = LocalDatabase.current
     val isBlocked by database.isAlbumBlocked(album.id).collectAsState(initial = false)
@@ -692,13 +726,20 @@ fun AlbumListItem(
             )
         },
         trailingContent = trailingContent,
-        modifier = modifier,
+        modifier = if (onClick != null) {
+            modifier.combinedClickable(
+                enabled = !isBlocked,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        } else modifier,
         isSelected = isSelected,
         isActive = isActive,
         isBlocked = isBlocked
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AlbumGridItem(
     album: Album,
@@ -741,6 +782,8 @@ fun AlbumGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) = run {
     val database = LocalDatabase.current
     val isBlocked by database.isAlbumBlocked(album.id).collectAsState(initial = false)
@@ -1017,7 +1060,7 @@ fun MediaMetadataListItem(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun YouTubeListItem(
     item: YTItem,
@@ -1028,6 +1071,8 @@ fun YouTubeListItem(
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
     trailingContent: @Composable RowScope.() -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
         val song by produceState<Song?>(initialValue = null, item.id) {
@@ -1090,7 +1135,13 @@ fun YouTubeListItem(
                 )
             },
             trailingContent = trailingContent,
-            modifier = modifier,
+            modifier = if (onClick != null) {
+                modifier.combinedClickable(
+                    enabled = !isBlocked,
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
+            } else modifier,
             isActive = isActive,
             isBlocked = isBlocked
         )
@@ -1108,6 +1159,7 @@ fun YouTubeListItem(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun YouTubeGridItem(
     item: YTItem,
@@ -1138,6 +1190,8 @@ fun YouTubeGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) = run {
     val database = LocalDatabase.current
     val isBlocked by produceState(initialValue = false, item.id) {
@@ -1224,7 +1278,11 @@ fun YouTubeGridItem(
     },
     thumbnailRatio = thumbnailRatio,
     fillMaxWidth = fillMaxWidth,
-    modifier = modifier,
+    modifier = modifier.combinedClickable(
+        enabled = !isBlocked,
+        onClick = onClick,
+        onLongClick = onLongClick
+    ),
     isBlocked = isBlocked
 )
 }

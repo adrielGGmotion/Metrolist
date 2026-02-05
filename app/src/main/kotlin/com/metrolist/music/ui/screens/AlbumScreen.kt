@@ -450,36 +450,26 @@ fun AlbumScreen(
                                 }
                             }
                         },
-                        modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .animateItem()
-                            .combinedClickable(
-                                onClick = {
-                                    if (inSelectMode) {
-                                        onCheckedChange(song.id !in selection)
-                                    } else if (song.id == mediaMetadata?.id) {
-                                        playerConnection.togglePlayPause()
-                                    } else {
-                                        scope.launch {
-                                            val isBlocked = database.isSongBlocked(song.id).first()
-                                            if (!isBlocked) {
-                                                playerConnection.service.getAutomix(playlistId)
-                                                playerConnection.playQueue(
-                                                    LocalAlbumRadio(albumWithSongs, startIndex = index),
-                                                )
-                                            }
-                                        }
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!inSelectMode) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        inSelectMode = true
-                                        onCheckedChange(true)
-                                    }
-                                },
-                            ),
+                        modifier = Modifier.fillMaxWidth().animateItem(),
+                        onClick = {
+                            if (inSelectMode) {
+                                onCheckedChange(song.id !in selection)
+                            } else if (song.id == mediaMetadata?.id) {
+                                playerConnection.togglePlayPause()
+                            } else {
+                                playerConnection.service.getAutomix(playlistId)
+                                playerConnection.playQueue(
+                                    LocalAlbumRadio(albumWithSongs, startIndex = index),
+                                )
+                            }
+                        },
+                        onLongClick = {
+                            if (!inSelectMode) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                inSelectMode = true
+                                onCheckedChange(true)
+                            }
+                        }
                     )
                 }
             }
@@ -504,22 +494,18 @@ fun AlbumScreen(
                                 isActive = mediaMetadata?.album?.id == item.id,
                                 isPlaying = isPlaying,
                                 coroutineScope = scope,
-                                modifier =
-                                Modifier
-                                    .combinedClickable(
-                                        onClick = { navController.navigate("album/${item.id}") },
-                                        onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeAlbumMenu(
-                                                    albumItem = item,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        },
-                                    )
-                                    .animateItem(),
+                                modifier = Modifier.animateItem(),
+                                onClick = { navController.navigate("album/${item.id}") },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    menuState.show {
+                                        YouTubeAlbumMenu(
+                                            albumItem = item,
+                                            navController = navController,
+                                            onDismiss = menuState::dismiss,
+                                        )
+                                    }
+                                }
                             )
                         }
                     }

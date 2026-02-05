@@ -212,52 +212,48 @@ fun YouTubeBrowseScreen(
                                         },
                                         isPlaying = isPlaying,
                                         coroutineScope = coroutineScope,
-                                        modifier =
-                                        Modifier
-                                            .combinedClickable(
-                                                onClick = {
-                                                    when (item) {
-                                                        is AlbumItem -> navController.navigate("album/${item.id}")
-                                                        is ArtistItem -> navController.navigate("artist/${item.id}")
-                                                        is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
-                                                        else -> item
-                                                    }
-                                                },
-                                                onLongClick = {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    menuState.show {
-                                                        when (item) {
-                                                            is SongItem ->
-                                                                YouTubeSongMenu(
-                                                                    song = item,
-                                                                    navController = navController,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
+                                        modifier = Modifier.animateItem(),
+                                        onClick = {
+                                            when (item) {
+                                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                                is ArtistItem -> navController.navigate("artist/${item.id}")
+                                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                                else -> item
+                                            }
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                when (item) {
+                                                    is SongItem ->
+                                                        YouTubeSongMenu(
+                                                            song = item,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
 
-                                                            is AlbumItem ->
-                                                                YouTubeAlbumMenu(
-                                                                    albumItem = item,
-                                                                    navController = navController,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
+                                                    is AlbumItem ->
+                                                        YouTubeAlbumMenu(
+                                                            albumItem = item,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
 
-                                                            is ArtistItem ->
-                                                                YouTubeArtistMenu(
-                                                                    artist = item,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
+                                                    is ArtistItem ->
+                                                        YouTubeArtistMenu(
+                                                            artist = item,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
 
-                                                            is PlaylistItem ->
-                                                                YouTubePlaylistMenu(
-                                                                    playlist = item,
-                                                                    coroutineScope = coroutineScope,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
-                                                        }
-                                                    }
+                                                    is PlaylistItem ->
+                                                        YouTubePlaylistMenu(
+                                                            playlist = item,
+                                                            coroutineScope = coroutineScope,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
                                                 }
-                                            )
-                                            .animateItem()
+                                            }
+                                        },
                                     )
                                 }
                             }

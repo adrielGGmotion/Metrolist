@@ -184,77 +184,57 @@ fun LocalSearchScreen(
                                     )
                                 }
                             },
-                            modifier = Modifier
-                                .combinedClickable(
-                                    onClick = {
-                                        scope.launch {
-                                            val isBlocked = database.isSongBlocked(item.id).first()
-                                            if (!isBlocked) {
-                                                if (item.id == mediaMetadata?.id) {
-                                                    playerConnection.togglePlayPause()
-                                                } else {
-                                                    val songs = result.map
-                                                        .getOrDefault(LocalFilter.SONG, emptyList())
-                                                        .filterIsInstance<Song>()
-                                                        .map { it.toMediaItem() }
-                                                    playerConnection.playQueue(
-                                                        ListQueue(
-                                                            title = context.getString(R.string.queue_searched_songs),
-                                                            items = songs,
-                                                            startIndex = songs.indexOfFirst { it.mediaId == item.id },
-                                                        )
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onLongClick = {
-                                        menuState.show {
-                                            SongMenu(
-                                                originalSong = item,
-                                                navController = navController,
-                                                onDismiss = {
-                                                    onDismiss()
-                                                    menuState.dismiss()
-                                                },
-                                                isFromCache = isFromCache
+                                modifier = Modifier.animateItem(),
+                                onClick = {
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.togglePlayPause()
+                                    } else {
+                                        val songs = result.map
+                                            .getOrDefault(LocalFilter.SONG, emptyList())
+                                            .filterIsInstance<Song>()
+                                            .map { it.toMediaItem() }
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = context.getString(R.string.queue_searched_songs),
+                                                items = songs,
+                                                startIndex = songs.indexOfFirst { it.mediaId == item.id },
                                             )
-                                        }
+                                        )
                                     }
-                                )
-                                .animateItem(),
-                        )
+                                },
+                                onLongClick = {
+                                    menuState.show {
+                                        SongMenu(
+                                            originalSong = item,
+                                            navController = navController,
+                                            onDismiss = {
+                                                onDismiss()
+                                                menuState.dismiss()
+                                            },
+                                            isFromCache = isFromCache
+                                        )
+                                    }
+                                }
+                            )
 
                         is Album -> AlbumListItem(
                             album = item,
                             isActive = item.id == mediaMetadata?.album?.id,
                             isPlaying = isPlaying,
-                            modifier = Modifier
-                                .clickable {
-                                    scope.launch {
-                                        val isBlocked = database.isAlbumBlocked(item.id).first()
-                                        if (!isBlocked) {
-                                            onDismiss()
-                                            navController.navigate("album/${item.id}")
-                                        }
-                                    }
-                                }
-                                .animateItem(),
+                            modifier = Modifier.animateItem(),
+                            onClick = {
+                                onDismiss()
+                                navController.navigate("album/${item.id}")
+                            }
                         )
 
                         is Artist -> ArtistListItem(
                             artist = item,
-                            modifier = Modifier
-                                .clickable {
-                                    scope.launch {
-                                        val isBlocked = database.isArtistBlocked(item.id).first()
-                                        if (!isBlocked) {
-                                            onDismiss()
-                                            navController.navigate("artist/${item.id}")
-                                        }
-                                    }
-                                }
-                                .animateItem(),
+                            modifier = Modifier.animateItem(),
+                            onClick = {
+                                onDismiss()
+                                navController.navigate("artist/${item.id}")
+                            }
                         )
 
                         is Playlist -> PlaylistListItem(

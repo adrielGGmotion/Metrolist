@@ -91,22 +91,20 @@ fun AccountScreen(
                     YouTubeGridItem(
                         item = item,
                         fillMaxWidth = true,
-                        modifier = Modifier
-                            .combinedClickable(
-                                onClick = {
-                                    navController.navigate("online_playlist/${item.id}")
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    menuState.show {
-                                        YouTubePlaylistMenu(
-                                            playlist = item,
-                                            coroutineScope = coroutineScope,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-                                },
-                            ),
+                        modifier = Modifier,
+                        onClick = {
+                            navController.navigate("online_playlist/${item.id}")
+                        },
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            menuState.show {
+                                YouTubePlaylistMenu(
+                                    playlist = item,
+                                    coroutineScope = coroutineScope,
+                                    onDismiss = menuState::dismiss,
+                                )
+                            }
+                        },
                     )
                 }
 
@@ -127,22 +125,20 @@ fun AccountScreen(
                     YouTubeGridItem(
                         item = item,
                         fillMaxWidth = true,
-                        modifier = Modifier
-                            .combinedClickable(
-                                onClick = {
-                                    navController.navigate("album/${item.id}")
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    menuState.show {
-                                        YouTubeAlbumMenu(
-                                            albumItem = item,
-                                            navController = navController,
-                                            onDismiss = menuState::dismiss
-                                        )
-                                    }
-                                }
-                            )
+                        modifier = Modifier,
+                        onClick = {
+                            navController.navigate("album/${item.id}")
+                        },
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            menuState.show {
+                                YouTubeAlbumMenu(
+                                    albumItem = item,
+                                    navController = navController,
+                                    onDismiss = menuState::dismiss
+                                )
+                            }
+                        }
                     )
                 }
 
@@ -163,21 +159,19 @@ fun AccountScreen(
                     YouTubeGridItem(
                         item = item,
                         fillMaxWidth = true,
-                        modifier = Modifier
-                            .combinedClickable(
-                                onClick = {
-                                    navController.navigate("artist/${item.id}")
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    menuState.show {
-                                        YouTubeArtistMenu(
-                                            artist = item,
-                                            onDismiss = menuState::dismiss
-                                        )
-                                    }
-                                }
-                            )
+                        modifier = Modifier,
+                        onClick = {
+                            navController.navigate("artist/${item.id}")
+                        },
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            menuState.show {
+                                YouTubeArtistMenu(
+                                    artist = item,
+                                    onDismiss = menuState::dismiss
+                                )
+                            }
+                        }
                     )
                 }
 

@@ -248,43 +248,28 @@ fun OnlineSearchResult(
                     )
                 }
             },
-            modifier =
-            Modifier
-                .combinedClickable(
-                    onClick = {
-                        coroutineScope.launch {
-                            val isBlocked = when (item) {
-                                is SongItem -> database.isSongBlocked(item.id).first()
-                                is ArtistItem -> database.isArtistBlocked(item.id).first()
-                                is AlbumItem -> database.isAlbumBlocked(item.id).first()
-                                else -> false
-                            }
-
-                            if (!isBlocked) {
-                                when (item) {
-                                    is SongItem -> {
-                                        if (item.id == mediaMetadata?.id) {
-                                            playerConnection.togglePlayPause()
-                                        } else {
-                                            playerConnection.playQueue(
-                                                YouTubeQueue(
-                                                    WatchEndpoint(videoId = item.id),
-                                                    item.toMediaMetadata()
-                                                )
-                                            )
-                                        }
-                                    }
-
-                                    is AlbumItem -> navController.navigate("album/${item.id}")
-                                    is ArtistItem -> navController.navigate("artist/${item.id}")
-                                    is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
-                                }
-                            }
+            modifier = Modifier.animateItem(),
+            onClick = {
+                when (item) {
+                    is SongItem -> {
+                        if (item.id == mediaMetadata?.id) {
+                            playerConnection.togglePlayPause()
+                        } else {
+                            playerConnection.playQueue(
+                                YouTubeQueue(
+                                    WatchEndpoint(videoId = item.id),
+                                    item.toMediaMetadata()
+                                )
+                            )
                         }
-                    },
-                    onLongClick = longClick,
-                )
-                .animateItem(),
+                    }
+
+                    is AlbumItem -> navController.navigate("album/${item.id}")
+                    is ArtistItem -> navController.navigate("artist/${item.id}")
+                    is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                }
+            },
+            onLongClick = longClick,
         )
     }
 

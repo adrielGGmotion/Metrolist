@@ -53,11 +53,10 @@ fun LibraryArtistListItem(
             )
         }
     },
-    modifier = modifier
-        .fillMaxWidth()
-        .clickable {
-            navController.navigate("artist/${artist.id}")
-        }
+    modifier = modifier.fillMaxWidth(),
+    onClick = {
+        navController.navigate("artist/${artist.id}")
+    }
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -71,22 +70,19 @@ fun LibraryArtistGridItem(
 ) = ArtistGridItem(
     artist = artist,
     fillMaxWidth = true,
-    modifier = modifier
-        .fillMaxWidth()
-        .combinedClickable(
-            onClick = {
-                navController.navigate("artist/${artist.id}")
-            },
-            onLongClick = {
-                menuState.show {
-                    ArtistMenu(
-                        originalArtist = artist,
-                        coroutineScope = coroutineScope,
-                        onDismiss = menuState::dismiss
-                    )
-                }
-            }
-        )
+    modifier = modifier.fillMaxWidth(),
+    onClick = {
+        navController.navigate("artist/${artist.id}")
+    },
+    onLongClick = {
+        menuState.show {
+            ArtistMenu(
+                originalArtist = artist,
+                coroutineScope = coroutineScope,
+                onDismiss = menuState::dismiss
+            )
+        }
+    }
 )
 
 @Composable
@@ -119,11 +115,10 @@ fun LibraryAlbumListItem(
             )
         }
     },
-    modifier = modifier
-        .fillMaxWidth()
-        .clickable {
-            navController.navigate("album/${album.id}")
-        }
+    modifier = modifier.fillMaxWidth(),
+    onClick = {
+        navController.navigate("album/${album.id}")
+    }
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -142,22 +137,19 @@ fun LibraryAlbumGridItem(
     isPlaying = isPlaying,
     coroutineScope = coroutineScope,
     fillMaxWidth = true,
-    modifier = modifier
-        .fillMaxWidth()
-        .combinedClickable(
-            onClick = {
-                navController.navigate("album/${album.id}")
-            },
-            onLongClick = {
-                menuState.show {
-                    AlbumMenu(
-                        originalAlbum = album,
-                        navController = navController,
-                        onDismiss = menuState::dismiss
-                    )
-                }
-            }
-        )
+    modifier = modifier.fillMaxWidth(),
+    onClick = {
+        navController.navigate("album/${album.id}")
+    },
+    onLongClick = {
+        menuState.show {
+            AlbumMenu(
+                originalAlbum = album,
+                navController = navController,
+                onDismiss = menuState::dismiss
+            )
+        }
+    }
 )
 
 @Composable
