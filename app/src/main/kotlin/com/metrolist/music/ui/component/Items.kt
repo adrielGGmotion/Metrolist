@@ -268,6 +268,8 @@ fun ListItem(
     isSelected: Boolean? = false,
     isActive: Boolean = false,
     isBlocked: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
 ) = ListItem(
     title = title,
     subtitle = {
@@ -285,7 +287,13 @@ fun ListItem(
     },
     thumbnailContent = thumbnailContent,
     trailingContent = trailingContent,
-    modifier = modifier,
+    modifier = if (onClick != null) {
+        modifier.combinedClickable(
+            enabled = !isBlocked,
+            onClick = onClick,
+            onLongClick = onLongClick
+        )
+    } else modifier,
     isSelected = isSelected,
     isActive = isActive,
     isBlocked = isBlocked
@@ -301,6 +309,7 @@ fun GridItem(
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
     isBlocked: Boolean = false,
+    shape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
 ) {
     val gridHeight = currentGridThumbnailHeight()
     Column(
@@ -330,7 +339,7 @@ fun GridItem(
                         .fillMaxSize()
                         .background(
                             Color.Black.copy(alpha = 0.4f),
-                            if (thumbnailRatio == 1f) CircleShape else RoundedCornerShape(ThumbnailCornerRadius)
+                            shape
                         )
                 ) {
                     Icon(
@@ -367,6 +376,7 @@ fun GridItem(
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
     isBlocked: Boolean = false,
+    shape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
 ) = GridItem(
     modifier = modifier,
     title = {
@@ -392,7 +402,8 @@ fun GridItem(
     thumbnailContent = thumbnailContent,
     thumbnailRatio = thumbnailRatio,
     fillMaxWidth = fillMaxWidth,
-    isBlocked = isBlocked
+    isBlocked = isBlocked,
+    shape = shape
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -502,7 +513,7 @@ fun SongGridItem(
     fillMaxWidth: Boolean = false,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-) = run {
+) {
     val database = LocalDatabase.current
     val isBlocked by database.isSongBlocked(song.id).collectAsState(initial = false)
 
@@ -539,7 +550,7 @@ fun SongGridItem(
             shape = RoundedCornerShape(ThumbnailCornerRadius),
             modifier = Modifier.size(gridHeight)
         )
-        if (!isActive) {
+        if (!isActive && !isBlocked) {
             OverlayPlayButton(
                 visible = true
             )
@@ -811,7 +822,7 @@ fun AlbumGridItem(
     badges = badges,
     thumbnailContent = {
         val database = LocalDatabase.current
-        val playerConnection = LocalPlayerConnection.current ?: return@GridItem
+        val playerConnection = LocalPlayerConnection.current
         val scope = rememberCoroutineScope()
 
         ItemThumbnail(
@@ -821,19 +832,21 @@ fun AlbumGridItem(
             shape = RoundedCornerShape(ThumbnailCornerRadius),
         )
 
-        AlbumPlayButton(
-            visible = !isActive,
-            onClick = {
-                scope.launch {
-                    val albumWithSongs = withContext(Dispatchers.IO) {
-                        database.albumWithSongs(album.id).firstOrNull()
-                    }
-                    albumWithSongs?.let {
-                        playerConnection.playQueue(LocalAlbumRadio(it))
+        if (playerConnection != null) {
+            AlbumPlayButton(
+                visible = !isActive && !isBlocked,
+                onClick = {
+                    scope.launch {
+                        val albumWithSongs = withContext(Dispatchers.IO) {
+                            database.albumWithSongs(album.id).firstOrNull()
+                        }
+                        albumWithSongs?.let {
+                            playerConnection.playQueue(LocalAlbumRadio(it))
+                        }
                     }
                 }
-            }
-        )
+            )
+        }
     },
     fillMaxWidth = fillMaxWidth,
     modifier = modifier,
@@ -875,7 +888,8 @@ fun PlaylistListItem(
         Icon.Download(downloadState)
     },
     trailingContent: @Composable RowScope.() -> Unit = {}
-) = ListItem(
+) {
+    ListItem(
     title = playlist.playlist.name,
     subtitle = if (autoPlaylist) {
         ""
@@ -921,6 +935,7 @@ fun PlaylistListItem(
     trailingContent = trailingContent,
     modifier = modifier
 )
+}
 
 @Composable
 fun PlaylistGridItem(
@@ -956,7 +971,8 @@ fun PlaylistGridItem(
         Icon.Download(downloadState)
     },
     fillMaxWidth: Boolean = false,
-) = GridItem(
+) {
+    GridItem(
     title = {
         Text(
             text = playlist.playlist.name,
@@ -1026,6 +1042,7 @@ fun PlaylistGridItem(
     fillMaxWidth = fillMaxWidth,
     modifier = modifier
 )
+}
 
 @Composable
 fun MediaMetadataListItem(
@@ -1204,6 +1221,7 @@ fun YouTubeGridItem(
             value = database.isAlbumBlocked(item.id).first()
         }
     }
+    val shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius)
 
     GridItem(
     title = {
@@ -1237,44 +1255,46 @@ fun YouTubeGridItem(
     badges = badges,
     thumbnailContent = {
         val database = LocalDatabase.current
-        val playerConnection = LocalPlayerConnection.current ?: return@GridItem
+        val playerConnection = LocalPlayerConnection.current
         val scope = rememberCoroutineScope()
 
         ItemThumbnail(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            shape = shape,
         )
 
-        if (item is SongItem && !isActive) {
+        if (item is SongItem && !isActive && !isBlocked) {
             OverlayPlayButton(
                 visible = true
             )
         }
 
-        AlbumPlayButton(
-            visible = item is AlbumItem && !isActive,
-            onClick = {
-                scope.launch(Dispatchers.IO) {
-                    val isBlocked = database.isAlbumBlocked(item.id).first()
-                    if (!isBlocked) {
-                        var albumWithSongs = database.albumWithSongs(item.id).first()
-                        if (albumWithSongs?.songs.isNullOrEmpty()) {
-                            YouTube.album(item.id).onSuccess { albumPage ->
-                                database.transaction { insert(albumPage) }
-                                albumWithSongs = database.albumWithSongs(item.id).first()
-                            }.onFailure { reportException(it) }
-                        }
-                        albumWithSongs?.let {
-                            withContext(Dispatchers.Main) {
-                                playerConnection.playQueue(LocalAlbumRadio(it))
+        if (playerConnection != null) {
+            AlbumPlayButton(
+                visible = item is AlbumItem && !isActive && !isBlocked,
+                onClick = {
+                    scope.launch(Dispatchers.IO) {
+                        val isBlocked = database.isAlbumBlocked(item.id).first()
+                        if (!isBlocked) {
+                            var albumWithSongs = database.albumWithSongs(item.id).first()
+                            if (albumWithSongs?.songs.isNullOrEmpty()) {
+                                YouTube.album(item.id).onSuccess { albumPage ->
+                                    database.transaction { insert(albumPage) }
+                                    albumWithSongs = database.albumWithSongs(item.id).first()
+                                }.onFailure { reportException(it) }
+                            }
+                            albumWithSongs?.let {
+                                withContext(Dispatchers.Main) {
+                                    playerConnection.playQueue(LocalAlbumRadio(it))
+                                }
                             }
                         }
                     }
                 }
-            }
-        )
+            )
+        }
     },
     thumbnailRatio = thumbnailRatio,
     fillMaxWidth = fillMaxWidth,
@@ -1283,7 +1303,8 @@ fun YouTubeGridItem(
         onClick = onClick,
         onLongClick = onLongClick
     ),
-    isBlocked = isBlocked
+    isBlocked = isBlocked,
+    shape = shape
 )
 }
 
@@ -1297,7 +1318,8 @@ fun LocalSongsGrid(
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
-) = GridItem(
+) {
+    GridItem(
     title = title,
     subtitle = subtitle,
     badges = badges,
@@ -1315,6 +1337,7 @@ fun LocalSongsGrid(
     fillMaxWidth = fillMaxWidth,
     modifier = modifier
 )
+}
 
 @Composable
 fun LocalArtistsGrid(
@@ -1326,7 +1349,8 @@ fun LocalArtistsGrid(
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
-) = GridItem(
+) {
+    GridItem(
     title = title,
     subtitle = subtitle,
     badges = badges,
@@ -1344,6 +1368,7 @@ fun LocalArtistsGrid(
     fillMaxWidth = fillMaxWidth,
     modifier = modifier
 )
+}
 
 @Composable
 fun LocalAlbumsGrid(
@@ -1355,7 +1380,8 @@ fun LocalAlbumsGrid(
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
-) = GridItem(
+) {
+    GridItem(
     title = title,
     subtitle = subtitle,
     badges = badges,
@@ -1373,6 +1399,7 @@ fun LocalAlbumsGrid(
     fillMaxWidth = fillMaxWidth,
     modifier = modifier
 )
+}
 
 @Composable
 fun ItemThumbnail(
