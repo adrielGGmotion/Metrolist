@@ -90,8 +90,8 @@ data class ThemePalette(
 )
 
 val PaletteColors = listOf(
-    ThemePalette("Black & White", Color(0xFF808080)), // Gray for near-monochrome look
-    ThemePalette("Crimson", Color(0xFFED5564)),
+    ThemePalette("Dynamic", Color.Transparent), // Sentinel for System/Dynamic colors
+    ThemePalette("Crimson", Color(0xFFEC5464)), // Slightly shifted from DefaultThemeColor (0xFFED5564) to avoid conflict
     ThemePalette("Rose", Color(0xFFD81B60)),
     ThemePalette("Purple", Color(0xFF8E24AA)),
     ThemePalette("Deep Purple", Color(0xFF5E35B1)),
@@ -381,10 +381,20 @@ fun ThemeControls(
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     items(PaletteColors) { palette ->
+                        val isDynamicPalette = palette.seedColor == Color.Transparent
+                        val isSelected = if (isDynamicPalette) {
+                            selectedThemeColor == DefaultThemeColor
+                        } else {
+                            selectedThemeColor == palette.seedColor
+                        }
+                        
                         PaletteItem(
                             palette = palette,
-                            isSelected = selectedThemeColor == palette.seedColor,
-                            onClick = { onSelectedThemeColorChange(palette.seedColor) }
+                            isSelected = isSelected,
+                            onClick = { 
+                                val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
+                                onSelectedThemeColorChange(colorToSave) 
+                            }
                         )
                     }
                 }
@@ -594,27 +604,46 @@ fun PaletteItem(
                 contentDescription = "${palette.name} palette"
             }
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val width = size.width
-            val height = size.height
-            
-            drawRect(
-                color = colorScheme.onPrimary,
-                topLeft = Offset(0f, 0f),
-                size = Size(width, height / 2)
-            )
-            
-            drawRect(
-                color = colorScheme.secondary,
-                topLeft = Offset(0f, height / 2),
-                size = Size(width / 2, height / 2)
-            )
-            
-            drawRect(
-                color = colorScheme.tertiary,
-                topLeft = Offset(width / 2, height / 2),
-                size = Size(width / 2, height / 2)
-            )
+        if (palette.seedColor == Color.Transparent) {
+            // Draw Dynamic/System icon (4-color quadrant)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+                val midX = width / 2
+                val midY = height / 2
+                
+                // Top-Left: Blue
+                drawRect(color = Color(0xFF4285F4), topLeft = Offset(0f, 0f), size = Size(midX, midY))
+                // Top-Right: Red
+                drawRect(color = Color(0xFFDB4437), topLeft = Offset(midX, 0f), size = Size(midX, midY))
+                // Bottom-Left: Yellow
+                drawRect(color = Color(0xFFF4B400), topLeft = Offset(0f, midY), size = Size(midX, midY))
+                // Bottom-Right: Green
+                drawRect(color = Color(0xFF0F9D58), topLeft = Offset(midX, midY), size = Size(midX, midY))
+            }
+        } else {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+                
+                drawRect(
+                    color = colorScheme.onPrimary,
+                    topLeft = Offset(0f, 0f),
+                    size = Size(width, height / 2)
+                )
+                
+                drawRect(
+                    color = colorScheme.secondary,
+                    topLeft = Offset(0f, height / 2),
+                    size = Size(width / 2, height / 2)
+                )
+                
+                drawRect(
+                    color = colorScheme.tertiary,
+                    topLeft = Offset(width / 2, height / 2),
+                    size = Size(width / 2, height / 2)
+                )
+            }
         }
     }
 }
