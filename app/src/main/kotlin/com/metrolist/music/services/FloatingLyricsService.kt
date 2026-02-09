@@ -9,16 +9,22 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -58,6 +65,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,11 +90,15 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.metrolist.music.LocalPlayerConnection
+import com.metrolist.music.MainActivity
 import com.metrolist.music.R
+import com.metrolist.music.constants.FloatingLyricsAutoFetchKey
 import com.metrolist.music.constants.FloatingLyricsBackgroundStyle
 import com.metrolist.music.constants.FloatingLyricsBackgroundStyleKey
 import com.metrolist.music.constants.FloatingLyricsOpacityKey
 import com.metrolist.music.db.MusicDatabase
+import com.metrolist.music.db.entities.LyricsEntity
+import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.playback.MusicService
 import com.metrolist.music.playback.PlayerConnection
@@ -109,6 +122,9 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
     @Inject
     lateinit var database: MusicDatabase
 
+    @Inject
+    lateinit var lyricsHelper: LyricsHelper
+
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val store = ViewModelStore()
@@ -127,6 +143,7 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
     private lateinit var windowManager: WindowManager
     private var overlayView: ComposeView? = null
+    private var removeView: ComposeView? = null
     private var playerConnection: PlayerConnection? = null
 
     private val serviceConnection = object : ServiceConnection {
@@ -201,6 +218,74 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
         layoutParams.x = 100
         layoutParams.y = 200
 
+        // Create Remove View (Dismiss Target)
+        val removeParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            200, // Height for the bottom area
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else
+                WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, // Passes touches, just for display
+            PixelFormat.TRANSLUCENT
+        )
+        removeParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        removeParams.y = 0
+
+        var isDragging by mutableStateOf(false)
+        var isHoveringRemove by mutableStateOf(false)
+
+        removeView = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@FloatingLyricsService)
+            setViewTreeViewModelStoreOwner(this@FloatingLyricsService)
+            setViewTreeSavedStateRegistryOwner(this@FloatingLyricsService)
+            setContent {
+                MetrolistTheme(darkTheme = true) {
+                    AnimatedVisibility(
+                        visible = isDragging,
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut() + scaleOut()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 32.dp),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            val scale by animateFloatAsState(if (isHoveringRemove) 1.5f else 1f, label = "scale")
+                            val alpha by animateFloatAsState(if (isHoveringRemove) 1f else 0.7f, label = "alpha")
+                            
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    painter = painterResource(R.drawable.close), // or delete icon
+                                    contentDescription = "Remove",
+                                    tint = Color.White, // Always white for visibility
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .scale(scale)
+                                        .alpha(alpha)
+                                        .background(
+                                            if (isHoveringRemove) Color.Red.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.5f),
+                                            CircleShape
+                                        )
+                                        .padding(12.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Dismiss",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.alpha(alpha)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         overlayView = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@FloatingLyricsService)
             setViewTreeViewModelStoreOwner(this@FloatingLyricsService)
@@ -239,6 +324,8 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
                 ) {
                     val menuState = remember { MenuState() }
                     
+                    val density = LocalDensity.current
+
                     CompositionLocalProvider(
                         LocalPlayerConnection provides playerConnection,
                         LocalMenuState provides menuState,
@@ -256,6 +343,36 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
                                 layoutParams.x += x.roundToInt()
                                 layoutParams.y += y.roundToInt()
                                 windowManager.updateViewLayout(this, layoutParams)
+                                
+                                // Check for remove intersection
+                                // Simple check: if y is near bottom center
+                                val screenHeight = resources.displayMetrics.heightPixels
+                                val screenWidth = resources.displayMetrics.widthPixels
+                                
+                                // Convert dp to px manually or using density
+                                val offsetPx = with(density) { 32.dp.toPx() }
+                                
+                                val centerX = layoutParams.x + (if (isMinimized) offsetPx else 400f) // Half width (approx)
+                                val centerY = layoutParams.y + (if (isMinimized) offsetPx else 500f) // Half height (approx)
+                                
+                                // Threshold for bottom center
+                                val removeThresholdY = screenHeight - 400 // Bottom area
+                                val removeThresholdX = screenWidth / 2
+                                
+                                isHoveringRemove = (centerY > removeThresholdY) && 
+                                                   (centerX > removeThresholdX - 200 && centerX < removeThresholdX + 200)
+                            },
+                            onDragStart = {
+                                isDragging = true
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                if (isHoveringRemove) {
+                                    shouldShow = false
+                                    hideOverlay()
+                                    stopSelf()
+                                }
+                                isHoveringRemove = false
                             },
                             onResize = { widthDelta, heightDelta ->
                                 if (!isMinimized) {
@@ -276,22 +393,48 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
                                 }
                                 windowManager.updateViewLayout(this, layoutParams)
                             },
-                            mediaMetadata = mediaMetadata
+                            mediaMetadata = mediaMetadata,
+                            onLyricsMissing = { song ->
+                                // Auto-fetch logic
+                                // Check if setting is enabled and lyrics are missing
+                                // We'll trigger fetch in background scope
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val result = lyricsHelper.getLyrics(song)
+                                        if (result.lyrics != LyricsEntity.LYRICS_NOT_FOUND) {
+                                            database.upsert(
+                                                LyricsEntity(
+                                                    id = song.id,
+                                                    lyrics = result.lyrics,
+                                                    provider = result.provider
+                                                )
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            }
                         )
                     }
                 }
             }
         }
 
+        windowManager.addView(removeView, removeParams)
         windowManager.addView(overlayView, layoutParams)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
 
     private fun hideOverlay() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         if (overlayView != null) {
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
             windowManager.removeView(overlayView)
             overlayView = null
+        }
+        if (removeView != null) {
+            windowManager.removeView(removeView)
+            removeView = null
         }
     }
 
@@ -316,10 +459,13 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
 fun FloatingLyricsContainer(
     onClose: () -> Unit,
     onDrag: (Float, Float) -> Unit,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit,
     onResize: (Float, Float) -> Unit,
     isMinimized: Boolean,
     onMinimizeToggle: () -> Unit,
-    mediaMetadata: MediaMetadata?
+    mediaMetadata: MediaMetadata?,
+    onLyricsMissing: (MediaMetadata) -> Unit = {}
 ) {
     val (opacity) = rememberPreference(FloatingLyricsOpacityKey, 1f)
 
@@ -331,6 +477,8 @@ fun FloatingLyricsContainer(
         if (minimized) {
             FloatingAppIcon(
                 onDrag = onDrag,
+                onDragStart = onDragStart,
+                onDragEnd = onDragEnd,
                 onMaximize = onMinimizeToggle,
                 opacity = opacity
             )
@@ -338,10 +486,13 @@ fun FloatingLyricsContainer(
             FloatingLyricsCard(
                 onClose = onClose,
                 onDrag = onDrag,
+                onDragStart = onDragStart,
+                onDragEnd = onDragEnd,
                 onResize = onResize,
                 onMinimize = onMinimizeToggle,
                 opacity = opacity,
-                mediaMetadata = mediaMetadata
+                mediaMetadata = mediaMetadata,
+                onLyricsMissing = onLyricsMissing
             )
         }
     }
@@ -350,6 +501,8 @@ fun FloatingLyricsContainer(
 @Composable
 fun FloatingAppIcon(
     onDrag: (Float, Float) -> Unit,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit,
     onMaximize: () -> Unit,
     opacity: Float
 ) {
@@ -361,12 +514,12 @@ fun FloatingAppIcon(
             .background(MaterialTheme.colorScheme.primaryContainer)
             .pointerInput(Unit) {
                 detectDragGestures(
+                    onDragStart = { onDragStart() },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() },
                     onDrag = { change, dragAmount ->
                         change.consume()
                         onDrag(dragAmount.x, dragAmount.y)
-                    },
-                    onDragEnd = {
-                        // Optional: Add click handling to maximize if not dragged
                     }
                 )
             },
@@ -386,10 +539,13 @@ fun FloatingAppIcon(
 fun FloatingLyricsCard(
     onClose: () -> Unit,
     onDrag: (Float, Float) -> Unit,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit,
     onResize: (Float, Float) -> Unit,
     onMinimize: () -> Unit,
     opacity: Float,
-    mediaMetadata: MediaMetadata?
+    mediaMetadata: MediaMetadata?,
+    onLyricsMissing: (MediaMetadata) -> Unit = {}
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -397,6 +553,22 @@ fun FloatingLyricsCard(
         key = FloatingLyricsBackgroundStyleKey,
         defaultValue = FloatingLyricsBackgroundStyle.DEFAULT
     )
+    val (autoFetchLyrics) = rememberPreference(
+        key = FloatingLyricsAutoFetchKey,
+        defaultValue = false
+    )
+
+    // Observe lyrics state to trigger auto-fetch
+    val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+    
+    LaunchedEffect(mediaMetadata, lyricsEntity, autoFetchLyrics) {
+        if (mediaMetadata != null && autoFetchLyrics) {
+            val hasNoLyrics = lyricsEntity == null || lyricsEntity?.lyrics == LyricsEntity.LYRICS_NOT_FOUND
+            if (hasNoLyrics) {
+                onLyricsMissing(mediaMetadata)
+            }
+        }
+    }
 
     var gradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
@@ -472,7 +644,7 @@ fun FloatingLyricsCard(
                         }
                         FloatingLyricsBackgroundStyle.GRADIENT -> {
                             if (gradientColors.isNotEmpty()) {
-                                val gradientColorStops = if (gradientColors.size >= 3) {
+                                val gradientColorStops: Array<Pair<Float, Color>> = if (gradientColors.size >= 3) {
                                     arrayOf(
                                         0.0f to gradientColors[0],
                                         0.5f to gradientColors[1],
@@ -487,7 +659,7 @@ fun FloatingLyricsCard(
                                 Box(
                                     Modifier
                                         .fillMaxSize()
-                                        .background(Brush.verticalGradient(colorStops = gradientColorStops))
+                                        .background(Brush.verticalGradient(*gradientColorStops))
                                         .background(Color.Black.copy(alpha = 0.3f))
                                 )
                             } else {
@@ -516,10 +688,15 @@ fun FloatingLyricsCard(
                                 Color.Black.copy(alpha = 0.2f) // Subtle header for custom backgrounds
                         )
                         .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                onDrag(dragAmount.x, dragAmount.y)
-                            }
+                            detectDragGestures(
+                                onDragStart = { onDragStart() },
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragEnd() },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    onDrag(dragAmount.x, dragAmount.y)
+                                }
+                            )
                         }
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -531,6 +708,12 @@ fun FloatingLyricsCard(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(8.dp))
+                            .clickable { // Click to open player
+                                val intent = Intent(context, MainActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                }
+                                context.startActivity(intent)
+                            }
                     )
                     
                     Spacer(modifier = Modifier.width(12.dp))
@@ -589,21 +772,6 @@ fun FloatingLyricsCard(
                         .fillMaxSize()
                         .weight(1f)
                 ) {
-                    // Force white text for Blur/Gradient backgrounds, otherwise use default
-                    val forceWhite = backgroundStyle != FloatingLyricsBackgroundStyle.DEFAULT
-                    // We can't easily force white text in the Lyrics component without passing a parameter
-                    // But since we are reusing the Lyrics component, it uses 'expressiveAccent' which defaults to primary/white
-                    // based on 'playerBackground' constant.
-                    // The Lyrics component reads 'PlayerBackgroundStyleKey'. We are in a separate window.
-                    // To strictly enforce colors in Lyrics.kt without changing it too much, we might need a workaround.
-                    // However, Lyrics.kt uses 'PlayerBackgroundStyleKey'.
-                    // If we want the floating lyrics to adapt, we might need to override that preference locally 
-                    // or rely on the theme primary color being white/light.
-                    
-                    // Since MetrolistTheme is used with 'darkTheme = true', 'expressiveAccent' usually picks Primary color.
-                    // If we are in Blur/Gradient, we ideally want White text.
-                    // For now, let's rely on the theme. 
-                    
                     Lyrics(
                         sliderPositionProvider = { playerConnection.player.currentPosition },
                         showLyrics = true,

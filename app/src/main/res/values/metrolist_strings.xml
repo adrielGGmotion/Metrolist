@@ -598,4 +598,6 @@
     <string name="floating_lyrics_desc">Show lyrics in a floating window when the app is in the background.</string>
     <string name="floating_lyrics_opacity">Window Opacity</string>
     <string name="floating_lyrics_background_style">Background Style</string>
+    <string name="floating_lyrics_auto_fetch">Auto-fetch lyrics</string>
+    <string name="floating_lyrics_auto_fetch_desc">Automatically fetch lyrics if not available</string>
 </resources>

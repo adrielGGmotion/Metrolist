@@ -36,12 +36,13 @@ import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.EnableFloatingLyricsKey
+import com.metrolist.music.constants.FloatingLyricsAutoFetchKey
 import com.metrolist.music.constants.FloatingLyricsBackgroundStyle
 import com.metrolist.music.constants.FloatingLyricsBackgroundStyleKey
 import com.metrolist.music.constants.FloatingLyricsOpacityKey
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.PreferenceEntry
-import com.metrolist.music.ui.component.SelectorPreference
+import com.metrolist.music.ui.component.EnumListPreference
 import com.metrolist.music.ui.component.SwitchPreference
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.rememberEnumPreference
@@ -96,19 +97,31 @@ fun FloatingLyricsSettings(
             defaultValue = FloatingLyricsBackgroundStyle.DEFAULT
         )
 
-        SelectorPreference(
+        EnumListPreference(
             title = { Text(stringResource(R.string.floating_lyrics_background_style)) },
             icon = { Icon(painterResource(R.drawable.palette), null) },
-            selected = backgroundStyle,
-            options = FloatingLyricsBackgroundStyle.entries,
-            onOptionSelected = onBackgroundStyleChange,
-            optionLabel = { style ->
+            selectedValue = backgroundStyle,
+            onValueSelected = onBackgroundStyleChange,
+            valueText = { style ->
                 when (style) {
                     FloatingLyricsBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
                     FloatingLyricsBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
                     FloatingLyricsBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
                 }
             }
+        )
+
+        val (autoFetchLyrics, onAutoFetchLyricsChange) = rememberPreference(
+            key = FloatingLyricsAutoFetchKey,
+            defaultValue = false
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.floating_lyrics_auto_fetch)) },
+            description = stringResource(R.string.floating_lyrics_auto_fetch_desc),
+            checked = autoFetchLyrics,
+            onCheckedChange = onAutoFetchLyricsChange,
+            icon = { Icon(painterResource(R.drawable.sync), null) }
         )
 
         val (opacity, onOpacityChange) = rememberPreference(

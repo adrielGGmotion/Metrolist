@@ -352,6 +352,7 @@ val ShowLyricsKey = booleanPreferencesKey("showLyrics")
 val EnableFloatingLyricsKey = booleanPreferencesKey("enableFloatingLyrics")
 val FloatingLyricsOpacityKey = floatPreferencesKey("floatingLyricsOpacity")
 val FloatingLyricsBackgroundStyleKey = stringPreferencesKey("floatingLyricsBackgroundStyle")
+val FloatingLyricsAutoFetchKey = booleanPreferencesKey("floatingLyricsAutoFetch")
 val LyricsTextPositionKey = stringPreferencesKey("lyricsTextPosition")
 
 enum class FloatingLyricsBackgroundStyle {
