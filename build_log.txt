@@ -1,0 +1,136 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Reusing configuration cache.
+> Task :app:preBuild UP-TO-DATE
+> Task :innertube:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preUniversalFossDebugBuild UP-TO-DATE
+> Task :app:mergeUniversalFossDebugNativeDebugMetadata NO-SOURCE
+> Task :innertube:processResources NO-SOURCE
+> Task :kugou:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :kugou:compileKotlin UP-TO-DATE
+> Task :innertube:compileKotlin UP-TO-DATE
+> Task :innertube:compileJava NO-SOURCE
+> Task :kugou:compileJava NO-SOURCE
+> Task :innertube:classes UP-TO-DATE
+> Task :kugou:processResources NO-SOURCE
+> Task :kugou:classes UP-TO-DATE
+> Task :innertube:jar UP-TO-DATE
+> Task :kugou:jar UP-TO-DATE
+> Task :lrclib:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :lrclib:processResources NO-SOURCE
+> Task :kizzy:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :lrclib:compileKotlin UP-TO-DATE
+> Task :lrclib:compileJava NO-SOURCE
+> Task :lrclib:classes UP-TO-DATE
+> Task :kizzy:compileKotlin UP-TO-DATE
+> Task :lrclib:jar UP-TO-DATE
+> Task :kizzy:compileJava NO-SOURCE
+> Task :kizzy:processResources NO-SOURCE
+> Task :kizzy:classes UP-TO-DATE
+> Task :lastfm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :kizzy:jar UP-TO-DATE
+> Task :lastfm:processResources NO-SOURCE
+> Task :betterlyrics:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :lastfm:compileKotlin UP-TO-DATE
+> Task :lastfm:compileJava NO-SOURCE
+> Task :lastfm:classes UP-TO-DATE
+> Task :betterlyrics:compileKotlin UP-TO-DATE
+> Task :betterlyrics:compileJava NO-SOURCE
+> Task :betterlyrics:processResources NO-SOURCE
+> Task :betterlyrics:classes UP-TO-DATE
+> Task :lastfm:jar UP-TO-DATE
+> Task :betterlyrics:jar UP-TO-DATE
+> Task :simpmusic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :simpmusic:processResources NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :simpmusic:compileKotlin UP-TO-DATE
+> Task :simpmusic:compileJava NO-SOURCE
+> Task :simpmusic:classes UP-TO-DATE
+> Task :app:generateUniversalFossDebugBuildConfig UP-TO-DATE
+> Task :simpmusic:jar UP-TO-DATE
+> Task :app:checkUniversalFossDebugAarMetadata UP-TO-DATE
+> Task :app:processUniversalFossDebugNavigationResources UP-TO-DATE
+> Task :app:generateUniversalFossDebugResValues UP-TO-DATE
+> Task :app:compileUniversalFossDebugNavigationResources UP-TO-DATE
+> Task :app:extractUniversalFossDebugSupportedLocales UP-TO-DATE
+> Task :app:mapUniversalFossDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateUniversalFossDebugResources UP-TO-DATE
+> Task :app:createUniversalFossDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksUniversalFossDebug UP-TO-DATE
+> Task :app:processUniversalFossDebugMainManifest UP-TO-DATE
+> Task :app:processUniversalFossDebugManifest UP-TO-DATE
+> Task :app:processUniversalFossDebugManifestForPackage UP-TO-DATE
+> Task :app:javaPreCompileUniversalFossDebug UP-TO-DATE
+> Task :app:mergeUniversalFossDebugShaders UP-TO-DATE
+> Task :app:compileUniversalFossDebugShaders NO-SOURCE
+> Task :app:generateUniversalFossDebugAssets UP-TO-DATE
+> Task :app:mergeUniversalFossDebugAssets UP-TO-DATE
+> Task :app:compressUniversalFossDebugAssets UP-TO-DATE
+> Task :app:l8DexDesugarLibUniversalFossDebug UP-TO-DATE
+> Task :app:generateUniversalFossDebugLocaleConfig UP-TO-DATE
+> Task :app:mergeUniversalFossDebugResources UP-TO-DATE
+> Task :app:checkUniversalFossDebugDuplicateClasses UP-TO-DATE
+> Task :app:desugarUniversalFossDebugFileDependencies UP-TO-DATE
+> Task :app:processUniversalFossDebugResources UP-TO-DATE
+> Task :app:mergeExtDexUniversalFossDebug UP-TO-DATE
+> Task :app:mergeLibDexUniversalFossDebug UP-TO-DATE
+> Task :app:mergeUniversalFossDebugJniLibFolders UP-TO-DATE
+> Task :app:kspUniversalFossDebugKotlin UP-TO-DATE
+> Task :app:mergeUniversalFossDebugNativeLibs UP-TO-DATE
+> Task :app:stripUniversalFossDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningUniversalFossDebug UP-TO-DATE
+> Task :app:writeUniversalFossDebugAppMetadata UP-TO-DATE
+> Task :app:writeUniversalFossDebugSigningConfigVersions UP-TO-DATE
+> Task :app:compileUniversalFossDebugKotlin
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/services/FloatingLyricsService.kt:490:89 Argument type mismatch: actual type is 'Array<CapturedType(out Any)>', but 'Array<out Pair<Float, Color>>' was expected.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:42:41 Unresolved reference 'SelectorPreference'.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:94:1 Unresolved reference 'import'.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:94:11 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:94:21 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:94:27 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:94:37 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:95:1 Unresolved reference 'import'.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:95:11 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:95:21 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:95:27 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:95:37 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:96:1 Unresolved reference 'import'.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:96:11 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:96:21 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:96:27 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:96:30 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:96:40 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:97:1 Unresolved reference 'import'.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:97:11 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:97:21 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:97:27 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:97:33 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:97:56 Syntax error: Expecting an element.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:106:9 Unresolved reference 'SelectorPreference'.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:107:23 @Composable invocations can only happen from the context of a @Composable function
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:107:28 @Composable invocations can only happen from the context of a @Composable function
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:108:22 @Composable invocations can only happen from the context of a @Composable function
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:108:27 @Composable invocations can only happen from the context of a @Composable function
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:112:29 Cannot infer type for value parameter 'style'. Specify it explicitly.
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:114:62 @Composable invocations can only happen from the context of a @Composable function
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:115:63 @Composable invocations can only happen from the context of a @Composable function
+e: file:///workspaces/codespaces-blank/Metrolist/app/src/main/kotlin/com/metrolist/music/ui/screens/settings/integrations/FloatingLyricsSettings.kt:116:59 @Composable invocations can only happen from the context of a @Composable function
+
+> Task :app:compileUniversalFossDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileUniversalFossDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m
+47 actionable tasks: 1 executed, 46 up-to-date
+Configuration cache entry reused.

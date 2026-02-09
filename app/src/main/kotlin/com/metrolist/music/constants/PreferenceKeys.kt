@@ -349,7 +349,16 @@ val HistoryDuration = floatPreferencesKey("historyDuration")
 val PlayerButtonsStyleKey = stringPreferencesKey("player_buttons_style")
 val PlayerBackgroundStyleKey = stringPreferencesKey("playerBackgroundStyle")
 val ShowLyricsKey = booleanPreferencesKey("showLyrics")
+val EnableFloatingLyricsKey = booleanPreferencesKey("enableFloatingLyrics")
+val FloatingLyricsOpacityKey = floatPreferencesKey("floatingLyricsOpacity")
+val FloatingLyricsBackgroundStyleKey = stringPreferencesKey("floatingLyricsBackgroundStyle")
 val LyricsTextPositionKey = stringPreferencesKey("lyricsTextPosition")
+
+enum class FloatingLyricsBackgroundStyle {
+    DEFAULT, // Current (Dynamic Solid)
+    GRADIENT,
+    BLUR
+}
 val LyricsClickKey = booleanPreferencesKey("lyricsClick")
 val LyricsScrollKey = booleanPreferencesKey("lyricsScrollKey")
 val LyricsRomanizeJapaneseKey = booleanPreferencesKey("lyricsRomanizeJapanese")

@@ -589,4 +589,13 @@
     <string name="cd_dark_mode">Dark mode</string>
     <string name="cd_system_mode">System mode</string>
     <string name="cd_palette_item">%1$s palette</string>
+    
+    <string name="floating_lyrics">Floating Lyrics</string>
+    <string name="enable_floating_lyrics">Enable Floating Lyrics</string>
+    <string name="floating_lyrics_permission_desc">This feature requires \'Display over other apps\' permission.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="floating_lyrics_auto_show">Auto-show when backgrounded</string>
+    <string name="floating_lyrics_desc">Show lyrics in a floating window when the app is in the background.</string>
+    <string name="floating_lyrics_opacity">Window Opacity</string>
+    <string name="floating_lyrics_background_style">Background Style</string>
 </resources>

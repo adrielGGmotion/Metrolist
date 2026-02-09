@@ -152,6 +152,8 @@ import com.metrolist.music.playback.MusicService
 import com.metrolist.music.playback.MusicService.MusicBinder
 import com.metrolist.music.playback.PlayerConnection
 import com.metrolist.music.playback.queues.YouTubeQueue
+import com.metrolist.music.constants.EnableFloatingLyricsKey
+import com.metrolist.music.services.FloatingLyricsService
 import com.metrolist.music.ui.component.AccountSettingsDialog
 import com.metrolist.music.ui.component.AppNavigationBar
 import com.metrolist.music.ui.component.AppNavigationRail
@@ -241,6 +243,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // Hide floating lyrics
+        startService(Intent(this, FloatingLyricsService::class.java).apply {
+            action = FloatingLyricsService.ACTION_HIDE
+        })
+
         // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -259,6 +266,20 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        if (playerConnection?.isPlaying?.value == true) {
+            lifecycleScope.launch {
+                val enabled = dataStore.get(EnableFloatingLyricsKey, false)
+                if (enabled && android.provider.Settings.canDrawOverlays(this@MainActivity)) {
+                    try {
+                        startService(Intent(this@MainActivity, FloatingLyricsService::class.java).apply {
+                            action = FloatingLyricsService.ACTION_SHOW
+                        })
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
         unbindService(serviceConnection)
         super.onStop()
     }

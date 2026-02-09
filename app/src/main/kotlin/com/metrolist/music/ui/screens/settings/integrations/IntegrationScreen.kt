@@ -59,6 +59,13 @@ fun IntegrationScreen(
                     onClick = {
                         navController.navigate("settings/integrations/lastfm")
                     }
+                ),
+                IntegrationCardItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.floating_lyrics)) },
+                    onClick = {
+                        navController.navigate("settings/integrations/floating_lyrics")
+                    }
                 )
             )
         )
