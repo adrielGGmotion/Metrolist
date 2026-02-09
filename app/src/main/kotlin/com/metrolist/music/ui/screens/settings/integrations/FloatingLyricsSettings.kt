@@ -61,11 +61,20 @@ fun FloatingLyricsSettings(
         mutableStateOf(Settings.canDrawOverlays(context))
     }
 
+    val (enableFloatingLyrics, onEnableFloatingLyricsChange) = rememberPreference(
+        key = EnableFloatingLyricsKey,
+        defaultValue = false
+    )
+
     // Refresh permission state when resuming
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                hasOverlayPermission = Settings.canDrawOverlays(context)
+                val hasPermission = Settings.canDrawOverlays(context)
+                hasOverlayPermission = hasPermission
+                if (!hasPermission && enableFloatingLyrics) {
+                    onEnableFloatingLyricsChange(false)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -73,11 +82,6 @@ fun FloatingLyricsSettings(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
-    val (enableFloatingLyrics, onEnableFloatingLyricsChange) = rememberPreference(
-        key = EnableFloatingLyricsKey,
-        defaultValue = false
-    )
 
     Column(
         Modifier
@@ -133,15 +137,34 @@ fun FloatingLyricsSettings(
             title = { Text(stringResource(R.string.enable_floating_lyrics)) },
             description = stringResource(R.string.floating_lyrics_desc),
             checked = enableFloatingLyrics,
-            onCheckedChange = {
-                if (it && !hasOverlayPermission) {
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:${context.packageName}")
-                    )
-                    context.startActivity(intent)
+            onCheckedChange = { enabled ->
+                if (enabled) {
+                    if (hasOverlayPermission) {
+                        onEnableFloatingLyricsChange(true)
+                    } else {
+                        // Request permission, but don't enable yet. 
+                        // The onResume check will enable it if granted, or we rely on user manually toggling again?
+                        // Better: Launch intent, let user grant. When they return, ON_RESUME will update hasOverlayPermission.
+                        // We should probably NOT toggle the switch to true unless permission is already there.
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                        context.startActivity(intent)
+                        // Don't call onEnableFloatingLyricsChange(true) here. 
+                        // Let the user enable it after granting permission.
+                        // Or, we can set it to true, but the ON_RESUME block will set it back to false if they didn't grant it.
+                        // Current behavior: `it` is true. `if (it && !hasPermission)` block runs. `onChange(it)` runs.
+                        // So it sets to true. 
+                        // The user goes to settings -> denies -> comes back.
+                        // ON_RESUME runs -> sets hasOverlayPermission = false.
+                        // My new code in ON_RESUME will see (false && true) -> set enabled to false.
+                        // So the flow is covered.
+                        onEnableFloatingLyricsChange(true)
+                    }
+                } else {
+                    onEnableFloatingLyricsChange(false)
                 }
-                onEnableFloatingLyricsChange(it)
             },
             icon = { Icon(painterResource(R.drawable.lyrics), null) }
         )

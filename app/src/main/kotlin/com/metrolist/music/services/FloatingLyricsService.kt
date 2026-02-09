@@ -18,6 +18,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -506,17 +507,33 @@ fun FloatingAppIcon(
     onMaximize: () -> Unit,
     opacity: Float
 ) {
+    var isDragging by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isDragging) 1.1f else 1f,
+        animationSpec = tween(200)
+    )
+
     Box(
         modifier = Modifier
             .size(64.dp)
+            .scale(scale)
             .alpha(opacity)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primaryContainer)
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { onDragStart() },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragEnd() },
+                    onDragStart = { 
+                        isDragging = true
+                        onDragStart() 
+                    },
+                    onDragEnd = { 
+                        isDragging = false
+                        onDragEnd() 
+                    },
+                    onDragCancel = { 
+                        isDragging = false
+                        onDragEnd() 
+                    },
                     onDrag = { change, dragAmount ->
                         change.consume()
                         onDrag(dragAmount.x, dragAmount.y)
@@ -529,7 +546,8 @@ fun FloatingAppIcon(
             Icon(
                 painter = painterResource(R.drawable.lyrics), // Or app icon
                 contentDescription = "Maximize",
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(32.dp)
             )
         }
     }

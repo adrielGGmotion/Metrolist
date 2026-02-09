@@ -1339,31 +1339,31 @@ fun Lyrics(
         }
         // Action buttons are now in the bottom bar
         // Removed the more button from bottom - it's now in the top header
-        if (!isFloating) {
-            Box(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
+        Box(
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
+        ) {
+            AnimatedVisibility(
+                visible = !isAutoScrollEnabled && isSynced && !isSelectionModeActive,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
             ) {
-                AnimatedVisibility(
-                    visible = !isAutoScrollEnabled && isSynced && !isSelectionModeActive,
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut()
-                ) {
-                    FilledTonalButton(onClick = {
-                        scope.launch {
-                            performSmoothPageScroll(currentLineIndex, 1500)
-                        }
-                        isAutoScrollEnabled = true
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.sync),
-                            contentDescription = stringResource(R.string.auto_scroll),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = stringResource(R.string.auto_scroll))
+                FilledTonalButton(onClick = {
+                    scope.launch {
+                        performSmoothPageScroll(currentLineIndex, 1500)
                     }
+                    isAutoScrollEnabled = true
+                }) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.sync),
+                        contentDescription = stringResource(R.string.auto_scroll),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(R.string.auto_scroll))
                 }
+            }
 
+            if (!isFloating) {
                 AnimatedVisibility(
                     visible = isSelectionModeActive,
                     enter = slideInVertically { it } + fadeIn(),
