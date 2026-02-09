@@ -9,14 +9,12 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
-import android.view.View
 import android.view.WindowManager
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -67,7 +65,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,6 +77,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.media3.common.Player
 import androidx.palette.graphics.Palette
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
@@ -113,6 +111,9 @@ import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.math.roundToInt
@@ -131,7 +132,6 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
     private val store = ViewModelStore()
     private val dispatcher = OnBackPressedDispatcher {
         hideOverlay()
-        stopSelf()
     }
 
     override val lifecycle: Lifecycle = lifecycleRegistry
@@ -146,11 +146,24 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
     private var overlayView: ComposeView? = null
     private var removeView: ComposeView? = null
     private var playerConnection: PlayerConnection? = null
+    
+    // Visibility state for window content animation
+    private var isWindowVisible by mutableStateOf(false)
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             if (service is MusicService.MusicBinder) {
                 playerConnection = PlayerConnection(this@FloatingLyricsService, service, database, lifecycleScope)
+                
+                // Auto-close on Stop/Idle state
+                lifecycleScope.launch {
+                    playerConnection?.playbackState?.collect { state ->
+                        if (state == Player.STATE_IDLE || state == Player.STATE_ENDED) {
+                            hideOverlay()
+                        }
+                    }
+                }
+
                 if (shouldShow) {
                     showOverlay()
                 }
@@ -176,11 +189,11 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        bindService(
-            Intent(this, MusicService::class.java),
-            serviceConnection,
-            BIND_AUTO_CREATE
-        )
+        val intent = Intent(this, MusicService::class.java)
+        val bound = bindService(intent, serviceConnection, 0)
+        if (!bound) {
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -332,91 +345,117 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
                         LocalMenuState provides menuState,
                         LocalOnBackPressedDispatcherOwner provides this@FloatingLyricsService
                     ) {
-                        var isMinimized by remember { mutableStateOf(false) }
+                        val visible = isWindowVisible
                         
-                        FloatingLyricsContainer(
-                            onClose = {
-                                shouldShow = false
-                                hideOverlay()
+                        // Handle exit animation and removal
+                        LaunchedEffect(visible) {
+                            if (!visible) {
+                                removeOverlayView()
                                 stopSelf()
-                            },
-                            onDrag = { x, y ->
-                                layoutParams.x += x.roundToInt()
-                                layoutParams.y += y.roundToInt()
-                                windowManager.updateViewLayout(this, layoutParams)
-                                
-                                // Check for remove intersection
-                                // Simple check: if y is near bottom center
-                                val screenHeight = resources.displayMetrics.heightPixels
-                                val screenWidth = resources.displayMetrics.widthPixels
-                                
-                                // Convert dp to px manually or using density
-                                val offsetPx = with(density) { 32.dp.toPx() }
-                                
-                                val centerX = layoutParams.x + (if (isMinimized) offsetPx else 400f) // Half width (approx)
-                                val centerY = layoutParams.y + (if (isMinimized) offsetPx else 500f) // Half height (approx)
-                                
-                                // Threshold for bottom center
-                                val removeThresholdY = screenHeight - 400 // Bottom area
-                                val removeThresholdX = screenWidth / 2
-                                
-                                isHoveringRemove = (centerY > removeThresholdY) && 
-                                                   (centerX > removeThresholdX - 200 && centerX < removeThresholdX + 200)
-                            },
-                            onDragStart = {
-                                isDragging = true
-                            },
-                            onDragEnd = {
-                                isDragging = false
-                                if (isHoveringRemove) {
-                                    shouldShow = false
+                            }
+                        }
+                        
+                        if (visible) {
+                            var isMinimized by remember { mutableStateOf(false) }
+                            
+                            FloatingLyricsContainer(
+                                onClose = {
                                     hideOverlay()
-                                    stopSelf()
-                                }
-                                isHoveringRemove = false
-                            },
-                            onResize = { widthDelta, heightDelta ->
-                                if (!isMinimized) {
-                                    layoutParams.width += widthDelta.roundToInt()
-                                    layoutParams.height += heightDelta.roundToInt()
-                                    windowManager.updateViewLayout(this, layoutParams)
-                                }
-                            },
-                            isMinimized = isMinimized,
-                            onMinimizeToggle = {
-                                isMinimized = !isMinimized
-                                if (isMinimized) {
-                                    layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
-                                    layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
-                                } else {
-                                    layoutParams.width = initialWidth
-                                    layoutParams.height = initialHeight
-                                }
-                                windowManager.updateViewLayout(this, layoutParams)
-                            },
-                            mediaMetadata = mediaMetadata,
-                            onLyricsMissing = { song ->
-                                // Auto-fetch logic
-                                // Check if setting is enabled and lyrics are missing
-                                // We'll trigger fetch in background scope
-                                lifecycleScope.launch(Dispatchers.IO) {
-                                    try {
-                                        val result = lyricsHelper.getLyrics(song)
-                                        if (result.lyrics != LyricsEntity.LYRICS_NOT_FOUND) {
-                                            database.upsert(
-                                                LyricsEntity(
-                                                    id = song.id,
-                                                    lyrics = result.lyrics,
-                                                    provider = result.provider
+                                },
+                                onDrag = { x, y ->
+                                    layoutParams.x += x.roundToInt()
+                                    layoutParams.y += y.roundToInt()
+                                    
+                                    // Ensure window stays within screen bounds (roughly)
+                                    val screenWidth = resources.displayMetrics.widthPixels
+                                    val screenHeight = resources.displayMetrics.heightPixels
+                                    
+                                    if (layoutParams.x < 0) layoutParams.x = 0
+                                    if (layoutParams.y < 0) layoutParams.y = 0
+                                    if (layoutParams.x > screenWidth - layoutParams.width) layoutParams.x = screenWidth - layoutParams.width
+                                    if (layoutParams.y > screenHeight - layoutParams.height) layoutParams.y = screenHeight - layoutParams.height
+
+                                    windowManager.updateViewLayout(this@apply, layoutParams)
+                                    
+                                    // Check for remove intersection
+                                    // Convert dp to px manually or using density
+                                    val offsetPx = with(density) { 32.dp.toPx() }
+                                    
+                                    val centerX = layoutParams.x + (if (isMinimized) offsetPx else 400f) // Half width (approx)
+                                    val centerY = layoutParams.y + (if (isMinimized) offsetPx else 500f) // Half height (approx)
+                                    
+                                    // Threshold for bottom center
+                                    val removeThresholdY = screenHeight - 400 // Bottom area
+                                    val removeThresholdX = screenWidth / 2
+                                    
+                                    isHoveringRemove = (centerY > removeThresholdY) && 
+                                                       (centerX > removeThresholdX - 200 && centerX < removeThresholdX + 200)
+                                },
+                                onDragStart = {
+                                    isDragging = true
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    if (isHoveringRemove) {
+                                        hideOverlay()
+                                    }
+                                    isHoveringRemove = false
+                                },
+                                onResize = { widthDelta, heightDelta ->
+                                    if (!isMinimized) {
+                                        val newWidth = layoutParams.width + widthDelta.roundToInt()
+                                        val newHeight = layoutParams.height + heightDelta.roundToInt()
+                                        
+                                        // Minimum size constraints
+                                        val minSize = with(density) { 200.dp.toPx().roundToInt() }
+                                        
+                                        layoutParams.width = newWidth.coerceAtLeast(minSize)
+                                        layoutParams.height = newHeight.coerceAtLeast(minSize)
+                                        
+                                        windowManager.updateViewLayout(this@apply, layoutParams)
+                                    }
+                                },
+                                isMinimized = isMinimized,
+                                onMinimizeToggle = {
+                                    isMinimized = !isMinimized
+                                    if (isMinimized) {
+                                        layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
+                                        layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
+                                    } else {
+                                        layoutParams.width = initialWidth
+                                        layoutParams.height = initialHeight
+                                    }
+                                    windowManager.updateViewLayout(this@apply, layoutParams)
+                                },
+                                onOpenApp = {
+                                    hideOverlay()
+                                    // Start activity
+                                    val intent = Intent(context, MainActivity::class.java).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                    }
+                                    context.startActivity(intent)
+                                },
+                                onLyricsMissing = { song ->
+                                    // Auto-fetch logic
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        try {
+                                            val result = lyricsHelper.getLyrics(song)
+                                            if (result.lyrics != LyricsEntity.LYRICS_NOT_FOUND) {
+                                                database.upsert(
+                                                    LyricsEntity(
+                                                        id = song.id,
+                                                        lyrics = result.lyrics,
+                                                        provider = result.provider
+                                                    )
                                                 )
-                                            )
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
                                         }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -424,23 +463,32 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
 
         windowManager.addView(removeView, removeParams)
         windowManager.addView(overlayView, layoutParams)
+        
+        // Trigger entrance animation
+        isWindowVisible = true
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
 
     private fun hideOverlay() {
+        isWindowVisible = false
+    }
+
+    private fun removeOverlayView() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         if (overlayView != null) {
+            overlayView?.disposeComposition()
             windowManager.removeView(overlayView)
             overlayView = null
         }
         if (removeView != null) {
+            removeView?.disposeComposition()
             windowManager.removeView(removeView)
             removeView = null
         }
     }
 
     override fun onDestroy() {
-        hideOverlay()
+        removeOverlayView()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         if (playerConnection != null) {
@@ -466,6 +514,7 @@ fun FloatingLyricsContainer(
     isMinimized: Boolean,
     onMinimizeToggle: () -> Unit,
     mediaMetadata: MediaMetadata?,
+    onOpenApp: () -> Unit,
     onLyricsMissing: (MediaMetadata) -> Unit = {}
 ) {
     val (opacity) = rememberPreference(FloatingLyricsOpacityKey, 1f)
@@ -493,9 +542,12 @@ fun FloatingLyricsContainer(
                 onMinimize = onMinimizeToggle,
                 opacity = opacity,
                 mediaMetadata = mediaMetadata,
+                onOpenApp = onOpenApp,
                 onLyricsMissing = onLyricsMissing
             )
         }
+    }
+}
     }
 }
 
@@ -563,6 +615,7 @@ fun FloatingLyricsCard(
     onMinimize: () -> Unit,
     opacity: Float,
     mediaMetadata: MediaMetadata?,
+    onOpenApp: () -> Unit,
     onLyricsMissing: (MediaMetadata) -> Unit = {}
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -727,10 +780,7 @@ fun FloatingLyricsCard(
                             .size(48.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { // Click to open player
-                                val intent = Intent(context, MainActivity::class.java).apply {
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                }
-                                context.startActivity(intent)
+                                onOpenApp()
                             }
                     )
                     
