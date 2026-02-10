@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
@@ -435,6 +436,7 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
                                     }
                                     context.startActivity(intent)
                                 },
+                                mediaMetadata = mediaMetadata,
                                 onLyricsMissing = { song ->
                                     // Auto-fetch logic
                                     lifecycleScope.launch(Dispatchers.IO) {
@@ -548,8 +550,6 @@ fun FloatingLyricsContainer(
         }
     }
 }
-    }
-}
 
 @Composable
 fun FloatingAppIcon(
@@ -594,7 +594,7 @@ fun FloatingAppIcon(
             },
         contentAlignment = Alignment.Center
     ) {
-        IconButton(onClick = onMaximize) {
+        NoRippleIconButton(onClick = onMaximize) {
             Icon(
                 painter = painterResource(R.drawable.lyrics), // Or app icon
                 contentDescription = "Maximize",
@@ -779,7 +779,10 @@ fun FloatingLyricsCard(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { // Click to open player
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { // Click to open player
                                 onOpenApp()
                             }
                     )
@@ -812,7 +815,7 @@ fun FloatingLyricsCard(
                     }
 
                     // Minimize Button
-                    IconButton(onClick = onMinimize) {
+                    NoRippleIconButton(onClick = onMinimize) {
                         Icon(
                             painter = painterResource(R.drawable.expand_more), // Use expand_more as minimize
                             contentDescription = "Minimize",
@@ -823,7 +826,7 @@ fun FloatingLyricsCard(
                     }
 
                     // Close Button
-                    IconButton(onClick = onClose) {
+                    NoRippleIconButton(onClick = onClose) {
                         Icon(
                             painter = painterResource(R.drawable.close),
                             contentDescription = "Close",
@@ -867,5 +870,26 @@ fun FloatingLyricsCard(
                 else Color.White.copy(alpha = 0.5f)
             )
         }
+    }
+}
+
+@Composable
+fun NoRippleIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
