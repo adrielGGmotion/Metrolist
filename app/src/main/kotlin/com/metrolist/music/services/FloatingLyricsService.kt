@@ -218,6 +218,11 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
         val initialWidth = 800
         val initialHeight = 1000
 
+        // Track user preferred size
+        var expandedWidth = initialWidth
+        var expandedHeight = initialHeight
+
+        @Suppress("DEPRECATION")
         val layoutParams = WindowManager.LayoutParams(
             initialWidth,
             initialHeight,
@@ -234,6 +239,7 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
         layoutParams.y = 200
 
         // Create Remove View (Dismiss Target)
+        @Suppress("DEPRECATION")
         val removeParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             200, // Height for the bottom area
@@ -308,6 +314,12 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
             setContent {
                 val playerConnection = playerConnection ?: return@setContent
                 val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+                
+                LaunchedEffect(mediaMetadata) {
+                    if (mediaMetadata == null) {
+                        hideOverlay()
+                    }
+                }
                 
                 var themeColor by remember { mutableStateOf<Color?>(null) }
                 val context = LocalContext.current
@@ -404,14 +416,17 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
                                 },
                                 onResize = { widthDelta, heightDelta ->
                                     if (!isMinimized) {
-                                        val newWidth = layoutParams.width + widthDelta.roundToInt()
-                                        val newHeight = layoutParams.height + heightDelta.roundToInt()
+                                        val newWidth = expandedWidth + widthDelta.roundToInt()
+                                        val newHeight = expandedHeight + heightDelta.roundToInt()
+
+                                        expandedWidth = newWidth
+                                        expandedHeight = newHeight
                                         
                                         // Minimum size constraints
                                         val minSize = with(density) { 200.dp.toPx().roundToInt() }
                                         
-                                        layoutParams.width = newWidth.coerceAtLeast(minSize)
-                                        layoutParams.height = newHeight.coerceAtLeast(minSize)
+                                        layoutParams.width = expandedWidth.coerceAtLeast(minSize)
+                                        layoutParams.height = expandedHeight.coerceAtLeast(minSize)
                                         
                                         windowManager.updateViewLayout(this@apply, layoutParams)
                                     }
@@ -423,8 +438,29 @@ class FloatingLyricsService : Service(), LifecycleOwner, SavedStateRegistryOwner
                                         layoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT
                                         layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
                                     } else {
-                                        layoutParams.width = initialWidth
-                                        layoutParams.height = initialHeight
+                                        // Minimum size constraints
+                                        val minSize = with(density) { 200.dp.toPx().roundToInt() }
+                                        layoutParams.width = expandedWidth.coerceAtLeast(minSize)
+                                        layoutParams.height = expandedHeight.coerceAtLeast(minSize)
+                                        
+                                        // Expand from center of the icon
+                                        val iconSizePx = with(density) { 64.dp.toPx().roundToInt() }
+                                        // Current icon position is at layoutParams.x, layoutParams.y (top-left of icon)
+                                        // We want the new window center to match the icon center
+                                        val centerX = layoutParams.x + iconSizePx / 2
+                                        val centerY = layoutParams.y + iconSizePx / 2
+                                        
+                                        layoutParams.x = centerX - layoutParams.width / 2
+                                        layoutParams.y = centerY - layoutParams.height / 2
+                                        
+                                        // Ensure window stays within screen bounds when expanding
+                                        val screenWidth = resources.displayMetrics.widthPixels
+                                        val screenHeight = resources.displayMetrics.heightPixels
+                                        
+                                        if (layoutParams.x > screenWidth - layoutParams.width) layoutParams.x = screenWidth - layoutParams.width
+                                        if (layoutParams.y > screenHeight - layoutParams.height) layoutParams.y = screenHeight - layoutParams.height
+                                        if (layoutParams.x < 0) layoutParams.x = 0
+                                        if (layoutParams.y < 0) layoutParams.y = 0
                                     }
                                     windowManager.updateViewLayout(this@apply, layoutParams)
                                 },
@@ -741,7 +777,6 @@ fun FloatingLyricsCard(
                                 )
                             }
                         }
-                        else -> {}
                     }
                 }
             }
