@@ -673,7 +673,7 @@ fun FloatingLyricsCard(
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (backgroundStyle == FloatingLyricsBackgroundStyle.DEFAULT)
-                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f * opacity)
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = opacity)
             else
                 Color.Transparent // Handle custom backgrounds in box
         ),
