@@ -1,212 +1,233 @@
 <div align="center">
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/icon.png" width="160" height="160" style="display: block; margin: 0 auto"/>
-<h1>Metrolist</h1>
-<p>YouTube Music client for Android</p>
+  <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/icon.png?raw=true" width="160" height="160" alt="Metrolist Logo" />
 
-<div style="padding: 16px; margin: 16px 0; background-color: #FFFBE5; border-left: 6px solid #FFC107; border-radius: 4px;">
-<h2 style="margin: 0;"><strong>⚠Warning</strong></h2>
-If you're in a region where YouTube Music is not supported, you won't be able to use this app <strong>unless</strong> you have a proxy or VPN to connect to a YTM-supported region.
+  <h1>Metrolist</h1>
+  
+  <h3>The open-source YouTube Music experience you deserve.</h3>
+
+  <br/>
+
+  <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest">
+    <img src="https://img.shields.io/github/v/release/MetrolistGroup/Metrolist?style=for-the-badge&label=Download&color=2ea44f&labelColor=1c1917&logo=android&logoColor=white" alt="Download">
+  </a>
+
+  <br/>
+
+  <a href="https://dsc.gg/metrolist">
+    <img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&labelColor=1c1917&logo=discord&logoColor=white" alt="Discord">
+  </a>
+  <a href="https://t.me/metrolistapp">
+    <img src="https://img.shields.io/badge/Telegram-Join%20Us-2CA5E0?style=for-the-badge&labelColor=1c1917&logo=telegram&logoColor=white" alt="Telegram">
+  </a>
+
+  <br/>
+
+  <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/MetrolistGroup/metrolist?style=flat-square&color=333333&labelColor=1c1917" alt="License">
+  </a>
+  <a href="https://github.com/MetrolistGroup/Metrolist/releases">
+    <img src="https://img.shields.io/github/downloads/MetrolistGroup/Metrolist/total?style=flat-square&color=333333&labelColor=1c1917" alt="Downloads">
+  </a>
+
 </div>
-
-<h1>Screenshots</h1>
-
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" width="30%" />
-
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" width="30%" />
+<br />
 
 <div align="center">
-<h1>Release numbers</h1>
-</div>
-
-[![Latest release](https://img.shields.io/github/v/release/MetrolistGroup/Metrolist?style=for-the-badge)](https://github.com/MetrolistGroup/Metrolist/releases)
-[![GitHub license](https://img.shields.io/github/license/MetrolistGroup/metrolist?style=for-the-badge)](https://github.com/MetrolistGroup/Metrolist/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/MetrolistGroup/Metrolist/total?style=for-the-badge)](https://github.com/MetrolistGroup/Metrolist/releases)
-
+  <div style="border-left: 4px solid #ffcc00; background-color: #2b2b2b; color: #fff; padding: 10px; text-align: left; border-radius: 4px; display: inline-block; max-width: 90%;">
+    <strong>⚠️ Warning:</strong> If YouTube Music is not supported in your region, you will need a VPN or Proxy to use this app.
+  </div>
 </div>
 
 <div align="center">
-<h1>Download Now</h1>
+  <h2>📸 Visual Tour</h2>
+  
+  <p>
+    <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png?raw=true">
+      <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png?raw=true" height="320" alt="Home" style="border-radius: 8px; margin: 5px;">
+    </a>
+    <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png?raw=true">
+      <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png?raw=true" height="320" alt="Player" style="border-radius: 8px; margin: 5px;">
+    </a>
+    <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png?raw=true">
+      <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png?raw=true" height="320" alt="Lyrics" style="border-radius: 8px; margin: 5px;">
+    </a>
+    <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png?raw=true">
+      <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png?raw=true" height="320" alt="Playlist" style="border-radius: 8px; margin: 5px;">
+    </a>
+    <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png?raw=true">
+      <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png?raw=true" height="320" alt="Settings" style="border-radius: 8px; margin: 5px;">
+    </a>
+    <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png?raw=true">
+      <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png?raw=true" height="320" alt="Search" style="border-radius: 8px; margin: 5px;">
+    </a>
+  </p>
+</div>
+<div align="center">
+  <h2>📥 Installation Options</h2>
+  <p>Choose your preferred platform for the best experience.</p>
 
-<table>
-<tr>
-<td align="center">
-<a href="https://github.com/MetrolistGroup/Metrolist/releases/latest/download/Metrolist.apk"><img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Get it on GitHub" height="82"></a><br/>
-<a href="https://www.openapk.net/metrolist/com.metrolist.music/"><img src="https://www.openapk.net/images/openapk-badge.png" alt="Get it on OpenAPK" height="80"></a>
-</td>
-<td align="center">
-<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/MetrolistGroup/Metrolist/"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="50"></a>
-</td>
-<td align="center">
-<a href="https://apt.izzysoft.de/fdroid/index/apk/com.metrolist.music"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80"></a><br/>
-<a href="https://belberi.com/metrolist/?fbclid=PAY2xjawJP5dlleHRuA2FlbQIxMAABpjSk1oBp4e8aSV4nfX2dfunQObTlMWIkN-aVA9CSq36pnmkHsvfoYTjhHg_aem_9o9OGbQuZ2PjJTArq21UDA"><img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/belberi_github.png" alt="Get it on Belberi" height="82"></a>
-</td>
-</tr>
+  <table>
+    <tr>
+      <td align="center" valign="center">
+        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest/download/Metrolist.apk">
+          <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png?raw=true" alt="Get it on GitHub" height="80">
+        </a>
+      </td>
+      <td align="center" valign="center">
+        <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/MetrolistGroup/Metrolist/">
+          <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" height="50">
+        </a>
+      </td>
+      <td align="center" valign="center">
+        <a href="https://apt.izzysoft.de/fdroid/index/apk/com.metrolist.music">
+          <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png?raw=true" alt="Get it on IzzyOnDroid" height="80">
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" valign="center">
+        <a href="https://www.openapk.net/metrolist/com.metrolist.music/">
+          <img src="https://www.openapk.net/images/openapk-badge.png?raw=true" alt="Get it on OpenAPK" height="80">
+        </a>
+      </td>
+      <td align="center" valign="center">
+        <a href="https://nightly.link/MetrolistGroup/Metrolist/workflows/build/main/app-universal-with-Google-Cast.zip">
+          <strong>Download Nightly Build</strong>
+        </a>
+      </td>
+      <td align="center" valign="center">
+        <a href="https://belberi.com/metrolist/">
+          <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/belberi_github.png?raw=true" alt="Get it on Belberi" height="80">
+        </a>
+      </td>
+    </tr>
+  </table>
+</div>
+<div align="center">
+  <h2>🚀 Features</h2>
+</div>
+
+<table width="100%">
+  <tr>
+    <td valign="top" width="50%">
+      <h3>🎧 Playback & Audio</h3>
+      <ul>
+        <li><strong>YouTube Music Core:</strong> Stream any song, video, or album directly from YTM</li>
+        <li><strong>Enhanced Lyrics:</strong> Custom word-by-word synced lyrics engine</li>
+        <li><strong>Offline Cache:</strong> Download content for offline playback</li>
+        <li><strong>Seamless Transition:</strong> Switch between Audio and Video modes instantly</li>
+        <li><strong>Audio Suite:</strong> Built-in normalization, pitch/tempo control, and silence skipping</li>
+        <li><strong>Social Listening:</strong> "Listen Together" feature to sync playback with friends</li>
+      </ul>
+    </td>
+    <td valign="top" width="50%">
+      <h3>🛠️ System & Customization</h3>
+      <ul>
+        <li><strong>Material 3:</strong> Fully dynamic theming with Light, Dark, Pure Black themes</li>
+        <li><strong>Account Sync:</strong> Log in to access your library, playlists, and recommendations</li>
+        <li><strong>SponsorBlock:</strong> Integrated skipping for non-music segments in videos</li>
+        <li><strong>Privacy:</strong> Built-in proxy support for region-locked content</li>
+        <li><strong>Integrations:</strong>  Android Auto, Discord rich presence and Last.fm scrobbling</li>
+        <li><strong>Open Source:</strong> Ad-free, tracker-free, and community-driven</li>
+      </ul>
+    </td>
+  </tr>
 </table>
+<br />
+<br />
+
+<div align="center">
+  <h2>🌍 Translations</h2>
+  <img src="https://hosted.weblate.org/widget/Metrolist/horizontal-auto.svg" alt="Translation status" />
+  <p>Help us make Metrolist accessible to everyone.</p>
+  <a href="https://hosted.weblate.org/projects/Metrolist/">
+    <img src="https://img.shields.io/weblate/progress/metrolist?style=for-the-badge&color=2ea44f&label=Translate%20Now" alt="Translate">
+  </a>
+</div>
+
+<br />
+
+<div align="center">
+  <h2>☕ Support the Project</h2>
+  <p>If you'd like to support the Metrolist developer, consider a donation.</p>
+
+  <a href="https://www.buymeacoffee.com/mostafaalagamy">
+    <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/assets/buymeacoffee.png?raw=true" alt="Buy Me a Coffee" width="180" />
+  </a>
+
+  <br/><br/>
+
+  <details>
+    <summary><strong>🔒 Donate via Monero (XMR)</strong></summary>
+    <br/>
+    <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/assets/XMR.png?raw=true" alt="XMR QR" width="200"/>
+    <p>Scan the QR code or copy the address below:</p>
+    <code>44XjSELSWcgJTZiCKzjpCQWyXhokrH9RqH3rpp35FkSKi57T25hniHWHQNhLeXyFn3DDYqufmfRB1iEtENerZpJc7xJCcqt</code>
+  </details>
+</div>
+
+<br />
+
+<div align="center">
+  
+<details>
+<summary><strong>❓ FAQ (Click to expand)</strong></summary>
+<br>
+<blockquote>
+  <strong>Q: Why isn't Metrolist showing in Android Auto?</strong><br>
+  A: You need to enable "Unknown Sources" in Android Auto Developer Settings.<br>
+  1. Go to Android Auto settings -> Tap "Version" 10 times.<br>
+  2. Tap the 3-dot menu -> Developer Settings -> Enable "Unknown Sources".
+</blockquote>
+</details>
+
+<details>
+<summary><strong>💻 Development & Building</strong></summary>
+<br>
+This project uses GitHub Secrets for API keys (LastFM, etc).<br>
+If you are forking, please see the <a href="CONTRIBUTING.md">Contribution Guidelines</a> or check the <code>fastlane</code> folder for build setup.
+</details>
+
+</div>
+
+<br />
+
+<div align="center">
+  <h2>💜 Special Thanks</h2>
+  <p>Metrolist stands on the shoulders of giants.</p>
+
+  <table cellpadding="10">
+    <tr>
+      <td align="right"><strong>InnerTune</strong></td>
+      <td><a href="https://github.com/z-huang">Zion Huang</a> • <a href="https://github.com/Malopieds">Malopieds</a></td>
+    </tr>
+    <tr>
+      <td align="right"><strong>OuterTune</strong></td>
+      <td><a href="https://github.com/DD3Boh">Davide Garberi</a> • <a href="https://github.com/mikooomich">Michael Zh</a></td>
+    </tr>
+    <tr>
+      <td align="right"><strong>Tech Stack</strong></td>
+      <td><a href="https://github.com/dead8309/Kizzy">Kizzy</a> (RPC) • <a href="https://better-lyrics.boidu.dev">Better Lyrics</a> • <a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a></td>
+    </tr>
+    <tr>
+      <td align="right"><strong>Services</strong></td>
+      <td><a href="https://github.com/MetrolistGroup/metroserver">metroserver</a> (Listen Together) • <a href="https://github.com/aleksey-saenko/MusicRecognizer">MusicRecognizer</a></td>
+    </tr>
+  </table>
 
 </div>
 
 <div align="center">
-<h1>Nightly Build</h1>
-
-<a href="https://nightly.link/MetrolistGroup/Metrolist/workflows/build/main/app-universal-with-Google-Cast.zip">
-  <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Get it on GitHub" height="82">
-</a>
-
+  <h3>Contributors</h3>
+  <a href="https://github.com/MetrolistGroup/Metrolist/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=MetrolistGroup/Metrolist" width="600" />
+  </a>
 </div>
 
+<br />
 <div align="center">
-<h1>Table of Contents</h1>
+  <sub>
+    <strong>Disclaimer:</strong> This project is not affiliated with Google LLC or YouTube. <br/>
+    Made with ❤️ by <a href="https://github.com/mostafaalagamy">Mo Agamy</a>
+  </sub>
 </div>
-
-- [Features](#features)
-- [FAQ](#faq)
-- [Development Setup](#development-setup)
-- [Translations](#translations)
-- [Support Me](#support-me)
-- [Join our community](#join-our-community)
-- [Contributors](#thanks-to-all-contributors)
-
-<div align="center">
-<h1>Features</h1>
-</div>
-
-- Play any song or video from YT Music
-- Background playback
-- Personalized quick picks
-- Library management
-- Listen together with friends
-- Download and cache songs for offline playback
-- Search for songs, albums, artists, videos and playlists
-- Live lyrics
-- YouTube Music account login support
-- Syncing of songs, artists, albums and playlists, from and to your account
-- Skip silence
-- Import playlists
-- Audio normalization
-- Adjust tempo/pitch
-- Local playlist management
-- Reorder songs in playlist or queue
-- Home screen widget with playback controls
-- Light - Dark - black - Dynamic theme
-- Sleep timer
-- Material 3
-- etc.
-
-<div align="center">
-<h1>Translations</h1>
-
-[![Translation status](https://img.shields.io/weblate/progress/metrolist?style=for-the-badge)](https://hosted.weblate.org/engage/metrolist/)
-
-We use Weblate to translate Metrolist. For more details or to get started, visit our [Weblate page](https://hosted.weblate.org/projects/Metrolist/).
-
-<a href="https://hosted.weblate.org/projects/Metrolist/">
-<img src="https://hosted.weblate.org/widget/Metrolist/horizontal-auto.svg" alt="Translation status" />
-</a>
-
-Thank you very much for helping to make Metrolist accessible to many people worldwide.
-
-</div>
-
-<div align="center">
-<h1>FAQ</h1>
-</div>
-
-### Q: Why Metrolist isn't showing in Android Auto?
-
-1. Go to Android Auto's settings and tap multiple times on the version in the bottom to enable
-   developer settings
-2. In the three dots menu at the top-right of the screen, click "Developer settings"
-3. Enable "Unknown sources"
-
-<div align="center">
-<h1>Development Setup</h1>
-</div>
-
-### GitHub Secrets Configuration
-
-This project uses GitHub Secrets to securely store API keys for building releases. To set up the secrets:
-
-1. Go to your GitHub repository settings
-2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Add the following repository secrets:
-   - `LASTFM_API_KEY`: Your LastFM API key
-   - `LASTFM_SECRET`: Your LastFM secret key
-
-4. Get your LastFM API credentials from: https://www.last.fm/api/account/create
-
-**Note:** These secrets are automatically injected into the build process via GitHub Actions and are not visible in the source code.
-
-<div align="center">
-<h1>Support Me</h1>
-
-If you'd like to support my work, send a Monero (XMR) donation to this address:
-
-44XjSELSWcgJTZiCKzjpCQWyXhokrH9RqH3rpp35FkSKi57T25hniHWHQNhLeXyFn3DDYqufmfRB1iEtENerZpJc7xJCcqt
-
-Or scan this QR code:
-
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/assets/XMR.png" alt="QR Code" width="200" height="200" />
-
-Or other
-
-<a href="https://www.buymeacoffee.com/mostafaalagamy">
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/assets/buymeacoffee.png?raw=true" alt="Buy Me a Coffee" width="150" height="150" />
-</a>
-
-<div align="center">
-<h1>Join our community</h1>
-
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=1c1917)](https://dsc.gg/metrolist)
-[![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white&labelColor=1c1917)](https://t.me/metrolistapp)
-
-</div>
-
-<div align="center">
-<h1>Special thanks</h1>
-
-**InnerTune**
-[Zion Huang](https://github.com/z-huang) • [Malopieds](https://github.com/Malopieds)
-
-**OuterTune**
-[Davide Garberi](https://github.com/DD3Boh) • [Michael Zh](https://github.com/mikooomich)
-
-Credits:
-
-[**Kizzy**](https://github.com/dead8309/Kizzy) – for the Discord Rich Presence implementation and inspiration.
-
-[**Better Lyrics**](https://better-lyrics.boidu.dev) – for beautiful time-synced lyrics with word-by-word highlighting, and seamless YouTube Music integration.
-
-[**SimpMusic Lyrics**](https://github.com/maxrave-dev/SimpMusic) – for providing lyrics data through the SimpMusic Lyrics API.
-
-[**metroserver**](https://github.com/MetrolistGroup/metroserver) – for providing us with the listen together implementation.
-
-[**MusicRecognizer**](https://github.com/aleksey-saenko/MusicRecognizer) – for the music recognition feature implementation and Shazam API integration.
-
-The open-source community for tools, libraries, and APIs that make this project possible.
-
-<sub>Thank you to all the amazing developers who made this project possible!</sub>
-
-</div>
-
-<div align="center">
-<h1>Thanks to all contributors</h1>
-
-<a href = "https://github.com/MetrolistGroup/Metrolist/graphs/contributors">
-<img src = "https://contrib.rocks/image?repo=MetrolistGroup/Metrolist" width="600"/>
-</a>
-
-</div>
-
-<div align="center">
-<h1>Disclaimer</h1>
-</div>
-
-This project and its contents are not affiliated with, funded, authorized, endorsed by, or in any way associated with YouTube, Google LLC, Metrolist Group LLC or any of its affiliates and subsidiaries.
-
-Any trademark, service mark, trade name, or other intellectual property rights used in this project are owned by the respective owners.
-
-**Made with ❤️ by [Mo Agamy](https://github.com/mostafaalagamy)**
