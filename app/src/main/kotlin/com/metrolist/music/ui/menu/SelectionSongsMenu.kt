@@ -134,7 +134,7 @@ fun SelectionSongMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { playlist ->
-            coroutineScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 songSelection.forEach { song ->
                     playlist.playlist.browseId?.let { browseId ->
                         YouTube.addToPlaylist(browseId, song.id)
@@ -554,14 +554,12 @@ fun SelectionMediaMetadataMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = {
-            songSelection.map {
-                runBlocking {
-                    withContext(Dispatchers.IO) {
-                        database.insert(it)
-                    }
+            withContext(Dispatchers.IO) {
+                songSelection.forEach {
+                    database.insert(it)
                 }
-                it.id
             }
+            songSelection.map { it.id }
         },
         onDismiss = { showChoosePlaylistDialog = false }
     )

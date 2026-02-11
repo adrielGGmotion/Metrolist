@@ -57,6 +57,9 @@ class App : Application(), SingletonImageLoader.Factory {
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
 
+    @Volatile
+    private var imageCacheSize: Long? = null
+
     override fun onCreate() {
         super.onCreate()
         
@@ -69,6 +72,10 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch {
             initializeSettings()
             observeSettingsChanges()
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            imageCacheSize = dataStore.data.map { it[MaxImageCacheSizeKey] ?: DEFAULT_IMAGE_CACHE_SIZE_MB.toInt() }.first().toLong()
         }
     }
 
@@ -194,9 +201,6 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = runBlocking {
-            dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
-        }
         return ImageLoader.Builder(this).apply {
             crossfade(true)
             allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
@@ -206,7 +210,9 @@ class App : Application(), SingletonImageLoader.Factory {
                     .maxSizePercent(context, 0.25)
                     .build()
             }
-            if (cacheSize == 0) {
+
+            val cacheSize = imageCacheSize ?: DEFAULT_IMAGE_CACHE_SIZE_MB
+            if (cacheSize == 0L) {
                 diskCachePolicy(CachePolicy.DISABLED)
             } else {
                 diskCache(
@@ -220,6 +226,8 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     companion object {
+        private const val DEFAULT_IMAGE_CACHE_SIZE_MB = 512L
+
         suspend fun forgetAccount(context: Context) {
             context.dataStore.edit { settings ->
                 settings.remove(InnerTubeCookieKey)
