@@ -2481,72 +2481,91 @@ class MusicService :
             return
         }
 
-        try {
-            // Save current queue with proper type information
-            val persistQueue = currentQueue.toPersistQueue(
-                title = queueTitle,
-                items = player.mediaItems.mapNotNull { it.metadata },
-                mediaItemIndex = player.currentMediaItemIndex,
-                position = player.currentPosition
-            )
+        // Capture state on the main thread to avoid thread safety issues with ExoPlayer
+        val currentQueueSnapshot = currentQueue
+        val queueTitleSnapshot = queueTitle
+        val mediaItemsSnapshot = player.mediaItems.mapNotNull { it.metadata }
+        val currentMediaItemIndexSnapshot = player.currentMediaItemIndex
+        val currentPositionSnapshot = player.currentPosition
 
-            val persistAutomix =
-                PersistQueue(
-                    title = "automix",
-                    items = automixItems.value.mapNotNull { it.metadata },
-                    mediaItemIndex = 0,
-                    position = 0,
-                )
+        val automixItemsSnapshot = automixItems.value.mapNotNull { it.metadata }
 
-            // Save player state
-            val persistPlayerState = PersistPlayerState(
-                playWhenReady = player.playWhenReady,
-                repeatMode = player.repeatMode,
-                shuffleModeEnabled = player.shuffleModeEnabled,
-                volume = player.volume,
-                currentPosition = player.currentPosition,
-                currentMediaItemIndex = player.currentMediaItemIndex,
-                playbackState = player.playbackState
-            )
+        val playWhenReadySnapshot = player.playWhenReady
+        val repeatModeSnapshot = player.repeatMode
+        val shuffleModeEnabledSnapshot = player.shuffleModeEnabled
+        val volumeSnapshot = player.volume
+        val playbackStateSnapshot = player.playbackState
 
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistQueue)
+        scope.launch(Dispatchers.IO) {
+            try {
+                // Save current queue with proper type information
+                val persistQueue =
+                    currentQueueSnapshot.toPersistQueue(
+                        title = queueTitleSnapshot,
+                        items = mediaItemsSnapshot,
+                        mediaItemIndex = currentMediaItemIndexSnapshot,
+                        position = currentPositionSnapshot,
+                    )
+
+                val persistAutomix =
+                    PersistQueue(
+                        title = "automix",
+                        items = automixItemsSnapshot,
+                        mediaItemIndex = 0,
+                        position = 0,
+                    )
+
+                // Save player state
+                val persistPlayerState =
+                    PersistPlayerState(
+                        playWhenReady = playWhenReadySnapshot,
+                        repeatMode = repeatModeSnapshot,
+                        shuffleModeEnabled = shuffleModeEnabledSnapshot,
+                        volume = volumeSnapshot,
+                        currentPosition = currentPositionSnapshot,
+                        currentMediaItemIndex = currentMediaItemIndexSnapshot,
+                        playbackState = playbackStateSnapshot,
+                    )
+
+                runCatching {
+                    filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
+                        ObjectOutputStream(fos).use { oos ->
+                            oos.writeObject(persistQueue)
+                        }
                     }
+                    Timber.tag(TAG).d("Queue saved successfully")
+                }.onFailure {
+                    Timber.tag(TAG).e(it, "Failed to save queue")
+                    reportException(it)
                 }
-                Timber.tag(TAG).d("Queue saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save queue")
-                reportException(it)
-            }
 
-            runCatching {
-            filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistAutomix)
+                runCatching {
+                    filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
+                        ObjectOutputStream(fos).use { oos ->
+                            oos.writeObject(persistAutomix)
+                        }
                     }
+                    Timber.tag(TAG).d("Automix saved successfully")
+                }.onFailure {
+                    Timber.tag(TAG).e(it, "Failed to save automix")
+                    reportException(it)
                 }
-                Timber.tag(TAG).d("Automix saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save automix")
-                reportException(it)
-            }
 
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistPlayerState)
+                runCatching {
+                    filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
+                        ObjectOutputStream(fos).use { oos ->
+                            oos.writeObject(persistPlayerState)
+                        }
                     }
+                    Timber.tag(TAG).d("Player state saved successfully")
+                }.onFailure {
+                    Timber.tag(TAG).e(it, "Failed to save player state")
+                    reportException(it)
                 }
-                Timber.tag(TAG).d("Player state saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save player state")
-                reportException(it)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Error during queue save operation")
+                reportException(e)
             }
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Error during queue save operation")
-            reportException(e)
         }
     }
 

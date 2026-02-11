@@ -197,12 +197,14 @@ constructor(
         }
 
     init {
-        val result = mutableMapOf<String, Download>()
-        val cursor = downloadManager.downloadIndex.getDownloads()
-        while (cursor.moveToNext()) {
-            result[cursor.download.request.id] = cursor.download
+        scope.launch(Dispatchers.IO) {
+            val result = mutableMapOf<String, Download>()
+            val cursor = downloadManager.downloadIndex.getDownloads()
+            while (cursor.moveToNext()) {
+                result[cursor.download.request.id] = cursor.download
+            }
+            downloads.value = result
         }
-        downloads.value = result
     }
 
     fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
