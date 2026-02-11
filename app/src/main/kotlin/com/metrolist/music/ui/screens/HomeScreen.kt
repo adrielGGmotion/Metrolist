@@ -598,7 +598,10 @@ fun HomeScreen(
                                 }) * rows)
                                 .animateItem()
                         ) {
-                            items(keepListening) {
+                            items(
+                                keepListening,
+                                key = { it.id }
+                            ) {
                                 localGridItem(it)
                             }
                         }
@@ -794,7 +797,10 @@ fun HomeScreen(
                                 .asPaddingValues(),
                             modifier = Modifier.animateItem()
                         ) {
-                            items(recommendation.items) { item ->
+                            items(
+                                recommendation.items,
+                                key = { it.id }
+                            ) { item ->
                                 ytGridItem(item)
                             }
                         }
@@ -932,7 +938,10 @@ fun HomeScreen(
                                 .asPaddingValues(),
                             modifier = Modifier.animateItem()
                         ) {
-                            items(section.items) { item ->
+                            items(
+                                section.items,
+                                key = { it.id }
+                            ) { item ->
                                 ytGridItem(item)
                             }
                         }
@@ -954,7 +963,7 @@ fun HomeScreen(
                         LazyRow(
                             contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
                         ) {
-                            items(4) {
+                            items(4) { index ->
                                 GridItemPlaceHolder()
                             }
                         }
@@ -981,7 +990,10 @@ fun HomeScreen(
                                 .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp)
                                 .animateItem()
                         ) {
-                            items(moodAndGenres) {
+                            items(
+                                moodAndGenres,
+                                key = { it.title }
+                            ) {
                                 MoodAndGenresButton(
                                     title = it.title,
                                     onClick = {

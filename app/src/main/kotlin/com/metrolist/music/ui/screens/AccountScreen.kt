@@ -111,7 +111,7 @@ fun AccountScreen(
                 }
 
                 if (playlists == null) {
-                    items(8) {
+                    items(8) { index ->
                         ShimmerHost {
                             GridItemPlaceHolder(fillMaxWidth = true)
                         }
@@ -147,7 +147,7 @@ fun AccountScreen(
                 }
 
                 if (albums == null) {
-                    items(8) {
+                    items(8) { index ->
                         ShimmerHost {
                             GridItemPlaceHolder(fillMaxWidth = true)
                         }
@@ -182,7 +182,7 @@ fun AccountScreen(
                 }
 
                 if (artists == null) {
-                    items(8) {
+                    items(8) { index ->
                         ShimmerHost {
                             GridItemPlaceHolder(fillMaxWidth = true)
                         }

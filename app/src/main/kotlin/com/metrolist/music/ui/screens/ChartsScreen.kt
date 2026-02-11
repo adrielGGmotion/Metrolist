@@ -152,7 +152,7 @@ fun ChartsScreen(
                                     .fillMaxWidth()
                                     .height(ListItemHeight * 4),
                             ) {
-                                items(4) {
+                                items(4) { index ->
                                     Row(
                                         modifier = Modifier
                                             .width(horizontalLazyGridItemWidth)

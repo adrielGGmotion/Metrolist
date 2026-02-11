@@ -147,7 +147,7 @@ fun ExploreScreen(
                                 .fillMaxWidth()
                                 .height(ListItemHeight * 4),
                         ) {
-                            items(4) {
+                            items(4) { index ->
                                 Row(
                                     modifier = Modifier
                                         .width(horizontalLazyGridItemWidth)
@@ -425,7 +425,10 @@ fun ExploreScreen(
                         contentPadding = PaddingValues(6.dp),
                         modifier = Modifier.height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp),
                     ) {
-                        items(moodAndGenres) {
+                        items(
+                            moodAndGenres,
+                            key = { it.title }
+                        ) {
                             MoodAndGenresButton(
                                 title = it.title,
                                 onClick = {

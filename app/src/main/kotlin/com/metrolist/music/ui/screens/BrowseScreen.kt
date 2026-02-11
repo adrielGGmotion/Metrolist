@@ -126,13 +126,13 @@ package com.metrolist.music.ui.screens
                  )
              }
  
-             if (items.isEmpty()) {
-                 items(8) {
-                     ShimmerHost {
-                         GridItemPlaceHolder(fillMaxWidth = true)
-                     }
-                 }
-             }
+              if (items.isEmpty()) {
+                  items(8) { index ->
+                      ShimmerHost {
+                          GridItemPlaceHolder(fillMaxWidth = true)
+                      }
+                  }
+              }
          }
      }
  
