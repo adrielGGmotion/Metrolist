@@ -75,7 +75,7 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         applicationScope.launch(Dispatchers.IO) {
-            imageCacheSize = dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first().toLong()
+            imageCacheSize = dataStore.data.map { it[MaxImageCacheSizeKey] ?: DEFAULT_IMAGE_CACHE_SIZE_MB.toInt() }.first().toLong()
         }
     }
 
@@ -211,7 +211,7 @@ class App : Application(), SingletonImageLoader.Factory {
                     .build()
             }
 
-            val cacheSize = imageCacheSize ?: 512L
+            val cacheSize = imageCacheSize ?: DEFAULT_IMAGE_CACHE_SIZE_MB
             if (cacheSize == 0L) {
                 diskCachePolicy(CachePolicy.DISABLED)
             } else {
@@ -226,6 +226,8 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     companion object {
+        private const val DEFAULT_IMAGE_CACHE_SIZE_MB = 512L
+
         suspend fun forgetAccount(context: Context) {
             context.dataStore.edit { settings ->
                 settings.remove(InnerTubeCookieKey)

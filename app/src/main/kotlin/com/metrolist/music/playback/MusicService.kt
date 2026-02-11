@@ -321,6 +321,8 @@ class MusicService :
     var castConnectionHandler: CastConnectionHandler? = null
         private set
 
+    private var saveJob: Job? = null
+
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -2496,7 +2498,8 @@ class MusicService :
         val volumeSnapshot = player.volume
         val playbackStateSnapshot = player.playbackState
 
-        scope.launch(Dispatchers.IO) {
+        saveJob?.cancel()
+        saveJob = scope.launch(Dispatchers.IO) {
             try {
                 // Save current queue with proper type information
                 val persistQueue =
