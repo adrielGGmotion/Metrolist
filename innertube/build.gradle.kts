@@ -1,10 +1,26 @@
 plugins {
     alias(libs.plugins.kotlin.serialization)
-    kotlin("jvm")
+    id("com.android.library")
 }
 
-kotlin {
-    jvmToolchain(21)
+android {
+    namespace = "com.metrolist.innertube"
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 26
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    kotlin {
+        jvmToolchain(21)
+    }
 }
 
 dependencies {
@@ -15,5 +31,6 @@ dependencies {
     implementation(libs.ktor.client.encoding)
     implementation(libs.brotli)
     implementation(libs.newpipeextractor)
+    coreLibraryDesugaring(libs.desugaring)
     testImplementation(libs.junit)
 }
