@@ -29,7 +29,11 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? =
     runBlocking(Dispatchers.IO) {
-        data.first()[key]
+        try {
+            data.first()[key]
+        } catch (e: Exception) {
+            null
+        }
     }
 
 fun <T> DataStore<Preferences>.get(
@@ -37,20 +41,36 @@ fun <T> DataStore<Preferences>.get(
     defaultValue: T,
 ): T =
     runBlocking(Dispatchers.IO) {
-        data.first()[key] ?: defaultValue
+        try {
+            data.first()[key] ?: defaultValue
+        } catch (e: Exception) {
+            defaultValue
+        }
     }
 
 fun <T> preference(
     context: Context,
     key: Preferences.Key<T>,
     defaultValue: T,
-) = ReadOnlyProperty<Any?, T> { _, _ -> context.dataStore[key] ?: defaultValue }
+) = ReadOnlyProperty<Any?, T> { _, _ -> 
+    try {
+        context.dataStore[key] ?: defaultValue
+    } catch (e: Exception) {
+        defaultValue
+    }
+}
 
 inline fun <reified T : Enum<T>> enumPreference(
     context: Context,
     key: Preferences.Key<String>,
     defaultValue: T,
-) = ReadOnlyProperty<Any?, T> { _, _ -> context.dataStore[key].toEnum(defaultValue) }
+) = ReadOnlyProperty<Any?, T> { _, _ -> 
+    try {
+        context.dataStore[key].toEnum(defaultValue)
+    } catch (e: Exception) {
+        defaultValue
+    }
+}
 
 @Composable
 fun <T> rememberPreference(
@@ -63,9 +83,21 @@ fun <T> rememberPreference(
     val state =
         remember {
             context.dataStore.data
-                .map { it[key] ?: defaultValue }
+                .map { 
+                    try {
+                        it[key] ?: defaultValue 
+                    } catch (e: Exception) {
+                        defaultValue
+                    }
+                }
                 .distinctUntilChanged()
-        }.collectAsState(context.dataStore[key] ?: defaultValue)
+        }.collectAsState(
+            try {
+                context.dataStore[key] ?: defaultValue
+            } catch (e: Exception) {
+                defaultValue
+            }
+        )
 
     return remember {
         object : MutableState<T> {

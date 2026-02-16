@@ -126,6 +126,9 @@ import com.metrolist.music.constants.LyricsLineSpacingKey
 import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeChineseKey
+import com.metrolist.music.constants.LyricsRomanizeHindiKey
+import com.metrolist.music.constants.LyricsRomanizeGurmukhiKey
+import com.metrolist.music.constants.LyricsRomanizedAsMainKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.metrolist.music.constants.LyricsRomanizeJapaneseKey
 import com.metrolist.music.constants.LyricsRomanizeKoreanKey
@@ -159,8 +162,12 @@ import com.metrolist.music.lyrics.LyricsUtils.isMacedonian
 import com.metrolist.music.lyrics.LyricsUtils.isRussian
 import com.metrolist.music.lyrics.LyricsUtils.isSerbian
 import com.metrolist.music.lyrics.LyricsUtils.isUkrainian
+import com.metrolist.music.lyrics.LyricsUtils.isHindi
+import com.metrolist.music.lyrics.LyricsUtils.isGurmukhi
 import com.metrolist.music.lyrics.LyricsUtils.parseLyrics
 import com.metrolist.music.lyrics.LyricsUtils.romanizeChinese
+import com.metrolist.music.lyrics.LyricsUtils.romanizeHindi
+import com.metrolist.music.lyrics.LyricsUtils.romanizeGurmukhi
 import com.metrolist.music.lyrics.LyricsUtils.romanizeCyrillic
 import com.metrolist.music.lyrics.LyricsUtils.romanizeJapanese
 import com.metrolist.music.lyrics.LyricsUtils.romanizeKorean
@@ -212,6 +219,9 @@ fun Lyrics(
     val romanizeMacedonianLyrics by rememberPreference(LyricsRomanizeMacedonianKey, true)
     val romanizeCyrillicByLine by rememberPreference(LyricsRomanizeCyrillicByLineKey, false)
     val romanizeChineseLyrics by rememberPreference(LyricsRomanizeChineseKey, true)
+    val romanizeHindiLyrics by rememberPreference(LyricsRomanizeHindiKey, true)
+    val romanizeGurmukhiLyrics by rememberPreference(LyricsRomanizeGurmukhiKey, true)
+    val lyricsRomanizedAsMain by rememberPreference(LyricsRomanizedAsMainKey, false)
     val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, false)
     val lyricsAnimationStyle by rememberEnumPreference(LyricsAnimationStyleKey, LyricsAnimationStyle.APPLE)
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
@@ -314,9 +324,29 @@ fun Lyrics(
                     }
                 }
 
-                else if (romanizeChineseLyrics && isChinese(entry.text)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeChinese(entry.text)
+                else {
+                    if (romanizeChineseLyrics && isChinese(entry.text)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeChinese(entry.text)
+                        }
+                    } else {
+                        val hasHindi = romanizeHindiLyrics && isHindi(entry.text)
+                        val hasGurmukhi = romanizeGurmukhiLyrics && isGurmukhi(entry.text)
+                        
+                        if (hasHindi || hasGurmukhi) {
+                            scope.launch {
+                                var text = entry.text
+                                if (hasHindi) {
+                                    text = romanizeHindi(text)
+                                }
+                                if (hasGurmukhi) {
+                                    text = romanizeGurmukhi(text)
+                                }
+                                if (text != entry.text) {
+                                    newEntry.romanizedTextFlow.value = text
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -390,9 +420,29 @@ fun Lyrics(
                     }
                 }
 
-                else if (romanizeChineseLyrics && isChinese(line)) {
-                    scope.launch {
-                        newEntry.romanizedTextFlow.value = romanizeChinese(line)
+                else {
+                    if (romanizeChineseLyrics && isChinese(line)) {
+                        scope.launch {
+                            newEntry.romanizedTextFlow.value = romanizeChinese(line)
+                        }
+                    } else {
+                        val hasHindi = romanizeHindiLyrics && isHindi(line)
+                        val hasGurmukhi = romanizeGurmukhiLyrics && isGurmukhi(line)
+                        
+                        if (hasHindi || hasGurmukhi) {
+                            scope.launch {
+                                var text = line
+                                if (hasHindi) {
+                                    text = romanizeHindi(text)
+                                }
+                                if (hasGurmukhi) {
+                                    text = romanizeGurmukhi(text)
+                                }
+                                if (text != line) {
+                                    newEntry.romanizedTextFlow.value = text
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -896,6 +946,27 @@ fun Lyrics(
                     items = lines,
                     key = { index, item -> "$index-${item.time}" } // Add stable key
                 ) { index, item ->
+                    val romanizedTextState by item.romanizedTextFlow.collectAsState()
+                    val isRomanizationEnabled = currentSong?.romanizeLyrics == true
+                            && (romanizeJapaneseLyrics ||
+                                    romanizeKoreanLyrics ||
+                                    romanizeRussianLyrics ||
+                                    romanizeUkrainianLyrics ||
+                                    romanizeSerbianLyrics ||
+                                    romanizeBulgarianLyrics ||
+                                    romanizeBelarusianLyrics ||
+                                    romanizeKyrgyzLyrics ||
+                                    romanizeMacedonianLyrics ||
+                                    romanizeChineseLyrics ||
+                                    romanizeHindiLyrics ||
+                                    romanizeGurmukhiLyrics)
+
+                    val showRomanized = isRomanizationEnabled && romanizedTextState != null
+                    val swapLyrics = lyricsRomanizedAsMain && showRomanized
+
+                    val displayedMainText = if (swapLyrics) romanizedTextState!! else item.text
+                    val displayedSecondaryText = if (swapLyrics) item.text else romanizedTextState
+
                     val isSelected = selectedIndices.contains(index)
                     val itemModifier = Modifier
                         .fillMaxWidth()
@@ -1037,7 +1108,7 @@ fun Lyrics(
                         }
                         val alignment = agentTextAlign
                         
-                        val hasWordTimings = item.words?.isNotEmpty() == true
+                        val hasWordTimings = item.words?.isNotEmpty() == true && !swapLyrics
                         
                         // Word-by-word animation styles
                         if (hasWordTimings && lyricsAnimationStyle == LyricsAnimationStyle.NONE) {
@@ -1412,19 +1483,19 @@ fun Lyrics(
                             )
                             
                             val styledText = buildAnnotatedString {
-                                withStyle(
-                                    style = SpanStyle(
-                                        shadow = Shadow(
-                                            color = expressiveAccent.copy(alpha = 0.8f * glowIntensity),
-                                            offset = Offset(0f, 0f),
-                                            blurRadius = 28f * (1f + pulseEffect)
-                                        ),
-                                        brush = glowBrush
-                                    )
-                                ) {
-                                    append(item.text)
+                                    withStyle(
+                                        style = SpanStyle(
+                                            shadow = Shadow(
+                                                color = expressiveAccent.copy(alpha = 0.8f * glowIntensity),
+                                                offset = Offset(0f, 0f),
+                                                blurRadius = 28f * (1f + pulseEffect)
+                                            ),
+                                            brush = glowBrush
+                                        )
+                                    ) {
+                                        append(displayedMainText)
+                                    }
                                 }
-                            }
                             
                             // Single smooth bounce animation
                             val bounceScale = if (fill < 0.3f) {
@@ -1450,7 +1521,7 @@ fun Lyrics(
                         } else if (isActiveLine && !lyricsGlowEffect) {
                             // Active line without glow effect - just bold text
                             Text(
-                                text = item.text,
+                                text = displayedMainText,
                                 fontSize = lyricsTextSize.sp,
                                 color = expressiveAccent,
                                 textAlign = alignment,
@@ -1460,7 +1531,7 @@ fun Lyrics(
                         } else {
                             // Inactive line
                             Text(
-                                text = item.text,
+                                text = displayedMainText,
                                 fontSize = lyricsTextSize.sp,
                                 color = lineColor,
                                 textAlign = alignment,
@@ -1468,33 +1539,20 @@ fun Lyrics(
                                 lineHeight = (lyricsTextSize * lyricsLineSpacing).sp
                             )
                         }
-                        if (currentSong?.romanizeLyrics == true
-                            && (romanizeJapaneseLyrics ||
-                                    romanizeKoreanLyrics ||
-                                    romanizeRussianLyrics ||
-                                    romanizeUkrainianLyrics ||
-                                    romanizeSerbianLyrics ||
-                                    romanizeBulgarianLyrics ||
-                                    romanizeBelarusianLyrics ||
-                                    romanizeKyrgyzLyrics ||
-                                    romanizeMacedonianLyrics ||
-                                    romanizeChineseLyrics)) {
+                        if (isRomanizationEnabled && displayedSecondaryText != null) {
                             // Show romanized text if available
-                            val romanizedText by item.romanizedTextFlow.collectAsState()
-                            romanizedText?.let { romanized ->
-                                Text(
-                                    text = romanized,
-                                    fontSize = 18.sp,
-                                    color = expressiveAccent.copy(alpha = 0.6f),
-                                    textAlign = when (lyricsTextPosition) {
-                                        LyricsPosition.LEFT -> TextAlign.Left
-                                        LyricsPosition.CENTER -> TextAlign.Center
-                                        LyricsPosition.RIGHT -> TextAlign.Right
-                                    },
-                                    fontWeight = FontWeight.Normal,
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
-                            }
+                            Text(
+                                text = displayedSecondaryText,
+                                fontSize = 18.sp,
+                                color = expressiveAccent.copy(alpha = 0.6f),
+                                textAlign = when (lyricsTextPosition) {
+                                    LyricsPosition.LEFT -> TextAlign.Left
+                                    LyricsPosition.CENTER -> TextAlign.Center
+                                    LyricsPosition.RIGHT -> TextAlign.Right
+                                },
+                                fontWeight = FontWeight.Normal,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
                         }
                         
                         // Show translated text if available

@@ -260,6 +260,69 @@ object LyricsUtils {
         "Ґ", "ґ", "Є", "є", "І", "і", "Ї", "ї"
     )
 
+    // Hindi/Devanagari definitions
+    private val DEVANAGARI_RANGE = '\u0900'..'\u097F'
+    private val GURMUKHI_RANGE = '\u0A00'..'\u0A7F'
+
+    private val HINDI_VOWELS = mapOf(
+        "अ" to "a", "आ" to "aa", "इ" to "i", "ई" to "ee", "उ" to "u", "ऊ" to "oo",
+        "ऋ" to "ri", "ए" to "e", "ऐ" to "ai", "ओ" to "o", "औ" to "au"
+    )
+
+    private val HINDI_MODIFIERS = mapOf(
+        "ं" to "n", // Anusvara
+        "ँ" to "n", // Chandrabindu
+        "ः" to "h"  // Visarga
+    )
+
+    private val HINDI_CONSONANTS = mapOf(
+        "क" to "k", "ख" to "kh", "ग" to "g", "घ" to "gh", "ङ" to "ng",
+        "च" to "ch", "छ" to "chh", "ज" to "j", "झ" to "jh", "ञ" to "ny",
+        "ट" to "t", "ठ" to "th", "ड" to "d", "ढ" to "dh", "ण" to "n",
+        "त" to "t", "थ" to "th", "द" to "d", "ध" to "dh", "न" to "n",
+        "प" to "p", "फ" to "ph", "ब" to "b", "भ" to "bh", "म" to "m",
+        "य" to "y", "र" to "r", "ल" to "l", "व" to "v",
+        "श" to "sh", "ष" to "sh", "स" to "s", "ह" to "h",
+        "क्ष" to "ksh", "त्र" to "tr", "ज्ञ" to "gy", "श्र" to "shr"
+    )
+
+    private val HINDI_MATRAS = mapOf(
+        "ा" to "aa", "ि" to "i", "ी" to "ee", "ु" to "u", "ू" to "oo",
+        "ृ" to "ri", "े" to "e", "ै" to "ai", "ो" to "o", "ौ" to "au"
+        // Matras can also be followed by nasalization, handled separately
+    )
+
+    // Gurmukhi mappings
+    private val GURMUKHI_VOWELS = mapOf(
+        "ੳ" to "u", "ਅ" to "a", "ੲ" to "e", "ਸ" to "s", "ਹ" to "h",
+        "ਕ" to "k", "ਖ" to "kh", "ਗ" to "g", "ਘ" to "gh", "ਙ" to "ng",
+        "ਚ" to "ch", "ਛ" to "chh", "ਜ" to "j", "ਝ" to "jh", "ਞ" to "ny",
+        "ਟ" to "t", "ਠ" to "th", "ਡ" to "d", "ਢ" to "dh", "ਣ" to "n",
+        "ਤ" to "t", "ਥ" to "th", "ਦ" to "d", "ਧ" to "dh", "ਨ" to "n",
+        "ਪ" to "p", "ਫ" to "ph", "ਬ" to "b", "ਭ" to "bh", "ਮ" to "m",
+        "ਯ" to "y", "ਰ" to "r", "ਲ" to "l", "ਵ" to "v", "ੜ" to "r",
+        "ਸ਼" to "sh", "ਖ਼" to "kh", "ਗ਼" to "gh", "ਜ਼" to "z", "ਫ਼" to "f", "ਲ਼" to "l"
+    )
+
+    private val GURMUKHI_MATRAS = mapOf(
+        "ਾ" to "aa", "ਿ" to "i", "ੀ" to "ee", "ੁ" to "u", "ੂ" to "oo",
+        "ੇ" to "e", "ੈ" to "ai", "ੋ" to "o", "ੌ" to "au",
+        "੍" to "", // Halant/Virama (rare in Gurmukhi but exists)
+        "ੰ" to "n", // Tippi (nasal)
+        "ੱ" to "", // Addak (gemination - doubles next consonant, handled in logic)
+        "ਂ" to "n", // Bindi (nasal)
+        "ਃ" to "h" // Visarga
+    )
+
+    private val GURMUKHI_INDEPENDENT_VOWELS = mapOf(
+        "ਅ" to "a", "ਆ" to "aa", "ਇ" to "i", "ਈ" to "ee", "ਉ" to "u", "ਊ" to "oo",
+        "ਏ" to "e", "ਐ" to "ai", "ਓ" to "o", "ਔ" to "au"
+    )
+
+    private val HALANT = "्"
+    private val NUKTA = "़"
+    private val AVAGRAHA = "ऽ"
+
     private val SERBIAN_SPECIFIC_CYRILLIC_LETTERS = setOf(
         "Ђ", "ђ", "Ј", "ј", "Љ", "љ", "Њ", "њ", "Ћ", "ћ", "Џ", "џ"
     )
@@ -543,17 +606,6 @@ object LyricsUtils {
         return lines.lastIndex
     }
 
-    // TODO: Will be useful if we let the user pick the language, useless for now
-    /* enum class CyrillicLanguage {
-        RUSSIAN,
-        UKRAINIAN,
-        SERBIAN,
-        BULGARIAN,
-        BELARUSIAN,
-        KYRGYZ,
-        MACEDONIAN
-    } */
-
     fun katakanaToRomaji(katakana: String?): String {
         if (katakana.isNullOrEmpty()) return ""
 
@@ -709,6 +761,167 @@ object LyricsUtils {
             .replace(Regex("\\s+([,.!?;:])"), "$1")
             .replace(Regex("\\s+([，。！？；：、（）《》〈〉【】『』「」])"), "$1")
             .trim()
+    }
+
+    suspend fun romanizeHindi(text: String): String = withContext(Dispatchers.Default) {
+        val result = StringBuilder()
+        var i = 0
+        while (i < text.length) {
+            val char = text[i].toString()
+
+            // 1. Check for Independent Vowel
+            if (HINDI_VOWELS.containsKey(char)) {
+                result.append(HINDI_VOWELS[char])
+                i++
+                // Vowels can be followed by nasalization (e.g. अँ -> a + n)
+                // HINDI_VOWELS map already contains some pre-composed nasals (अं, अः) 
+                // but usually these are separate chars in unicode unless normalized.
+                // Let's check for modifiers separately.
+                if (i < text.length && HINDI_MODIFIERS.containsKey(text[i].toString())) {
+                    result.append(HINDI_MODIFIERS[text[i].toString()])
+                    i++
+                }
+            } 
+            // 2. Check for Consonant
+            else if (HINDI_CONSONANTS.containsKey(char)) {
+                var romanConsonant = HINDI_CONSONANTS[char]!!
+                i++
+
+                // Check for Nukta (modifier for consonant)
+                if (i < text.length && text[i].toString() == NUKTA) {
+                    // Special nukta mappings
+                    romanConsonant = when (char) {
+                        "क" -> "q"
+                        "ख" -> "kh"
+                        "ग" -> "gh"
+                        "ज" -> "z"
+                        "ड" -> "r"
+                        "ढ" -> "rh"
+                        "फ" -> "f"
+                        else -> romanConsonant // Default behavior: ignore nukta or keep base
+                    }
+                    i++
+                }
+
+                result.append(romanConsonant)
+
+                // Check for Matra (Dependent Vowel), Halant, or Implicit 'a'
+                var hasMatra = false
+                var hasHalant = false
+
+                if (i < text.length) {
+                    val nextChar = text[i].toString()
+                    if (HINDI_MATRAS.containsKey(nextChar)) {
+                        result.append(HINDI_MATRAS[nextChar])
+                        hasMatra = true
+                        i++
+                    } else if (nextChar == HALANT) {
+                        hasHalant = true
+                        i++
+                    }
+                }
+
+                // Add implicit 'a' if no matra and no halant
+                if (!hasMatra && !hasHalant) {
+                    // Simple Schwa deletion rule:
+                    // If next char is a word boundary, generally don't add 'a' (Modern Hindi).
+                    // Example: "Namaste" (te -> matra), "Bharat" (t -> no matra, end of word).
+                    // Exception: Monosyllables or specific contexts, but for lyrics "Ram" is better than "Rama".
+                    
+                    var addA = true
+                    if (i >= text.length) {
+                        addA = false // End of string
+                    } else {
+                        val nextChar = text[i]
+                        // Check if it's a valid Hindi char or a modifier
+                        // If it's space/punct, don't add 'a'
+                        if (!isHindi(nextChar.toString()) && !HINDI_MODIFIERS.containsKey(nextChar.toString()) && !nextChar.isLetterOrDigit()) {
+                            addA = false // End of word (space/punct)
+                        }
+                    }
+                    
+                    if (addA) {
+                        result.append("a")
+                    }
+                }
+
+                // Check for Modifiers (Anusvara, Chandrabindu, Visarga)
+                // These can appear after a Matra OR after the implicit vowel
+                if (i < text.length && HINDI_MODIFIERS.containsKey(text[i].toString())) {
+                    result.append(HINDI_MODIFIERS[text[i].toString()])
+                    i++
+                }
+            } 
+            // 3. Modifiers appearing without base (shouldn't happen in valid text but handle it)
+            else if (HINDI_MODIFIERS.containsKey(char) || char == NUKTA || char == HALANT) {
+                 // Skip or append? If it's stray, maybe just ignore or append 'n'/'h' if it makes sense?
+                 // Let's ignore to prevent "random symbols" if they were double-processed.
+                 // But wait, if we consumed them above, we won't hit this.
+                 // If we hit this, it means it's a stray mark.
+                 i++
+            }
+            // 4. Other characters (Spaces, Punctuation, English)
+            else {
+                result.append(char)
+                i++
+            }
+        }
+        result.toString()
+    }
+
+    suspend fun romanizeGurmukhi(text: String): String = withContext(Dispatchers.Default) {
+        val result = StringBuilder()
+        var i = 0
+        while (i < text.length) {
+            val char = text[i].toString()
+
+            if (GURMUKHI_INDEPENDENT_VOWELS.containsKey(char)) {
+                result.append(GURMUKHI_INDEPENDENT_VOWELS[char])
+                i++
+            } else if (GURMUKHI_VOWELS.containsKey(char)) {
+                result.append(GURMUKHI_VOWELS[char])
+                i++
+
+                // Check for Matra, Halant, or Implicit 'a'
+                var hasMatra = false
+                var hasHalant = false
+
+                if (i < text.length) {
+                    val nextChar = text[i].toString()
+                    if (GURMUKHI_MATRAS.containsKey(nextChar)) {
+                        result.append(GURMUKHI_MATRAS[nextChar])
+                        hasMatra = true
+                        i++
+                    }
+                }
+
+                // Add implicit 'a' if no matra
+                if (!hasMatra && !hasHalant) {
+                    // Simple Schwa deletion rule similar to Hindi
+                    var addA = true
+                    if (i >= text.length) {
+                        addA = false
+                    } else {
+                        val nextChar = text[i]
+                        if (!isGurmukhi(nextChar.toString()) && !nextChar.isLetterOrDigit()) {
+                            addA = false
+                        }
+                    }
+                    
+                    if (addA) {
+                        result.append("a")
+                    }
+                }
+            } else if (GURMUKHI_MATRAS.containsKey(char)) {
+                // Stray matra/modifier
+                result.append(GURMUKHI_MATRAS[char])
+                i++
+            } else {
+                result.append(char)
+                i++
+            }
+        }
+        result.toString()
     }
 
     suspend fun romanizeCyrillic(text: String): String? = withContext(Dispatchers.Default) {
@@ -926,91 +1139,6 @@ object LyricsUtils {
         return romajiBuilder.toString()
     }
 
-    // TODO: This function might be used later if we let the user choose the language manually
-    /** private suspend fun romanizeCyrillicWithLanguage(text: String, language: CyrillicLanguage): String = withContext(Dispatchers.Default) {
-        if (text.isEmpty()) return@withContext ""
-
-        val detectedLanguage = language ?: when {
-            isRussian(text) -> CyrillicLanguage.RUSSIAN
-            isUkrainian(text) -> CyrillicLanguage.UKRAINIAN
-            isSerbian(text) -> CyrillicLanguage.SERBIAN
-            isBelarusian(text) -> CyrillicLanguage.BELARUSIAN
-            isKyrgyz(text) -> CyrillicLanguage.KYRGYZ
-            isMacedonian(text) -> CyrillicLanguage.MACEDONIAN
-            else -> return@withContext text
-        }
-
-        val languageMap: Map<String, String> = when (detectedLanguage) {
-            CyrillicLanguage.RUSSIAN -> RUSSIAN_ROMAJI_MAP
-            CyrillicLanguage.UKRAINIAN -> UKRAINIAN_ROMAJI_MAP
-            CyrillicLanguage.SERBIAN -> SERBIAN_ROMAJI_MAP
-            CyrillicLanguage.BELARUSIAN -> BELARUSIAN_ROMAJI_MAP
-            CyrillicLanguage.KYRGYZ -> KYRGYZ_ROMAJI_MAP
-            CyrillicLanguage.MACEDONIAN -> MACEDONIAN_ROMAJI_MAP
-            // else -> emptyMap()
-        }
-        val languageLetters = when (language) {
-            CyrillicLanguage.RUSSIAN -> RUSSIAN_CYRILLIC_LETTERS
-            CyrillicLanguage.UKRAINIAN -> UKRAINIAN_CYRILLIC_LETTERS
-            CyrillicLanguage.SERBIAN -> SERBIAN_CYRILLIC_LETTERS
-            CyrillicLanguage.BELARUSIAN -> BELARUSIAN_CYRILLIC_LETTERS
-            CyrillicLanguage.KYRGYZ -> KYRGYZ_CYRILLIC_LETTERS
-            CyrillicLanguage.MACEDONIAN -> MACEDONIAN_CYRILLIC_LETTERS
-            else -> GENERAL_CYRILLIC_ROMAJI_MAP.keys
-        }
-
-        val romajiBuilder = StringBuilder(text.length)
-        val words = text.split("((?<=\\s|[.,!?;])|(?=\\s|[.,!?;]))".toRegex())
-            .filter { it.isNotEmpty() }
-
-        words.forEachIndexed { _, word ->
-            if (word.matches("[.,!?;]".toRegex()) || word.isBlank()) {
-                // Preserve punctuation or spaces as is
-                romajiBuilder.append(word)
-            } else {
-                // Process word
-                var charIndex = 0
-                while (charIndex < word.length) {
-                    var consumed = false
-                    // Check for 3-character sequences (language-specific, e.g., Russian)
-                    if (detectedLanguage == CyrillicLanguage.RUSSIAN && charIndex + 2 < word.length) {
-                        val threeCharCandidate = word.substring(charIndex, charIndex + 3)
-                        if (languageLetters is Set<*> && languageLetters.containsAll(threeCharCandidate.toList().map { it.toString() })) {
-                            val mappedThreeChar = languageMap[threeCharCandidate]
-                            if (mappedThreeChar != null) {
-                                romajiBuilder.append(mappedThreeChar)
-                                charIndex += 3
-                                consumed = true
-                            }
-                        }
-                    }
-                    if (!consumed) {
-                        val charStr = word[charIndex].toString()
-                        val isSpecificLanguageChar = languageLetters is Set<*> && languageLetters.contains(charStr)
-                        val isGeneralCyrillicChar = GENERAL_CYRILLIC_ROMAJI_MAP.containsKey(charStr)
-
-                        if (isSpecificLanguageChar || isGeneralCyrillicChar) {
-                            if (detectedLanguage == CyrillicLanguage.RUSSIAN && (charStr == "е" || charStr == "Е") && charIndex == 0 && (charIndex == 0 || word[charIndex-1].isWhitespace())) {
-                                romajiBuilder.append(if (charStr == "е") "ye" else "Ye")
-                            } else {
-                                val romanizedChar = languageMap[charStr] ?: GENERAL_CYRILLIC_ROMAJI_MAP[charStr]
-                                if (romanizedChar != null) {
-                                    romajiBuilder.append(romanizedChar)
-                                } else {
-                                    romajiBuilder.append(charStr)
-                                }
-                            }
-                        } else {
-                            romajiBuilder.append(charStr)
-                        }
-                        charIndex += 1
-                    }
-                }
-            }
-        }
-        romajiBuilder.toString()
-    } */
-
     fun isRussian(text: String): Boolean {
         return text.any { char ->
             RUSSIAN_CYRILLIC_LETTERS.contains(char.toString())
@@ -1087,6 +1215,14 @@ object LyricsUtils {
         val cjkCharCount = text.count { char -> char in '\u4E00'..'\u9FFF' }
         val hiraganaKatakanaCount = text.count { char -> (char in '\u3040'..'\u309F') || (char in '\u30A0'..'\u30FF') }
         return cjkCharCount > 0 && (hiraganaKatakanaCount.toDouble() / text.length.toDouble()) < 0.1
+    }
+
+    fun isHindi(text: String): Boolean {
+        return text.any { it in DEVANAGARI_RANGE }
+    }
+
+    fun isGurmukhi(text: String): Boolean {
+        return text.any { it in GURMUKHI_RANGE }
     }
 
     private fun isCyrillicVowel(char: Char): Boolean {

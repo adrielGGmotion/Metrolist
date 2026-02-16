@@ -27,7 +27,10 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeChineseKey
+import com.metrolist.music.constants.LyricsRomanizeHindiKey
+import com.metrolist.music.constants.LyricsRomanizeGurmukhiKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
+import com.metrolist.music.constants.LyricsRomanizedAsMainKey
 import com.metrolist.music.constants.LyricsRomanizeJapaneseKey
 import com.metrolist.music.constants.LyricsRomanizeKoreanKey
 import com.metrolist.music.constants.LyricsRomanizeKyrgyzKey
@@ -53,6 +56,8 @@ fun RomanizationSettings(
     val (lyricsRomanizeJapanese, onLyricsRomanizeJapaneseChange) = rememberPreference(LyricsRomanizeJapaneseKey, defaultValue = true)
     val (lyricsRomanizeKorean, onLyricsRomanizeKoreanChange) = rememberPreference(LyricsRomanizeKoreanKey, defaultValue = true)
     val (lyricsRomanizeChinese, onLyricsRomanizeChineseChange) = rememberPreference(LyricsRomanizeChineseKey, defaultValue = true)
+    val (lyricsRomanizeHindi, onLyricsRomanizeHindiChange) = rememberPreference(LyricsRomanizeHindiKey, defaultValue = true)
+    val (lyricsRomanizeGurmukhi, onLyricsRomanizeGurmukhiChange) = rememberPreference(LyricsRomanizeGurmukhiKey, defaultValue = true)
     val (lyricsRomanizeRussian, onLyricsRomanizeRussianChange) = rememberPreference(LyricsRomanizeRussianKey, defaultValue = true)
     val (lyricsRomanizeUkrainian, onLyricsRomanizeUkrainianChange) = rememberPreference(LyricsRomanizeUkrainianKey, defaultValue = true)
     val (lyricsRomanizeSerbian, onLyricsRomanizeSerbianChange) = rememberPreference(LyricsRomanizeSerbianKey, defaultValue = true)
@@ -61,6 +66,7 @@ fun RomanizationSettings(
     val (lyricsRomanizeKyrgyz, onLyricsRomanizeKyrgyzChange) = rememberPreference(LyricsRomanizeKyrgyzKey, defaultValue = true)
     val (lyricsRomanizeMacedonian, onLyricsRomanizeMacedonianChange) = rememberPreference(LyricsRomanizeMacedonianKey, defaultValue = true)
     val (lyricsRomanizeCyrillicByLine, onLyricsRomanizeCyrillicByLineChange) = rememberPreference(LyricsRomanizeCyrillicByLineKey, defaultValue = false)
+    val (lyricsRomanizedAsMain, onLyricsRomanizedAsMainChange) = rememberPreference(LyricsRomanizedAsMainKey, defaultValue = false)
     val (showDialog, setShowDialog) = remember { mutableStateOf(false) }
 
     Column(
@@ -71,27 +77,49 @@ fun RomanizationSettings(
         PreferenceGroupTitle(title = stringResource(R.string.general))
 
         SwitchPreference(
+            title = { Text(stringResource(R.string.lyrics_romanized_as_main)) },
+            icon = { Icon(painterResource(R.drawable.translate), null) },
+            checked = lyricsRomanizedAsMain,
+            onCheckedChange = onLyricsRomanizedAsMainChange,
+        )
+
+        SwitchPreference(
             title = { Text(stringResource(R.string.lyrics_romanize_japanese)) },
-            icon = { Icon(painterResource(R.drawable.language_japanese_latin), null) },
+            icon = { Icon(painterResource(R.drawable.translate), null) },
             checked = lyricsRomanizeJapanese,
             onCheckedChange = onLyricsRomanizeJapaneseChange,
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.lyrics_romanize_korean)) },
-            icon = { Icon(painterResource(R.drawable.language_korean_latin), null) },
+            icon = { Icon(painterResource(R.drawable.translate), null) },
             checked = lyricsRomanizeKorean,
             onCheckedChange = onLyricsRomanizeKoreanChange,
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.lyrics_romanize_chinese)) },
-            icon = { Icon(painterResource(R.drawable.language), null) },
+            icon = { Icon(painterResource(R.drawable.translate), null) },
             checked = lyricsRomanizeChinese,
             onCheckedChange = onLyricsRomanizeChineseChange,
         )
 
+        SwitchPreference(
+            title = { Text(stringResource(R.string.lyrics_romanize_hindi)) },
+            icon = { Icon(painterResource(R.drawable.translate), null) },
+            checked = lyricsRomanizeHindi,
+            onCheckedChange = onLyricsRomanizeHindiChange,
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.lyrics_romanize_gurmukhi)) },
+            icon = { Icon(painterResource(R.drawable.translate), null) },
+            checked = lyricsRomanizeGurmukhi,
+            onCheckedChange = onLyricsRomanizeGurmukhiChange,
+        )
+
         PreferenceGroupTitle(title = stringResource(R.string.lyrics_romanization_cyrillic))
+
         SwitchPreference(
             title = { Text(stringResource(R.string.lyrics_romanize_russian)) },
             icon = { Icon(painterResource(R.drawable.alphabet_cyrillic), null) },
