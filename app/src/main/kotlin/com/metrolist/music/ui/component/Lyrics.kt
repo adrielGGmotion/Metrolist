@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -1702,6 +1703,8 @@ fun Lyrics(
         val (lyricsText, songTitle, artists) = shareDialogData!!
         val coverUrl = mediaMetadata?.thumbnailUrl
         val paletteColors = remember { mutableStateListOf<Color>() }
+        
+        var previewBackgroundStyle by remember { mutableStateOf(LyricsBackgroundStyle.SOLID) }
 
         val previewCardWidth = configuration.containerDpSize.width * 0.90f
         val previewPadding = 20.dp * 2
@@ -1782,16 +1785,39 @@ fun Lyrics(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    Text(text = stringResource(id = R.string.player_background_style), style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        LyricsBackgroundStyle.entries.forEach { style ->
+                            val label = when(style) {
+                                LyricsBackgroundStyle.SOLID -> stringResource(R.string.player_background_solid)
+                                LyricsBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
+                                LyricsBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
+                            }
+                            val selected = previewBackgroundStyle == style
+                            
+                            androidx.compose.material3.FilterChip(
+                                selected = selected,
+                                onClick = { previewBackgroundStyle = style },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(340.dp)
+                            .aspectRatio(1f)
                             .padding(8.dp)
+                            .clip(RoundedCornerShape(12.dp))
                     ) {
                         LyricsImageCard(
                             lyricText = lyricsText,
                             mediaMetadata = mediaMetadata ?: return@Box,
                             backgroundColor = previewBackgroundColor,
+                            backgroundStyle = previewBackgroundStyle,
                             textColor = previewTextColor,
                                 secondaryTextColor = previewSecondaryTextColor,
                                 textAlign = lyricsTextAlign
@@ -1871,6 +1897,7 @@ fun Lyrics(
                                         width = (screenWidth * density.density).toInt(),
                                         height = (screenHeight * density.density).toInt(),
                                         backgroundColor = previewBackgroundColor.toArgb(),
+                                        backgroundStyle = previewBackgroundStyle,
                                         textColor = previewTextColor.toArgb(),
                                         secondaryTextColor = previewSecondaryTextColor.toArgb(),
                                         lyricsAlignment = when (lyricsTextPosition) {

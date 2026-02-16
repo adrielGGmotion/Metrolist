@@ -110,6 +110,7 @@
     <string name="general_settings">General settings</string>
 
     <string name="player_background_style">Player background style</string>
+    <string name="player_background_solid">Solid</string>
     <string name="follow_theme">Follow theme</string>
     <string name="gradient">Gradient</string>
     <string name="new_player_design">New player design</string>
