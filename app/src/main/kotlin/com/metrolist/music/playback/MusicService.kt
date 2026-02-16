@@ -11,6 +11,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -116,6 +118,7 @@ import com.metrolist.music.constants.PersistentShuffleAcrossQueuesKey
 import com.metrolist.music.constants.PlayerVolumeKey
 import com.metrolist.music.constants.RememberShuffleAndRepeatKey
 import com.metrolist.music.constants.RepeatModeKey
+import com.metrolist.music.constants.ResumeOnBluetoothConnectKey
 import com.metrolist.music.constants.ScrobbleDelayPercentKey
 import com.metrolist.music.constants.ScrobbleDelaySecondsKey
 import com.metrolist.music.constants.ScrobbleMinSongDurationKey
@@ -397,6 +400,24 @@ class MusicService :
         }
     }
 
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+            super.onAudioDevicesAdded(addedDevices)
+            val hasBluetooth = addedDevices?.any {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            } == true
+
+            if (hasBluetooth) {
+                if (dataStore.get(ResumeOnBluetoothConnectKey, false)) {
+                    if (player.playbackState == Player.STATE_READY && !player.isPlaying) {
+                        player.play()
+                    }
+                }
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         isRunning = true
@@ -496,6 +517,8 @@ class MusicService :
             addAction(Intent.ACTION_SCREEN_OFF)
         }
         registerReceiver(screenStateReceiver, screenStateFilter)
+
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
 
         audioQuality = dataStore.get(AudioQualityKey).toEnum(com.metrolist.music.constants.AudioQuality.AUTO)
         playerVolume = MutableStateFlow(dataStore.get(PlayerVolumeKey, 1f).coerceIn(0f, 1f))
@@ -2884,6 +2907,7 @@ class MusicService :
         } catch (e: Exception) {
             // Ignore
         }
+        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         castConnectionHandler?.release()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
