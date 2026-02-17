@@ -6,6 +6,16 @@
 package com.metrolist.music.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.material3.carousel.CarouselDefaults
+import androidx.compose.material3.carousel.CarouselState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
+import com.metrolist.music.viewmodels.DailyDiscoverItem
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -89,6 +99,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
+import com.metrolist.music.models.MediaMetadata
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerAwareWindowInsets
@@ -147,6 +158,81 @@ import kotlinx.coroutines.withContext
 import kotlin.math.min
 import kotlin.random.Random
 
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DailyDiscoverCard(
+    dailyDiscover: com.metrolist.music.viewmodels.DailyDiscoverItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier
+            .width(320.dp)
+            .height(320.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(dailyDiscover.recommendation.thumbnail)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.3f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.6f),
+                                Color.Black.copy(alpha = 0.9f)
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "About You",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                    Text(
+                        text = (dailyDiscover.recommendation as? SongItem)?.artists?.joinToString(", ") { it.name } ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+
+                Text(
+                    text = "Sounds like ${dailyDiscover.seed.title} by ${dailyDiscover.seed.artists.joinToString(", ") { it.name }}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
@@ -170,6 +256,7 @@ fun HomeScreen(
     val accountPlaylists by viewModel.accountPlaylists.collectAsState()
     val homePage by viewModel.homePage.collectAsState()
     val explorePage by viewModel.explorePage.collectAsState()
+    val dailyDiscover by viewModel.dailyDiscover.collectAsState()
 
     val allLocalItems by viewModel.allLocalItems.collectAsState()
     val allYtItems by viewModel.allYtItems.collectAsState()
@@ -768,6 +855,66 @@ fun HomeScreen(
                                         )
                                 )
                             }
+                        }
+                    }
+                }
+
+                dailyDiscover?.takeIf { it.isNotEmpty() }?.let { discoverList ->
+                    item(key = "daily_discover_title") {
+                        NavigationTitle(
+                            title = "Your daily discover",
+                            onPlayAllClick = {
+                                val queueItems = discoverList.mapNotNull {
+                                    (it.recommendation as? SongItem)?.toMediaMetadata()
+                                }
+                                
+                                if (queueItems.isNotEmpty()) {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = "Your daily discover",
+                                            items = queueItems.map { it.toMediaItem() }
+                                        )
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+                    item(key = "daily_discover_content") {
+                         Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(340.dp)
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                             val carouselState = rememberCarouselState { discoverList.size }
+                             HorizontalMultiBrowseCarousel(
+                                state = carouselState,
+                                preferredItemWidth = 320.dp,
+                                itemSpacing = 16.dp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(320.dp)
+                             ) { i ->
+                                 val item = discoverList[i]
+                                 DailyDiscoverCard(
+                                     dailyDiscover = item,
+                                     onClick = {
+                                         val mediaMetadata = (item.recommendation as? SongItem)?.toMediaMetadata()
+                                         if (mediaMetadata != null) {
+                                             playerConnection.playQueue(
+                                                 YouTubeQueue(
+                                                     WatchEndpoint(videoId = item.recommendation.id),
+                                                     mediaMetadata
+                                                 )
+                                             )
+                                         }
+                                     },
+                                     modifier = Modifier
+                                         .clip(MaterialTheme.shapes.extraLarge)
+                                 )
+                             }
                         }
                     }
                 }

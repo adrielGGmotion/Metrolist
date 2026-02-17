@@ -16,6 +16,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.flow.combine
 import com.metrolist.innertube.models.WatchEndpoint
+import com.metrolist.innertube.models.BrowseEndpoint
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.models.filterVideoSongs
@@ -60,6 +61,12 @@ import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.random.Random
 
+data class DailyDiscoverItem(
+    val seed: Song,
+    val recommendation: YTItem,
+    val relatedEndpoint: BrowseEndpoint?
+)
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
@@ -77,6 +84,7 @@ class HomeViewModel @Inject constructor(
     }.distinctUntilChanged()
 
     val quickPicks = MutableStateFlow<List<Song>?>(null)
+    val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
     val keepListening = MutableStateFlow<List<LocalItem>?>(null)
     val similarRecommendations = MutableStateFlow<List<SimilarRecommendation>?>(null)
@@ -246,6 +254,54 @@ class HomeViewModel @Inject constructor(
     // Track if we're currently processing account data
     private var isProcessingAccountData = false
 
+    private suspend fun getDailyDiscover() {
+        val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+        val likedSongs = database.likedSongsByCreateDateAsc().first()
+        if (likedSongs.isEmpty()) return
+
+        val seeds = likedSongs.shuffled().distinctBy { it.id }.take(5)
+        
+        // Use a synchronized list to collect results safely from concurrent coroutines
+        val items = java.util.Collections.synchronizedList(mutableListOf<DailyDiscoverItem>())
+
+        kotlinx.coroutines.coroutineScope {
+            seeds.map { seed ->
+                launch(Dispatchers.IO) {
+                    val endpoint = YouTube.next(WatchEndpoint(videoId = seed.id)).getOrNull()?.relatedEndpoint
+                    if (endpoint != null) {
+                        YouTube.related(endpoint).onSuccess { page ->
+                            val recommendations = page.songs
+                                .filter { item ->
+                                    if (hideVideoSongs && item.isVideoSong) return@filter false
+                                    if (item.explicit) return@filter false
+                                    true
+                                }
+                                .shuffled()
+
+                            // Simple check to avoid immediate duplicate of seed
+                            val recommendation = recommendations.firstOrNull { rec ->
+                                rec.id != seed.id
+                            }
+
+                            if (recommendation != null) {
+                                items.add(
+                                    DailyDiscoverItem(
+                                        seed = seed,
+                                        recommendation = recommendation,
+                                        relatedEndpoint = endpoint
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }.forEach { it.join() }
+        }
+        
+        // Final deduplication just in case multiple seeds recommended the same song
+        dailyDiscover.value = items.toList().distinctBy { it.recommendation.id }.shuffled()
+    }
+
     private suspend fun getQuickPicks() {
         val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
         when (quickPicksEnum.first()) {
@@ -297,6 +353,7 @@ class HomeViewModel @Inject constructor(
         val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
 
         getQuickPicks()
+        getDailyDiscover()
         forgottenFavorites.value = database.forgottenFavorites().first().filterVideoSongs(hideVideoSongs).shuffled().take(20)
 
         val fromTimeStamp = System.currentTimeMillis() - 86400000 * 7 * 2
