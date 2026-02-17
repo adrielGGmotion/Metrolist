@@ -160,20 +160,40 @@ import kotlin.random.Random
 
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DailyDiscoverCard(
     dailyDiscover: com.metrolist.music.viewmodels.DailyDiscoverItem,
     onClick: () -> Unit,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
     val database = LocalDatabase.current
     val playCount by database.getLifetimePlayCount(dailyDiscover.recommendation.id).collectAsState(initial = 0)
+    val menuState = LocalMenuState.current
+    val haptic = LocalHapticFeedback.current
+
+    val song = dailyDiscover.recommendation as? SongItem
 
     Card(
-        onClick = onClick,
         modifier = modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .clip(RoundedCornerShape(28.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (song != null) {
+                        menuState.show {
+                            YouTubeSongMenu(
+                                song = song,
+                                navController = navController,
+                                onDismiss = { menuState.dismiss() }
+                            )
+                        }
+                    }
+                }
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
@@ -182,7 +202,7 @@ fun DailyDiscoverCard(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(dailyDiscover.recommendation.thumbnail)
+                    .data(dailyDiscover.recommendation.thumbnail?.replace(Regex("w\\d+-h\\d+"), "w544-h544"))
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
@@ -231,10 +251,22 @@ fun DailyDiscoverCard(
                         )
                     }
 
+                    val messages = listOf(
+                        R.string.daily_discover_sounds_like,
+                        R.string.daily_discover_because_you_listen_to,
+                        R.string.daily_discover_similar_to,
+                        R.string.daily_discover_based_on,
+                        R.string.daily_discover_for_fans_of
+                    )
+                    val messageRes = remember(dailyDiscover.seed.id) {
+                        messages[kotlin.math.abs(dailyDiscover.seed.id.hashCode()) % messages.size]
+                    }
+
                     Text(
-                        text = "Sounds like ${dailyDiscover.seed.title} by ${dailyDiscover.seed.artists.joinToString(", ") { it.name }}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
+                        text = stringResource(messageRes, "${dailyDiscover.seed.title} • ${dailyDiscover.seed.artists.joinToString(", ") { it.name }}"),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.6f),
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
@@ -923,6 +955,7 @@ fun HomeScreen(
                                              )
                                          }
                                      },
+                                     navController = navController,
                                      modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge)
                                  )
                              }
