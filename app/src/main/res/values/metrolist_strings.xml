@@ -721,9 +721,12 @@
     <string name="speed_dial">Speed dial</string>
     <string name="pin_to_speed_dial">Pin to Speed dial</string>
     <string name="unpin_from_speed_dial">Unpin from Speed dial</string>
+    <string name="randomize_home_order">Randomize Home Screen Order</string>
+    <string name="randomize_home_order_desc">Randomly reorder home screen sections with weighted priorities</string>
 
     <!-- Daily Discover -->
     <string name="daily_discover_sounds_like">Sounds like %1$s</string>
+    <string name="your_daily_discover">Your daily discover</string>
     <string name="daily_discover_because_you_listen_to">Because you listen to %1$s</string>
     <string name="daily_discover_similar_to">Similar to %1$s</string>
     <string name="daily_discover_based_on">Based on %1$s</string>
