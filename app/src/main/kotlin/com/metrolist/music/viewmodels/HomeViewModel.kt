@@ -354,14 +354,16 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun getCommunityPlaylists() {
         val fromTimeStamp = System.currentTimeMillis() - 86400000L * 7 * 4
-        val seeds = database.mostPlayedArtists(fromTimeStamp, limit = 10).first()
+        val artistSeeds = database.mostPlayedArtists(fromTimeStamp, limit = 10).first()
             .filter { it.artist.isYouTubeArtist }
             .shuffled().take(3)
+        val songSeeds = database.mostPlayedSongs(fromTimeStamp, limit = 5).first()
+            .shuffled().take(2)
 
         val candidatePlaylists = java.util.Collections.synchronizedList(mutableListOf<PlaylistItem>())
 
         kotlinx.coroutines.coroutineScope {
-            seeds.map { seed ->
+            artistSeeds.map { seed ->
                 launch(Dispatchers.IO) {
                     YouTube.artist(seed.id).onSuccess { page ->
                         page.sections.forEach { section ->
@@ -379,7 +381,28 @@ class HomeViewModel @Inject constructor(
                         }
                     }
                 }
-            }.forEach { it.join() }
+            }
+            
+            songSeeds.map { seed ->
+                launch(Dispatchers.IO) {
+                    val endpoint = YouTube.next(WatchEndpoint(videoId = seed.id)).getOrNull()?.relatedEndpoint
+                    if (endpoint != null) {
+                        YouTube.related(endpoint).onSuccess { page ->
+                            page.playlists.forEach { playlist ->
+                                if (playlist.author?.name != "YouTube Music" && 
+                                    playlist.author?.name != "YouTube" && 
+                                    playlist.author?.name != "Playlist" &&
+                                    // playlist.author?.name != seed.artist.name && // Can't easily check this for songs, but usually fine
+                                    !playlist.id.startsWith("RD") &&
+                                    !playlist.id.startsWith("OLAK")
+                                ) {
+                                    candidatePlaylists.add(playlist)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         val uniqueCandidates = candidatePlaylists.distinctBy { it.id }.shuffled().take(5)
