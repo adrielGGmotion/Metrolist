@@ -348,7 +348,13 @@ fun HomeScreen(
 
                             is AlbumItem -> navController.navigate("album/${item.id}")
                             is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            is PlaylistItem -> {
+                                if (item.id.startsWith("VL") || item.id.startsWith("PL") || item.id.startsWith("LL") || item.id.startsWith("RDC")) {
+                                    navController.navigate("online_playlist/${item.id.removePrefix("VL")}")
+                                } else {
+                                    navController.navigate("local_playlist/${item.id}")
+                                }
+                            }
                         }
                     },
                     onLongClick = {
@@ -550,7 +556,13 @@ fun HomeScreen(
                                                                             )
                                                                             is AlbumItem -> navController.navigate("album/${randomItem.id}")
                                                                             is ArtistItem -> navController.navigate("artist/${randomItem.id}")
-                                                                            is PlaylistItem -> navController.navigate("online_playlist/${randomItem.id}")
+                                                                            is PlaylistItem -> {
+                                                                                if (randomItem.id.startsWith("VL") || randomItem.id.startsWith("PL") || randomItem.id.startsWith("LL") || randomItem.id.startsWith("RDC")) {
+                                                                                    navController.navigate("online_playlist/${randomItem.id.removePrefix("VL")}")
+                                                                                } else {
+                                                                                    navController.navigate("local_playlist/${randomItem.id}")
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
                                                                 }
@@ -576,19 +588,25 @@ fun HomeScreen(
                                                             modifier = Modifier
                                                                 .fillMaxSize()
                                                                 .combinedClickable(
-                                                                    onClick = {
-                                                                        when (item) {
-                                                                            is SongItem -> playerConnection.playQueue(
-                                                                                YouTubeQueue(
-                                                                                    item.endpoint ?: WatchEndpoint(videoId = item.id), 
-                                                                                    item.toMediaMetadata()
-                                                                                )
-                                                                            )
-                                                                            is AlbumItem -> navController.navigate("album/${item.id}")
-                                                                            is ArtistItem -> navController.navigate("artist/${item.id}")
-                                                                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
-                                                                        }
-                                                                    },
+                                                        onClick = {
+                                                            when (item) {
+                                                                is SongItem -> playerConnection.playQueue(
+                                                                    YouTubeQueue(
+                                                                        item.endpoint ?: WatchEndpoint(videoId = item.id), 
+                                                                        item.toMediaMetadata()
+                                                                    )
+                                                                )
+                                                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                                                is ArtistItem -> navController.navigate("artist/${item.id}")
+                                                                is PlaylistItem -> {
+                                                                    if (item.id.startsWith("VL") || item.id.startsWith("PL") || item.id.startsWith("LL") || item.id.startsWith("RDC")) {
+                                                                        navController.navigate("online_playlist/${item.id.removePrefix("VL")}")
+                                                                    } else {
+                                                                        navController.navigate("local_playlist/${item.id}")
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
                                                                     onLongClick = {
                                                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                                         menuState.show {
@@ -1198,14 +1216,6 @@ fun HomeScreen(
             }
         }
 
-        HideOnScrollFAB(
-            visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
-            lazyListState = lazylistState,
-            icon = R.drawable.search,
-            onClick = {
-                navController.navigate(Screens.Search.route)
-            }
-        )
     }
 }
 }
