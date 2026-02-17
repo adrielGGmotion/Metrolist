@@ -167,17 +167,19 @@ fun DailyDiscoverCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val database = LocalDatabase.current
+    val playCount by database.getLifetimePlayCount(dailyDiscover.recommendation.id).collectAsState(initial = 0)
+
     Card(
         onClick = onClick,
         modifier = modifier
-            .width(320.dp)
-            .height(320.dp),
+            .fillMaxSize(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(28.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(dailyDiscover.recommendation.thumbnail)
@@ -185,48 +187,58 @@ fun DailyDiscoverCard(
                     .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
             )
             
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.3f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.6f),
-                                Color.Black.copy(alpha = 0.9f)
+            if (maxWidth > 200.dp) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.3f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.6f),
+                                    Color.Black.copy(alpha = 0.9f)
+                                )
                             )
                         )
-                    )
-            )
+                )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = dailyDiscover.recommendation.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White
+                        )
+                        Text(
+                            text = buildString {
+                                append((dailyDiscover.recommendation as? SongItem)?.artists?.joinToString(", ") { it.name } ?: "")
+                                if (playCount > 0) {
+                                    append(" • $playCount plays")
+                                }
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+
                     Text(
-                        text = "About You",
+                        text = "Sounds like ${dailyDiscover.seed.title} by ${dailyDiscover.seed.artists.joinToString(", ") { it.name }}",
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
-                    Text(
-                        text = (dailyDiscover.recommendation as? SongItem)?.artists?.joinToString(", ") { it.name } ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
-
-                Text(
-                    text = "Sounds like ${dailyDiscover.seed.title} by ${dailyDiscover.seed.artists.joinToString(", ") { it.name }}",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White
-                )
             }
         }
     }
@@ -893,7 +905,7 @@ fun HomeScreen(
                                 state = carouselState,
                                 preferredItemWidth = 320.dp,
                                 itemSpacing = 16.dp,
-                                modifier = Modifier
+                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(320.dp)
                              ) { i ->
@@ -905,14 +917,13 @@ fun HomeScreen(
                                          if (mediaMetadata != null) {
                                              playerConnection.playQueue(
                                                  YouTubeQueue(
-                                                     WatchEndpoint(videoId = item.recommendation.id),
+                                                     (item.recommendation as? SongItem)?.endpoint ?: WatchEndpoint(videoId = item.recommendation.id),
                                                      mediaMetadata
                                                  )
                                              )
                                          }
                                      },
-                                     modifier = Modifier
-                                         .clip(MaterialTheme.shapes.extraLarge)
+                                     modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge)
                                  )
                              }
                         }
