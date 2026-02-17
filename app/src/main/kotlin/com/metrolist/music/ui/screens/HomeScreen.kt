@@ -8,7 +8,6 @@ package com.metrolist.music.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.CarouselState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -61,6 +60,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -120,10 +121,6 @@ import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.SmallGridThumbnailHeight
 import com.metrolist.music.constants.ThumbnailCornerRadius
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.surfaceColorAtElevation
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.completed
 import com.metrolist.music.db.entities.PlaylistEntity
@@ -281,7 +278,7 @@ fun CommunityPlaylistCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${item.playlist.songCountText ?: "50+"} songs",
+                        text = stringResource(R.string.songs_count, item.playlist.songCountText ?: "50+"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
@@ -416,7 +413,7 @@ fun CommunityPlaylistCard(
                         .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape)
                 ) {
                     Icon(
-                        painter = painterResource(if (isBookmarked) R.drawable.check else R.drawable.library_add),
+                        painter = painterResource(if (isBookmarked) R.drawable.library_add_check else R.drawable.library_add),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(24.dp)
@@ -1174,7 +1171,7 @@ fun HomeScreen(
                 communityPlaylists?.takeIf { it.isNotEmpty() }?.let { playlists ->
                     item(key = "community_playlists_title") {
                         NavigationTitle(
-                            title = "From the community",
+                            title = stringResource(R.string.from_the_community),
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -1208,7 +1205,7 @@ fun HomeScreen(
                 dailyDiscover?.takeIf { it.isNotEmpty() }?.let { discoverList ->
                     item(key = "daily_discover_title") {
                         NavigationTitle(
-                            title = "Your daily discover",
+                            title = stringResource(R.string.your_daily_discover),
                             onPlayAllClick = {
                                 val queueItems = discoverList.mapNotNull {
                                     (it.recommendation as? SongItem)?.toMediaMetadata()
@@ -1217,7 +1214,7 @@ fun HomeScreen(
                                 if (queueItems.isNotEmpty()) {
                                     playerConnection.playQueue(
                                         ListQueue(
-                                            title = "Your daily discover",
+                                            title = stringResource(R.string.your_daily_discover),
                                             items = queueItems.map { it.toMediaItem() }
                                         )
                                     )
