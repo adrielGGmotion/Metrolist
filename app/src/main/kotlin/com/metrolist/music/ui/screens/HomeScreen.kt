@@ -402,7 +402,15 @@ fun HomeScreen(
         state = pullRefreshState,
         isRefreshing = isRefreshing,
         onRefresh = viewModel::refresh,
-        modifier = Modifier.fillMaxSize()
+        indicator = {
+            Indicator(
+                isRefreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
+            )
+        }
     ) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),

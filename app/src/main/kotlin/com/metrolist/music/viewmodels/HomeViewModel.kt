@@ -58,6 +58,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
+import kotlin.random.Random
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -155,11 +156,11 @@ class HomeViewModel @Inject constructor(
         // Visual feedback for the animation
         kotlinx.coroutines.delay(1000)
         
-        val sources = mutableListOf<YTItem>()
-        sources.addAll(allYtItems.value)
+        val userSongs = mutableListOf<YTItem>()
+        val otherSources = mutableListOf<YTItem>()
         
         quickPicks.value?.let { songs ->
-            sources.addAll(songs.map { song ->
+            userSongs.addAll(songs.map { song ->
                 SongItem(
                     id = song.id,
                     title = song.title,
@@ -171,29 +172,37 @@ class HomeViewModel @Inject constructor(
         }
         
         keepListening.value?.let { items ->
-             sources.addAll(items.mapNotNull { item ->
+             items.forEach { item ->
                  when (item) {
-                     is Song -> SongItem(
+                     is Song -> userSongs.add(SongItem(
                          id = item.id,
                          title = item.title,
                          artists = item.artists.map { Artist(name = it.name, id = it.id) },
                          thumbnail = item.thumbnailUrl ?: "",
                          explicit = false
-                     )
-                     is Album -> AlbumItem(
+                     ))
+                     is Album -> otherSources.add(AlbumItem(
                          browseId = item.id,
                          playlistId = item.album.playlistId ?: "",
                          title = item.title,
                          artists = item.artists.map { Artist(name = it.name, id = it.id) },
                          year = item.album.year,
                          thumbnail = item.thumbnailUrl ?: ""
-                     )
-                     else -> null
+                     ))
+                     else -> {}
                  }
-             })
+             }
         }
+
+        otherSources.addAll(allYtItems.value)
         
-        val item = sources.distinctBy { it.id }.shuffled().firstOrNull()
+        // Probability: 80% User Songs, 20% Other Sources
+        val item = if (userSongs.isNotEmpty() && (otherSources.isEmpty() || Random.nextFloat() < 0.8f)) {
+            userSongs.distinctBy { it.id }.shuffled().firstOrNull()
+        } else {
+            otherSources.distinctBy { it.id }.shuffled().firstOrNull()
+        } ?: userSongs.firstOrNull() ?: otherSources.firstOrNull()
+
         isRandomizing.value = false
         return item
     }

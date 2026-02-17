@@ -29,6 +29,8 @@ fun RandomizeGridItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // When isLoading is true, multiplier goes to 0 (moving dots to center)
+    // When isLoading is false, multiplier goes to 1 (moving dots to corners)
     val dotOffsetMultiplier by animateFloatAsState(
         targetValue = if (isLoading) 0f else 1f,
         animationSpec = tween(durationMillis = 600),
@@ -51,14 +53,17 @@ fun RandomizeGridItem(
     ) {
         // Die Dots (5-pattern)
         val dotColor = MaterialTheme.colorScheme.onSecondaryContainer
-        val dotSize = 14.dp // Increased size
-        val padding = 24.dp // Increased padding
+        val dotSize = 14.dp
+        val padding = 24.dp
 
+        // Using a single Center alignment and offsetting FROM center ensures they 
+        // collapse TO center correctly.
+        
         // Top Left
         Box(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
+                .align(Alignment.Center)
+                .offset(x = -padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -66,8 +71,8 @@ fun RandomizeGridItem(
         // Top Right
         Box(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = -padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
+                .align(Alignment.Center)
+                .offset(x = padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -75,6 +80,7 @@ fun RandomizeGridItem(
         // Center
         Box(
             modifier = Modifier
+                .align(Alignment.Center)
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -82,8 +88,8 @@ fun RandomizeGridItem(
         // Bottom Left
         Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
+                .align(Alignment.Center)
+                .offset(x = -padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -91,8 +97,8 @@ fun RandomizeGridItem(
         // Bottom Right
         Box(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = -padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
+                .align(Alignment.Center)
+                .offset(x = padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -101,7 +107,7 @@ fun RandomizeGridItem(
         // Loading Indicator overlay
         Box(modifier = Modifier.alpha(loadingAlpha)) {
             LoadingIndicator(
-                modifier = Modifier.size(48.dp), // Increased size
+                modifier = Modifier.size(48.dp),
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
         }
