@@ -122,7 +122,12 @@ import com.metrolist.music.constants.SmallGridThumbnailHeight
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.surfaceColorAtElevation
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.surfaceColorAtElevation
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.utils.completed
 import com.metrolist.music.db.entities.PlaylistEntity
+import com.metrolist.music.db.entities.PlaylistSongMap
 import com.metrolist.music.db.entities.LocalItem
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.Album
@@ -189,10 +194,13 @@ fun CommunityPlaylistCard(
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     }
 
+    val dbPlaylist by database.playlistByBrowseId(item.playlist.id).collectAsState(initial = null)
+    val isBookmarked = dbPlaylist?.playlist?.bookmarkedAt != null
+
     Card(
         modifier = modifier
             .width(320.dp)
-            .height(400.dp),
+            .height(420.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor
         ),
@@ -301,7 +309,7 @@ fun CommunityPlaylistCard(
                             contentDescription = null,
                             modifier = Modifier
                                 .size(56.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Crop
                         )
                         Column(modifier = Modifier.weight(1f)) {
@@ -327,7 +335,7 @@ fun CommunityPlaylistCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
             ) {
                 IconButton(
                     onClick = {
@@ -366,14 +374,40 @@ fun CommunityPlaylistCard(
                 IconButton(
                     onClick = {
                         scope.launch(Dispatchers.IO) {
-                            database.transaction {
-                                val playlistEntity = PlaylistEntity(
-                                    id = item.playlist.id,
-                                    name = item.playlist.title,
-                                    thumbnailUrl = item.playlist.thumbnail,
-                                    remoteSongCount = item.playlist.songCountText?.split(" ")?.firstOrNull()?.toIntOrNull()
-                                ).toggleLike()
-                                database.insert(playlistEntity)
+                            if (dbPlaylist?.playlist == null) {
+                                database.transaction {
+                                    val playlistEntity = PlaylistEntity(
+                                        name = item.playlist.title,
+                                        browseId = item.playlist.id,
+                                        thumbnailUrl = item.playlist.thumbnail,
+                                        remoteSongCount = item.playlist.songCountText?.split(" ")?.firstOrNull()?.toIntOrNull(),
+                                        playEndpointParams = item.playlist.playEndpoint?.params,
+                                        shuffleEndpointParams = item.playlist.shuffleEndpoint?.params,
+                                        radioEndpointParams = item.playlist.radioEndpoint?.params
+                                    ).toggleLike()
+                                    insert(playlistEntity)
+                                    scope.launch(Dispatchers.IO) {
+                                        item.songs.ifEmpty {
+                                            YouTube.playlist(item.playlist.id).completed()
+                                                .getOrNull()?.songs.orEmpty()
+                                        }.map { it.toMediaMetadata() }
+                                            .onEach(::insert)
+                                            .mapIndexed { index, song ->
+                                                PlaylistSongMap(
+                                                    songId = song.id,
+                                                    playlistId = playlistEntity.id,
+                                                    position = index,
+                                                    setVideoId = song.setVideoId
+                                                )
+                                            }
+                                            .forEach(::insert)
+                                    }
+                                }
+                            } else {
+                                database.transaction {
+                                    val currentPlaylist = dbPlaylist!!.playlist
+                                    update(currentPlaylist.toggleLike())
+                                }
                             }
                         }
                     },
@@ -382,7 +416,7 @@ fun CommunityPlaylistCard(
                         .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.library_add),
+                        painter = painterResource(if (isBookmarked) R.drawable.check else R.drawable.library_add),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(24.dp)
