@@ -51,6 +51,7 @@ import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.db.entities.Playlist
+import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.toMediaItem
@@ -107,6 +108,8 @@ fun PlaylistMenu(
     }
 
     val editable: Boolean = playlist.playlist.isEditable == true
+
+    val isPinned by database.speedDialDao.isPinned(playlist.id).collectAsState(initial = false)
 
     LaunchedEffect(songs) {
         if (songs.isEmpty()) return@LaunchedEffect
@@ -457,6 +460,39 @@ fun PlaylistMenu(
                             )
                         )
                     }
+                    add(
+                        Material3MenuItemData(
+                            title = { 
+                                Text(
+                                    text = if (isPinned) "Unpin from Speed dial" else "Pin to Speed dial" 
+                                ) 
+                            },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(if (isPinned) R.drawable.remove else R.drawable.add),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    if (isPinned) {
+                                        database.speedDialDao.delete(playlist.id)
+                                    } else {
+                                        database.speedDialDao.insert(
+                                            SpeedDialItem(
+                                                id = playlist.id,
+                                                title = playlist.playlist.name,
+                                                subtitle = null,
+                                                thumbnailUrl = playlist.thumbnails.firstOrNull(),
+                                                type = "PLAYLIST"
+                                            )
+                                        )
+                                    }
+                                }
+                                onDismiss()
+                            }
+                        )
+                    )
                     if (downloadPlaylist != true) {
                         add(
                             when (downloadState) {

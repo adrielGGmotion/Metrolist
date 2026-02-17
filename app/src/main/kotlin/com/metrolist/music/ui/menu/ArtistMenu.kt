@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +34,7 @@ import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.ArtistSongSortType
+import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.queues.ListQueue
@@ -60,6 +62,7 @@ fun ArtistMenu(
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
     val artistState = database.artist(originalArtist.id).collectAsState(initial = originalArtist)
     val artist = artistState.value ?: originalArtist
+    val isPinned by database.speedDialDao.isPinned(artist.id).collectAsState(initial = false)
 
     ArtistListItem(
         artist = artist,
@@ -151,6 +154,38 @@ fun ArtistMenu(
                             )
                         }
                     }
+
+                    add(
+                        NewAction(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(if (isPinned) R.drawable.remove else R.drawable.add),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            text = if (isPinned) "Unpin" else "Pin",
+                            onClick = {
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    if (isPinned) {
+                                        database.speedDialDao.delete(artist.id)
+                                    } else {
+                                        database.speedDialDao.insert(
+                                            SpeedDialItem(
+                                                id = artist.id,
+                                                title = artist.artist.name,
+                                                subtitle = null,
+                                                thumbnailUrl = artist.artist.thumbnailUrl,
+                                                type = "ARTIST"
+                                            )
+                                        )
+                                    }
+                                }
+                                onDismiss()
+                            }
+                        )
+                    )
 
                     if (artist.artist.isYouTubeArtist) {
                         add(
