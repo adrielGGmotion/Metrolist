@@ -120,11 +120,14 @@ import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.SmallGridThumbnailHeight
 import com.metrolist.music.constants.ThumbnailCornerRadius
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.surfaceColorAtElevation
+import com.metrolist.music.db.entities.PlaylistEntity
+import com.metrolist.music.db.entities.LocalItem
+import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.Album
 import com.metrolist.music.db.entities.Artist
-import com.metrolist.music.db.entities.LocalItem
 import com.metrolist.music.db.entities.Playlist
-import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.LocalAlbumRadio
@@ -175,48 +178,25 @@ fun CommunityPlaylistCard(
     onSongClick: (SongItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var containerColor by remember { mutableStateOf<Color?>(null) }
-    var contentColor by remember { mutableStateOf<Color?>(null) }
-    val context = LocalContext.current
+    val database = LocalDatabase.current
+    val playerConnection = LocalPlayerConnection.current
+    val scope = rememberCoroutineScope()
+    val isDark = isSystemInDarkTheme()
     
-    LaunchedEffect(item.playlist.thumbnail) {
-        if (item.playlist.thumbnail != null) {
-            launch(Dispatchers.IO) {
-                val request = ImageRequest.Builder(context)
-                    .data(item.playlist.thumbnail)
-                    .allowHardware(false)
-                    .build()
-                val result = context.imageLoader.execute(request)
-                if (result is SuccessResult) {
-                    val bitmap = result.image.toBitmap()
-                    Palette.from(bitmap).generate { palette ->
-                        palette?.let {
-                            val vibrant = it.vibrantSwatch
-                            val darkVibrant = it.darkVibrantSwatch
-                            val lightVibrant = it.lightVibrantSwatch
-                            val dominant = it.dominantSwatch
-                            
-                            val swatch = vibrant ?: darkVibrant ?: lightVibrant ?: dominant
-                            if (swatch != null) {
-                                containerColor = Color(swatch.rgb)
-                                contentColor = Color(swatch.titleTextColor)
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    val containerColor = if (isDark) {
+        MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     }
 
     Card(
         modifier = modifier
             .width(320.dp)
-            .height(340.dp),
+            .height(400.dp),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor ?: MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = contentColor ?: MaterialTheme.colorScheme.onSurfaceVariant
+            containerColor = containerColor
         ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(28.dp),
         onClick = onClick
     ) {
         Column(
@@ -232,7 +212,7 @@ fun CommunityPlaylistCard(
                 Box(
                     modifier = Modifier
                         .size(100.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Row(modifier = Modifier.weight(1f)) {
@@ -288,14 +268,14 @@ fun CommunityPlaylistCard(
                     Text(
                         text = item.playlist.author?.name ?: "",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = contentColor?.copy(alpha = 0.8f) ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                         maxLines = 1
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${item.playlist.songCountText ?: "50+"} songs",
                         style = MaterialTheme.typography.bodySmall,
-                        color = contentColor?.copy(alpha = 0.8f) ?: MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
             }
@@ -311,6 +291,7 @@ fun CommunityPlaylistCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .combinedClickable(onClick = { onSongClick(song) }),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -319,8 +300,8 @@ fun CommunityPlaylistCard(
                             model = song.thumbnail.replace(Regex("w\\d+-h\\d+"), "w120-h120"),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(4.dp)),
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
                         )
                         Column(modifier = Modifier.weight(1f)) {
@@ -333,7 +314,7 @@ fun CommunityPlaylistCard(
                             Text(
                                 text = song.artists.joinToString(", ") { it.name },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = contentColor?.copy(alpha = 0.8f) ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 maxLines = 1,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
@@ -345,26 +326,66 @@ fun CommunityPlaylistCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
             ) {
-                IconButton(onClick = onClick) {
+                IconButton(
+                    onClick = {
+                        playerConnection?.playQueue(YouTubeQueue.radio(item.songs.first().toMediaMetadata()))
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_widget_play),
                         contentDescription = null,
-                         modifier = Modifier.size(32.dp)
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
-                IconButton(onClick = { /* TODO: Add to library */ }) {
+                
+                IconButton(
+                    onClick = {
+                        item.playlist.radioEndpoint?.let {
+                            playerConnection?.playQueue(YouTubeQueue(it))
+                        }
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.radio),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                
+                IconButton(
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            database.transaction {
+                                val playlistEntity = PlaylistEntity(
+                                    id = item.playlist.id,
+                                    name = item.playlist.title,
+                                    thumbnailUrl = item.playlist.thumbnail,
+                                    remoteSongCount = item.playlist.songCountText?.split(" ")?.firstOrNull()?.toIntOrNull()
+                                ).toggleLike()
+                                database.insert(playlistEntity)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape)
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.library_add),
-                        contentDescription = null
-                    )
-                }
-                IconButton(onClick = { /* TODO: Radio */ }) {
-                     Icon(
-                        painter = painterResource(R.drawable.radio),
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
