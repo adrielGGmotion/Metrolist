@@ -121,6 +121,7 @@ import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.NavigationTitle
+import com.metrolist.music.ui.component.RandomizeGridItem
 import com.metrolist.music.ui.component.SongGridItem
 import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.SpeedDialGridItem
@@ -178,6 +179,7 @@ fun HomeScreen(
     val isLoading: Boolean by viewModel.isLoading.collectAsState()
     val isMoodAndGenresLoading = isLoading && explorePage?.moodAndGenres == null
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val isRandomizing by viewModel.isRandomizing.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
 
     val quickPicksLazyGridState = rememberLazyGridState()
@@ -450,16 +452,16 @@ fun HomeScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isWrappedDataReady) {
+                                    val bbhFont = try {
+                                        FontFamily(Font(R.font.bbh_bartle_regular))
+                                    } catch (e: Exception) {
+                                        FontFamily.Default
+                                    }
                                     Column(
                                         modifier = Modifier.padding(16.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
                                     ) {
-                                        val bbhFont = try {
-                                            FontFamily(Font(R.font.bbh_bartle_regular))
-                                        } catch (e: Exception) {
-                                            FontFamily.Default
-                                        }
                                         Text(
                                             text = stringResource(R.string.wrapped_ready_title),
                                             style = MaterialTheme.typography.headlineLarge.copy(
@@ -523,7 +525,40 @@ fun HomeScreen(
                                         Row(modifier = Modifier.fillMaxWidth()) {
                                             for (col in 0 until 3) {
                                                 val itemIndex = row * 3 + col
-                                                if (itemIndex < pageItems.size) {
+                                                
+                                                val isRandomizeSlot = (page == 0 && itemIndex == 8)
+                                                
+                                                if (isRandomizeSlot) {
+                                                     Box(
+                                                        modifier = Modifier
+                                                            .width(itemWidth)
+                                                            .height(itemWidth)
+                                                            .padding(4.dp)
+                                                    ) {
+                                                        RandomizeGridItem(
+                                                            isLoading = isRandomizing,
+                                                            onClick = {
+                                                                scope.launch {
+                                                                    val randomItem = viewModel.getRandomItem()
+                                                                    if (randomItem != null) {
+                                                                        when (randomItem) {
+                                                                            is SongItem -> playerConnection.playQueue(
+                                                                                YouTubeQueue(
+                                                                                    randomItem.endpoint ?: WatchEndpoint(videoId = randomItem.id),
+                                                                                    randomItem.toMediaMetadata()
+                                                                                )
+                                                                            )
+                                                                            is AlbumItem -> navController.navigate("album/${randomItem.id}")
+                                                                            is ArtistItem -> navController.navigate("artist/${randomItem.id}")
+                                                                            is PlaylistItem -> navController.navigate("online_playlist/${randomItem.id}")
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            modifier = Modifier.fillMaxSize()
+                                                        )
+                                                    }
+                                                } else if (itemIndex < pageItems.size) {
                                                     val item = pageItems[itemIndex]
                                                     val isPinned by database.speedDialDao.isPinned(item.id).collectAsState(initial = false)
                                                     
@@ -1060,6 +1095,7 @@ fun HomeScreen(
                         }
                     }
                 } else {
+                    // Render mixed content as horizontal grid items (albums, playlists, artists, etc.)
                     item(key = "home_section_list_$index") {
                         LazyRow(
                             contentPadding = WindowInsets.systemBars
@@ -1074,7 +1110,102 @@ fun HomeScreen(
                     }
                 }
             }
+
+            if (isLoading || homePage?.continuation != null && homePage?.sections?.isNotEmpty() == true) {
+                item(key = "loading_shimmer") {
+                    ShimmerHost(
+                        modifier = Modifier.animateItem()
+                    ) {
+                        TextPlaceholder(
+                            height = 36.dp,
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .width(250.dp),
+                        )
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
+                        ) {
+                            items(4) {
+                                GridItemPlaceHolder()
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (selectedChip == null) {
+                explorePage?.moodAndGenres?.let { moodAndGenres ->
+                    item(key = "mood_and_genres_title") {
+                        NavigationTitle(
+                            title = stringResource(R.string.mood_and_genres),
+                            onClick = {
+                                navController.navigate("mood_and_genres")
+                            },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    item(key = "mood_and_genres_list") {
+                        LazyHorizontalGrid(
+                            rows = GridCells.Fixed(4),
+                            contentPadding = PaddingValues(6.dp),
+                            modifier = Modifier
+                                .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp)
+                                .animateItem()
+                        ) {
+                            items(moodAndGenres) {
+                                MoodAndGenresButton(
+                                    title = it.title,
+                                    onClick = {
+                                        navController.navigate("youtube_browse/${it.endpoint.browseId}?params=${it.endpoint.params}")
+                                    },
+                                    modifier = Modifier
+                                        .padding(6.dp)
+                                        .width(180.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (isMoodAndGenresLoading) {
+                    item(key = "mood_and_genres_shimmer") {
+                        ShimmerHost(
+                            modifier = Modifier.animateItem()
+                        ) {
+                            TextPlaceholder(
+                                height = 36.dp,
+                                modifier = Modifier
+                                    .padding(vertical = 12.dp, horizontal = 12.dp)
+                                    .width(250.dp),
+                            )
+
+                            repeat(4) {
+                                Row {
+                                    repeat(2) {
+                                        TextPlaceholder(
+                                            height = MoodAndGenresButtonHeight,
+                                            shape = RoundedCornerShape(6.dp),
+                                            modifier = Modifier
+                                                .padding(horizontal = 12.dp)
+                                                .width(200.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+        HideOnScrollFAB(
+            visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
+            lazyListState = lazylistState,
+            icon = R.drawable.search,
+            onClick = {
+                navController.navigate(Screens.Search.route)
+            }
+        )
     }
 }
 }
