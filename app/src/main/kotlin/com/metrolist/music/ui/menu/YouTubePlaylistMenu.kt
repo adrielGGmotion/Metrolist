@@ -67,6 +67,7 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.ThumbnailCornerRadius
+import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.db.entities.PlaylistSongMap
 import com.metrolist.music.extensions.toMediaItem
@@ -107,6 +108,7 @@ fun YouTubePlaylistMenu(
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
     val dbPlaylist by database.playlistByBrowseId(playlist.id).collectAsState(initial = null)
+    val isPinned by database.speedDialDao.isPinned(playlist.id).collectAsState(initial = false)
 
     var showChoosePlaylistDialog by rememberSaveable { mutableStateOf(false) }
     var showImportPlaylistDialog by rememberSaveable { mutableStateOf(false) }
@@ -481,6 +483,29 @@ fun YouTubePlaylistMenu(
                         },
                         onClick = {
                             showChoosePlaylistDialog = true
+                        }
+                    ),
+                    Material3MenuItemData(
+                        title = { 
+                            Text(
+                                text = if (isPinned) "Unpin from Speed dial" else "Pin to Speed dial" 
+                            ) 
+                        },
+                        icon = {
+                            Icon(
+                                painter = painterResource(if (isPinned) R.drawable.remove else R.drawable.add),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                if (isPinned) {
+                                    database.speedDialDao.delete(playlist.id)
+                                } else {
+                                    database.speedDialDao.insert(SpeedDialItem.fromYTItem(playlist))
+                                }
+                            }
+                            onDismiss()
                         }
                     )
                 )

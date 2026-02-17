@@ -21,6 +21,7 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import com.metrolist.music.db.daos.SpeedDialDao
 import com.metrolist.music.db.entities.AlbumArtistMap
 import com.metrolist.music.db.entities.AlbumEntity
 import com.metrolist.music.db.entities.ArtistEntity
@@ -38,6 +39,7 @@ import com.metrolist.music.db.entities.SetVideoIdEntity
 import com.metrolist.music.db.entities.SongAlbumMap
 import com.metrolist.music.db.entities.SongArtistMap
 import com.metrolist.music.db.entities.SongEntity
+import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.db.entities.SortedSongAlbumMap
 import com.metrolist.music.db.entities.SortedSongArtistMap
 import com.metrolist.music.extensions.toSQLiteQuery
@@ -50,6 +52,9 @@ import java.util.Date
 class MusicDatabase(
     private val delegate: InternalDatabase,
 ) : DatabaseDao by delegate.dao {
+    val speedDialDao: SpeedDialDao
+        get() = delegate.speedDialDao
+
     val openHelper: SupportSQLiteOpenHelper
         get() = delegate.openHelper
 
@@ -100,14 +105,15 @@ class MusicDatabase(
         RelatedSongMap::class,
         SetVideoIdEntity::class,
         PlayCountEntity::class,
-        RecognitionHistory::class
+        RecognitionHistory::class,
+        SpeedDialItem::class
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 32,
+    version = 33,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -140,11 +146,13 @@ class MusicDatabase(
         AutoMigration(from = 29, to = 30, spec = Migration29To30::class),
         AutoMigration(from = 30, to = 31),
         AutoMigration(from = 31, to = 32),
+        AutoMigration(from = 32, to = 33, spec = Migration32To33::class),
     ],
 )
 @TypeConverters(Converters::class)
 abstract class InternalDatabase : RoomDatabase() {
     abstract val dao: DatabaseDao
+    abstract val speedDialDao: SpeedDialDao
 
     companion object {
         const val DB_NAME = "song.db"
@@ -705,3 +713,5 @@ class Migration29To30 : AutoMigrationSpec {
         }
     }
 }
+
+class Migration32To33 : AutoMigrationSpec

@@ -10,7 +10,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.AlbumItem
+import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.SongItem
+import kotlinx.coroutines.flow.combine
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.filterExplicit
@@ -31,6 +35,7 @@ import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Album
 import com.metrolist.music.db.entities.LocalItem
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.extensions.filterVideoSongs
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.SimilarRecommendation
@@ -64,6 +69,7 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
+    val isRandomizing = MutableStateFlow(false)
 
     private val quickPicksEnum = context.dataStore.data.map {
         it[QuickPicksKey].toEnum(QuickPicks.QUICK_PICKS)
@@ -82,6 +88,68 @@ class HomeViewModel @Inject constructor(
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
 
+    val speedDialItems: StateFlow<List<YTItem>> =
+        combine(
+            database.speedDialDao.getAll(),
+            keepListening,
+            quickPicks
+        ) { pinned, keepListening, quick ->
+            val pinnedItems = pinned.map { it.toYTItem() }
+            val filled = pinnedItems.toMutableList()
+            val targetSize = 27
+
+            if (filled.size < targetSize) {
+                // Keep Listening (History/Heavy Rotation)
+                keepListening?.let { k ->
+                    val needed = targetSize - filled.size
+                    val available = k.filter { item ->
+                        filled.none { p -> p.id == item.id }
+                    }.mapNotNull { item ->
+                        when (item) {
+                            is Song -> SongItem(
+                                id = item.id,
+                                title = item.title,
+                                artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                                thumbnail = item.thumbnailUrl ?: "",
+                                explicit = false
+                            )
+                            is Album -> AlbumItem(
+                                browseId = item.id,
+                                playlistId = item.album.playlistId ?: "",
+                                title = item.title,
+                                artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                                year = item.album.year,
+                                thumbnail = item.thumbnailUrl ?: ""
+                            )
+                            else -> null
+                        }
+                    }
+                    filled.addAll(available.take(needed))
+                }
+            }
+
+            if (filled.size < targetSize) {
+                // Quick Picks
+                quick?.let { q ->
+                    val needed = targetSize - filled.size
+                    val available = q.filter { song ->
+                        filled.none { p -> p.id == song.id }
+                    }.map { song ->
+                        SongItem(
+                            id = song.id,
+                            title = song.title,
+                            artists = song.artists.map { Artist(name = it.name, id = it.id) },
+                            thumbnail = song.thumbnailUrl ?: "",
+                            explicit = false
+                        )
+                    }
+                    filled.addAll(available.take(needed))
+                }
+            }
+            
+            filled.take(targetSize)
+        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
     val accountName = MutableStateFlow("Guest")
     val accountImageUrl = MutableStateFlow<String?>(null)
 
@@ -96,6 +164,105 @@ class HomeViewModel @Inject constructor(
     val wrappedSeen: StateFlow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[WrappedSeenKey] ?: false
     }.stateIn(viewModelScope, SharingStarted.Lazily, false)
+
+    fun togglePin(item: YTItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val speedDialItem = SpeedDialItem.fromYTItem(item)
+            val isPinned = database.speedDialDao.isPinned(speedDialItem.id).first()
+            if (isPinned) {
+                database.speedDialDao.delete(speedDialItem.id)
+            } else {
+                database.speedDialDao.insert(speedDialItem)
+            }
+        }
+    }
+
+    fun randomize() {
+        if (isRandomizing.value) return
+        isRandomizing.value = true
+        // Delay handled by network call essentially, but let's ensure minimum visual time
+        // Actually, let's just pick immediately.
+        
+        // Pick from all available sources
+        val sources = mutableListOf<YTItem>()
+        sources.addAll(allYtItems.value)
+        
+        // Add items from quick picks if not already there
+        quickPicks.value?.let { songs ->
+            sources.addAll(songs.map { song ->
+                SongItem(
+                    id = song.id,
+                    title = song.title,
+                    artists = song.artists.map { Artist(name = it.name, id = it.id) },
+                    thumbnail = song.thumbnailUrl ?: "",
+                    explicit = false
+                )
+            })
+        }
+        
+        // Add keep listening items
+        keepListening.value?.let { items ->
+             sources.addAll(items.mapNotNull { item ->
+                 when (item) {
+                     is Song -> SongItem(
+                         id = item.id,
+                         title = item.title,
+                         artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                         thumbnail = item.thumbnailUrl ?: "",
+                         explicit = false
+                     )
+                     is Album -> AlbumItem(
+                         browseId = item.id,
+                         playlistId = item.album.playlistId ?: "",
+                         title = item.title,
+                         artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                         year = item.album.year,
+                         thumbnail = item.thumbnailUrl ?: ""
+                     )
+                     else -> null
+                 }
+             })
+        }
+
+        val itemToPlay = sources.shuffled().firstOrNull()
+        
+        // We return the item to be played by the UI or play it directly?
+        // ViewModel can expose an event or just return it if we change this to suspend/callback.
+        // Better: Expose a 'randomPlayEvent' or just handle playback in UI via callback if possible?
+        // But UI calls this. Let's make it suspend or return Job? 
+        // Actually, the HomeScreen can't easily wait for this function if it's void.
+        // Let's launch a coroutine in ViewModel and update a one-shot event or just rely on the fact that
+        // we can't easily play from ViewModel without a player reference (which is in UI).
+        // Wait, `playerConnection` is in UI.
+        
+        // Alternative: Return the item from a suspend function.
+    }
+    
+    // Better approach for Compose:
+    // Expose a function that returns the item, and UI handles playing.
+    suspend fun getRandomItem(): YTItem? {
+        isRandomizing.value = true
+        // Simulate a small delay for the animation
+        kotlinx.coroutines.delay(800)
+        
+        val sources = mutableListOf<YTItem>()
+        sources.addAll(allYtItems.value)
+        quickPicks.value?.let { songs ->
+            sources.addAll(songs.map { song ->
+                SongItem(
+                    id = song.id,
+                    title = song.title,
+                    artists = song.artists.map { Artist(name = it.name, id = it.id) },
+                    thumbnail = song.thumbnailUrl ?: "",
+                    explicit = false
+                )
+            })
+        }
+        
+        val item = sources.distinctBy { it.id }.shuffled().firstOrNull()
+        isRandomizing.value = false
+        return item
+    }
 
     fun markWrappedAsSeen() {
         viewModelScope.launch(Dispatchers.IO) {
