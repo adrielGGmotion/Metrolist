@@ -87,6 +87,7 @@ class HomeViewModel @Inject constructor(
 
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
+    val isRandomizing = MutableStateFlow(false)
 
     val speedDialItems: StateFlow<List<YTItem>> =
         combine(
@@ -149,6 +150,54 @@ class HomeViewModel @Inject constructor(
             
             filled.take(targetSize)
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    suspend fun getRandomItem(): YTItem? {
+        isRandomizing.value = true
+        // Visual feedback for the animation
+        kotlinx.coroutines.delay(1000)
+        
+        val sources = mutableListOf<YTItem>()
+        sources.addAll(allYtItems.value)
+        
+        quickPicks.value?.let { songs ->
+            sources.addAll(songs.map { song ->
+                SongItem(
+                    id = song.id,
+                    title = song.title,
+                    artists = song.artists.map { Artist(name = it.name, id = it.id) },
+                    thumbnail = song.thumbnailUrl ?: "",
+                    explicit = false
+                )
+            })
+        }
+        
+        keepListening.value?.let { items ->
+             sources.addAll(items.mapNotNull { item ->
+                 when (item) {
+                     is Song -> SongItem(
+                         id = item.id,
+                         title = item.title,
+                         artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                         thumbnail = item.thumbnailUrl ?: "",
+                         explicit = false
+                     )
+                     is Album -> AlbumItem(
+                         browseId = item.id,
+                         playlistId = item.album.playlistId ?: "",
+                         title = item.title,
+                         artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                         year = item.album.year,
+                         thumbnail = item.thumbnailUrl ?: ""
+                     )
+                     else -> null
+                 }
+             })
+        }
+        
+        val item = sources.distinctBy { it.id }.shuffled().firstOrNull()
+        isRandomizing.value = false
+        return item
+    }
 
     val accountName = MutableStateFlow("Guest")
     val accountImageUrl = MutableStateFlow<String?>(null)
