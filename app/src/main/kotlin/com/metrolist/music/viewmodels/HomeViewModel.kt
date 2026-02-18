@@ -395,7 +395,6 @@ class HomeViewModel @Inject constructor(
                                 if (playlist.author?.name != "YouTube Music" && 
                                     playlist.author?.name != "YouTube" && 
                                     playlist.author?.name != "Playlist" &&
-                                    // playlist.author?.name != seed.artist.name && // Can't easily check this for songs, but usually fine
                                     !playlist.id.startsWith("RD") &&
                                     !playlist.id.startsWith("OLAK")
                                 ) {

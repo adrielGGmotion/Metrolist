@@ -1,7 +1,6 @@
 package com.metrolist.music.ui.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -15,9 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,21 +23,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
-import com.metrolist.music.LocalDatabase
-import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.ThumbnailCornerRadius
-import com.metrolist.music.playback.queues.LocalAlbumRadio
-import com.metrolist.music.utils.reportException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun SpeedDialGridItem(
@@ -51,10 +37,6 @@ fun SpeedDialGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
 ) {
-    val database = LocalDatabase.current
-    val playerConnection = LocalPlayerConnection.current ?: return
-    val scope = rememberCoroutineScope()
-
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -112,9 +94,8 @@ fun SpeedDialGridItem(
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
-            }
         }
-
+    }
         // Pinned Icon
         if (isPinned) {
             Icon(
@@ -128,32 +109,6 @@ fun SpeedDialGridItem(
             )
         }
 
-        // Play Button Overlay logic (optional, reuse from YouTubeGridItem logic if needed)
-        // if (item is SongItem && !isActive) {
-        //      OverlayPlayButton(visible = true)
-        // }
 
-        // Album Play handling
-        if (item is AlbumItem && !isActive) {
-             AlbumPlayButton(
-                visible = false, // Hidden to match screenshot style
-                onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        var albumWithSongs = database.albumWithSongs(item.id).first()
-                        if (albumWithSongs?.songs.isNullOrEmpty()) {
-                            YouTube.album(item.id).onSuccess { albumPage ->
-                                database.transaction { insert(albumPage) }
-                                albumWithSongs = database.albumWithSongs(item.id).first()
-                            }.onFailure { reportException(it) }
-                        }
-                        albumWithSongs?.let {
-                            withContext(Dispatchers.Main) {
-                                playerConnection.playQueue(LocalAlbumRadio(it))
-                            }
-                        }
-                    }
-                }
-            )
-        }
     }
 }
