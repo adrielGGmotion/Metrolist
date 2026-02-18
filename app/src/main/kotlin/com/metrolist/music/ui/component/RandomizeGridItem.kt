@@ -36,7 +36,7 @@ fun RandomizeGridItem(
         animationSpec = tween(durationMillis = 600),
         label = "dotOffset"
     )
-    
+
     val loadingAlpha by animateFloatAsState(
         targetValue = if (isLoading) 1f else 0f,
         animationSpec = tween(durationMillis = 400),
@@ -56,9 +56,9 @@ fun RandomizeGridItem(
         val dotSize = 14.dp
         val padding = 24.dp
 
-        // Using a single Center alignment and offsetting FROM center ensures they 
+        // Using a single Center alignment and offsetting FROM center ensures they
         // collapse TO center correctly.
-        
+
         // Top Left
         Box(
             modifier = Modifier

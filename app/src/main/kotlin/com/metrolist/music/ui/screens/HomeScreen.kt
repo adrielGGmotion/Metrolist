@@ -291,12 +291,6 @@ fun CommunityPlaylistCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                         maxLines = 1
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.songs_count, item.playlist.songCountText ?: "50+"),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
                 }
             }
 
@@ -351,7 +345,9 @@ fun CommunityPlaylistCard(
             ) {
                 IconButton(
                     onClick = {
-                        playerConnection?.playQueue(YouTubeQueue.radio(item.songs.first().toMediaMetadata()))
+                        item.playlist.playEndpoint?.let {
+                            playerConnection?.playQueue(YouTubeQueue(it))
+                        }
                     },
                     modifier = Modifier
                         .size(48.dp)
@@ -611,6 +607,9 @@ fun HomeScreen(
     val url = if (isLoggedIn) accountImageUrl else null
 
     val scope = rememberCoroutineScope()
+    // Track randomization job
+    var randomizeJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
     val lazylistState = rememberLazyListState()
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
     val currentGridHeight = if (gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
@@ -1073,30 +1072,27 @@ fun HomeScreen(
                                                                     RandomizeGridItem(
                                                                         isLoading = isRandomizing,
                                                                         onClick = {
-                                                                            scope.launch {
-                                                                                val randomItem = viewModel.getRandomItem()
-                                                                                if (randomItem != null) {
-                                                                                    when (randomItem) {
-                                                                                        is SongItem -> playerConnection.playQueue(
-                                                                                            YouTubeQueue(
-                                                                                                randomItem.endpoint ?: WatchEndpoint(videoId = randomItem.id),
-                                                                                                randomItem.toMediaMetadata()
+                                                                            if (isRandomizing) {
+                                                                                randomizeJob?.cancel()
+                                                                            } else {
+                                                                                randomizeJob = scope.launch {
+                                                                                    val randomItem = viewModel.getRandomItem()
+                                                                                    if (randomItem != null) {
+                                                                                        when (randomItem) {
+                                                                                            is SongItem -> playerConnection.playQueue(
+                                                                                                YouTubeQueue(
+                                                                                                    randomItem.endpoint ?: WatchEndpoint(videoId = randomItem.id),
+                                                                                                    randomItem.toMediaMetadata()
+                                                                                                )
                                                                                             )
-                                                                                        )
-                                                                                        is AlbumItem -> navController.navigate("album/${randomItem.id}")
-                                                                                        is ArtistItem -> navController.navigate("artist/${randomItem.id}")
-                                                                                        is PlaylistItem -> {
-                                                                                            if (randomItem.id.startsWith("VL") || randomItem.id.startsWith("PL") || randomItem.id.startsWith("LL") || randomItem.id.startsWith("RDC")) {
-                                                                                                navController.navigate("online_playlist/${randomItem.id.removePrefix("VL")}")
-                                                                                            } else {
-                                                                                                navController.navigate("local_playlist/${randomItem.id}")
-                                                                                            }
+                                                                                            is AlbumItem -> navController.navigate("album/${randomItem.id}")
+                                                                                            is ArtistItem -> navController.navigate("artist/${randomItem.id}")
+                                                                                            is PlaylistItem -> navController.navigate("online_playlist/${randomItem.id}")
                                                                                         }
                                                                                     }
                                                                                 }
                                                                             }
-                                                                        },
-                                                                        modifier = Modifier.fillMaxSize()
+                                                                        }
                                                                     )
                                                                 }
                                                             } else if (itemIndex < pageItems.size) {
@@ -1373,11 +1369,12 @@ fun HomeScreen(
                                              DailyDiscoverCard(
                                                  dailyDiscover = item,
                                                  onClick = {
-                                                     val mediaMetadata = (item.recommendation as? SongItem)?.toMediaMetadata()
+                                                     val song = item.recommendation as? SongItem
+                                                     val mediaMetadata = song?.toMediaMetadata()
                                                      if (mediaMetadata != null) {
                                                          playerConnection.playQueue(
                                                              YouTubeQueue(
-                                                                 (item.recommendation as? SongItem)?.endpoint ?: WatchEndpoint(videoId = item.recommendation.id),
+                                                                 song.endpoint ?: WatchEndpoint(videoId = song.id),
                                                                  mediaMetadata
                                                              )
                                                          )

@@ -166,59 +166,62 @@ class HomeViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     suspend fun getRandomItem(): YTItem? {
-        isRandomizing.value = true
-        // Visual feedback for the animation
-        kotlinx.coroutines.delay(1000)
-        
-        val userSongs = mutableListOf<YTItem>()
-        val otherSources = mutableListOf<YTItem>()
-        
-        quickPicks.value?.let { songs ->
-            userSongs.addAll(songs.map { song ->
-                SongItem(
-                    id = song.id,
-                    title = song.title,
-                    artists = song.artists.map { Artist(name = it.name, id = it.id) },
-                    thumbnail = song.thumbnailUrl ?: "",
-                    explicit = false
-                )
-            })
-        }
-        
-        keepListening.value?.let { items ->
-             items.forEach { item ->
-                 when (item) {
-                     is Song -> userSongs.add(SongItem(
-                         id = item.id,
-                         title = item.title,
-                         artists = item.artists.map { Artist(name = it.name, id = it.id) },
-                         thumbnail = item.thumbnailUrl ?: "",
-                         explicit = false
-                     ))
-                     is Album -> otherSources.add(AlbumItem(
-                         browseId = item.id,
-                         playlistId = item.album.playlistId ?: "",
-                         title = item.title,
-                         artists = item.artists.map { Artist(name = it.name, id = it.id) },
-                         year = item.album.year,
-                         thumbnail = item.thumbnailUrl ?: ""
-                     ))
-                     else -> {}
-                 }
-             }
-        }
+        try {
+            isRandomizing.value = true
+            // Visual feedback for the animation
+            kotlinx.coroutines.delay(1000)
 
-        otherSources.addAll(allYtItems.value)
-        
-        // Probability: 80% User Songs, 20% Other Sources
-        val item = if (userSongs.isNotEmpty() && (otherSources.isEmpty() || Random.nextFloat() < 0.8f)) {
-            userSongs.distinctBy { it.id }.shuffled().firstOrNull()
-        } else {
-            otherSources.distinctBy { it.id }.shuffled().firstOrNull()
-        } ?: userSongs.firstOrNull() ?: otherSources.firstOrNull()
+            val userSongs = mutableListOf<YTItem>()
+            val otherSources = mutableListOf<YTItem>()
 
-        isRandomizing.value = false
-        return item
+            quickPicks.value?.let { songs ->
+                userSongs.addAll(songs.map { song ->
+                    SongItem(
+                        id = song.id,
+                        title = song.title,
+                        artists = song.artists.map { Artist(name = it.name, id = it.id) },
+                        thumbnail = song.thumbnailUrl ?: "",
+                        explicit = false
+                    )
+                })
+            }
+
+            keepListening.value?.let { items ->
+                items.forEach { item ->
+                    when (item) {
+                        is Song -> userSongs.add(SongItem(
+                            id = item.id,
+                            title = item.title,
+                            artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                            thumbnail = item.thumbnailUrl ?: "",
+                            explicit = false
+                        ))
+                        is Album -> otherSources.add(AlbumItem(
+                            browseId = item.id,
+                            playlistId = item.album.playlistId ?: "",
+                            title = item.title,
+                            artists = item.artists.map { Artist(name = it.name, id = it.id) },
+                            year = item.album.year,
+                            thumbnail = item.thumbnailUrl ?: ""
+                        ))
+                        else -> {}
+                    }
+                }
+            }
+
+            otherSources.addAll(allYtItems.value)
+
+            // Probability: 80% User Songs, 20% Other Sources
+            val item = if (userSongs.isNotEmpty() && (otherSources.isEmpty() || Random.nextFloat() < 0.8f)) {
+                userSongs.distinctBy { it.id }.shuffled().firstOrNull()
+            } else {
+                otherSources.distinctBy { it.id }.shuffled().firstOrNull()
+            } ?: userSongs.firstOrNull() ?: otherSources.firstOrNull()
+
+            return item
+        } finally {
+            isRandomizing.value = false
+        }
     }
 
     val accountName = MutableStateFlow("Guest")
@@ -415,7 +418,10 @@ class HomeViewModel @Inject constructor(
                     YouTube.playlist(playlist.id).onSuccess { page ->
                         val songs = page.songs.take(10)
                         if (songs.isNotEmpty()) {
-                            playlists.add(CommunityPlaylistItem(playlist, songs))
+                            // Use song count from the playlist page if available, otherwise use original
+                            val songCountText = page.playlist.songCountText ?: playlist.songCountText
+                            val updatedPlaylist = playlist.copy(songCountText = songCountText)
+                            playlists.add(CommunityPlaylistItem(updatedPlaylist, songs))
                         }
                     }
                 }

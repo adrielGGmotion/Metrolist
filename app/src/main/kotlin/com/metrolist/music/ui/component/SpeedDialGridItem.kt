@@ -129,13 +129,10 @@ fun SpeedDialGridItem(
         }
 
         // Play Button Overlay logic (optional, reuse from YouTubeGridItem logic if needed)
-        if (item is SongItem && !isActive) {
-             // OverlayPlayButton(visible = true) // This might clutter the specific look. 
-             // The screenshot doesn't show a big play button in the center always, 
-             // but 'YouTubeGridItem' does. 
-             // I'll leave it out for a cleaner look matching the "card" aesthetic of the screenshot.
-        }
-        
+        // if (item is SongItem && !isActive) {
+        //      OverlayPlayButton(visible = true)
+        // }
+
         // Album Play handling
         if (item is AlbumItem && !isActive) {
              AlbumPlayButton(

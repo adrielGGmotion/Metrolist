@@ -116,7 +116,9 @@ data class RelatedPage(
                             name = renderer.subtitle?.runs?.lastOrNull()?.text ?: return null,
                             id = null
                         ),
-                        songCountText = renderer.subtitle.runs.getOrNull(4)?.text,
+                        songCountText = renderer.subtitle?.runs?.findLast {
+                            it.text.any { c -> c.isDigit() } && !it.text.contains("view", ignoreCase = true)
+                        }?.text,
                         thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         playEndpoint =
                             renderer.thumbnailOverlay
