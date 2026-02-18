@@ -61,6 +61,8 @@ import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.random.Random
 
+import com.metrolist.music.R
+
 data class DailyDiscoverItem(
     val seed: Song,
     val recommendation: YTItem,
@@ -224,7 +226,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    val accountName = MutableStateFlow("Guest")
+    val accountName = MutableStateFlow(context.getString(R.string.guest_account))
     val accountImageUrl = MutableStateFlow<String?>(null)
 
 	val showWrappedCard: StateFlow<Boolean> = context.dataStore.data.map { prefs ->
@@ -691,7 +693,7 @@ class HomeViewModel @Inject constructor(
                                 reportException(it)
                             }
                         } else {
-                            accountName.value = "Guest"
+                            accountName.value = context.getString(R.string.guest_account)
                             accountImageUrl.value = null
                             accountPlaylists.value = null
                         }

@@ -518,7 +518,7 @@ fun DailyDiscoverCard(
                             text = buildString {
                                 append((dailyDiscover.recommendation as? SongItem)?.artists?.joinToString(", ") { it.name } ?: "")
                                 if (playCount > 0) {
-                                    append(" • $playCount plays")
+                                    append(stringResource(R.string.play_count_suffix, playCount))
                                 }
                             },
                             style = MaterialTheme.typography.bodyMedium,
@@ -628,11 +628,14 @@ fun HomeScreen(
         }
     }
 
+    val context = LocalContext.current
+    val snackbarMessage = stringResource(R.string.settings_content_location)
+
     LaunchedEffect(wrappedDismissed) {
         if (wrappedDismissed) {
             viewModel.markWrappedAsSeen()
             scope.launch {
-                snackbarHostState.showSnackbar("Found in Settings > Content")
+                snackbarHostState.showSnackbar(snackbarMessage)
             }
             backStackEntry?.savedStateHandle?.set("wrapped_seen", false) // Reset the value
         }

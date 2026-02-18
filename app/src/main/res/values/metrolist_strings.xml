@@ -723,6 +723,9 @@
     <string name="unpin_from_speed_dial">Unpin from Speed dial</string>
     <string name="randomize_home_order">Randomize Home Screen Order</string>
     <string name="randomize_home_order_desc">Randomly reorder home screen sections with weighted priorities</string>
+    <string name="guest_account">Guest</string>
+    <string name="settings_content_location">Found in Settings &gt; Content</string>
+    <string name="play_count_suffix"> • %1$s plays</string>
 
     <!-- Daily Discover -->
     <string name="daily_discover_sounds_like">Sounds like %1$s</string>

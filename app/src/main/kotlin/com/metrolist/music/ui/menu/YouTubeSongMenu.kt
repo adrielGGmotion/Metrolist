@@ -413,7 +413,7 @@ fun YouTubeSongMenu(
                         Material3MenuItemData(
                             title = { 
                                 Text(
-                                    text = if (isPinned) "Unpin from Speed dial" else "Pin to Speed dial" 
+                                text = if (isPinned) stringResource(R.string.unpin_from_speed_dial) else stringResource(R.string.pin_to_speed_dial)
                                 ) 
                             },
                             icon = {
