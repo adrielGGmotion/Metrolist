@@ -1977,7 +1977,7 @@ class MusicService :
         }
 
         // Update Discord RPC when media item changes or playback starts
-        if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_IS_PLAYING_CHANGED) && player.isPlaying) {
+        if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_IS_PLAYING_CHANGED, Player.EVENT_PLAYBACK_PARAMETERS_CHANGED) && player.isPlaying) {
             val mediaId = player.currentMetadata?.id
             if (mediaId != null) {
                 scope.launch {
