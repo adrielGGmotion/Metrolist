@@ -10,6 +10,7 @@ import com.metrolist.music.R
 import com.metrolist.music.db.entities.Song
 import com.my.kizzy.rpc.KizzyRPC
 import com.my.kizzy.rpc.RpcImage
+import timber.log.Timber
 
 class DiscordRPC(
     val context: Context,
@@ -22,6 +23,10 @@ class DiscordRPC(
     userAgent = SuperProperties.userAgent,
     superPropertiesBase64 = SuperProperties.superPropertiesBase64
 ) {
+    init {
+        Timber.d("DiscordRPC initialized (token=%s)", maskToken(token))
+    }
+
     suspend fun updateSong(
         song: Song,
         currentPlaybackTimeMillis: Long,
@@ -35,6 +40,8 @@ class DiscordRPC(
         activityType: String = "listening",
         activityName: String = "",
     ) = runCatching {
+        Timber.d("updateSong: title=\"%s\", artist=\"%s\", activityType=%s",
+            song.song.title, song.artists.joinToString { it.name }, activityType)
         val currentTime = System.currentTimeMillis()
 
         val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
@@ -94,14 +101,25 @@ class DiscordRPC(
             applicationId = APPLICATION_ID,
             status = status
         )
+        Timber.d("updateSong: activity set successfully for \"%s\"", song.song.title)
     }
 
     override suspend fun close() {
+        Timber.d("DiscordRPC closing connection")
         super.close()
     }
 
     companion object {
         private const val APPLICATION_ID = "1411019391843172514"
+
+        /**
+         * Masks a Discord token for safe logging. Shows only the first 4 and
+         * last 2 characters — enough to identify the token without leaking it.
+         */
+        fun maskToken(token: String): String {
+            if (token.length <= 8) return "****"
+            return "${token.take(4)}...${token.takeLast(2)}"
+        }
 
         /**
          * Resolves template variables in text.

@@ -5,6 +5,7 @@
 
 package com.metrolist.music.ui.screens.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,22 +31,38 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.edit
 import androidx.navigation.NavController
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import com.metrolist.music.constants.DeveloperModeKey
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.utils.backToMain
+import com.metrolist.music.utils.dataStore
+import com.metrolist.music.utils.rememberPreference
+import kotlinx.coroutines.launch
+
+private const val DEV_MODE_REQUIRED_TAPS = 9
+private const val DEV_MODE_TAP_TIMEOUT_MS = 2000L
+private const val DEV_MODE_COUNTDOWN_START = 3
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +71,11 @@ fun AboutScreen(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var tapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
+    val isDeveloperModeEnabled by rememberPreference(DeveloperModeKey, defaultValue = false)
 
     Column(
         modifier = Modifier
@@ -86,7 +108,32 @@ fun AboutScreen(
             modifier = Modifier
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
-                .clickable { },
+                .clickable {
+                    if (isDeveloperModeEnabled) {
+                        Toast.makeText(context, context.getString(R.string.dev_mode_already_enabled), Toast.LENGTH_SHORT).show()
+                        return@clickable
+                    }
+                    val now = System.currentTimeMillis()
+                    if (now - lastTapTime > DEV_MODE_TAP_TIMEOUT_MS) {
+                        tapCount = 0
+                    }
+                    lastTapTime = now
+                    tapCount++
+
+                    val remaining = DEV_MODE_REQUIRED_TAPS - tapCount
+                    when {
+                        remaining in 1..DEV_MODE_COUNTDOWN_START -> {
+                            Toast.makeText(context, context.getString(R.string.dev_mode_taps_remaining, remaining), Toast.LENGTH_SHORT).show()
+                        }
+                        remaining <= 0 -> {
+                            coroutineScope.launch {
+                                context.dataStore.edit { it[DeveloperModeKey] = true }
+                            }
+                            Toast.makeText(context, context.getString(R.string.dev_mode_enabled), Toast.LENGTH_LONG).show()
+                            tapCount = 0
+                        }
+                    }
+                },
         )
 
         Row(

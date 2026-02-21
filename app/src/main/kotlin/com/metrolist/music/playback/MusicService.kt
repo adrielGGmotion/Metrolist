@@ -385,13 +385,15 @@ class MusicService :
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
                     if (!player.isPlaying) {
+                        Timber.tag(TAG).d("Discord RPC: screen off while paused, closing connection")
                         scope.launch(Dispatchers.IO) {
-                            discordRpc?.closeRPC()
+                            discordRpc?.close()
                         }
                     }
                 }
                 Intent.ACTION_SCREEN_ON -> {
                     if (player.isPlaying) {
+                        Timber.tag(TAG).d("Discord RPC: screen on while playing, updating presence")
                         scope.launch {
                             currentSong.value?.let { song ->
                                 updateDiscordRPC(song)
@@ -556,6 +558,7 @@ class MusicService :
                 }
                 // Update Discord RPC when network becomes available
                 if (isConnected && discordRpc != null && player.isPlaying) {
+                    Timber.tag(TAG).d("Discord RPC: network reconnected, refreshing presence")
                     val mediaId = player.currentMetadata?.id
                     if (mediaId != null) {
                         database.song(mediaId).first()?.let { song ->
@@ -711,16 +714,20 @@ class MusicService :
             .distinctUntilChanged()
             .collect(scope) { (key, enabled) ->
                 if (discordRpc?.isRpcRunning() == true) {
-                    discordRpc?.closeRPC()
+                    Timber.tag(TAG).d("Discord RPC: tearing down previous instance")
+                    discordRpc?.close()
                 }
                 discordRpc = null
                 if (key != null && enabled) {
+                    Timber.tag(TAG).d("Discord RPC: creating instance (token=%s)", DiscordRPC.maskToken(key))
                     discordRpc = DiscordRPC(this, key)
                     if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
                         currentSong.value?.let {
                             updateDiscordRPC(it, true)
                         }
                     }
+                } else {
+                    Timber.tag(TAG).d("Discord RPC: disabled (token=%s, enabled=%s)", key != null, enabled)
                 }
             }
 
@@ -1970,6 +1977,7 @@ class MusicService :
                 stopWidgetUpdates()
             }
             if (!player.isPlaying && !events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                Timber.tag(TAG).d("Discord RPC: playback stopped, closing presence")
                 scope.launch {
                     discordRpc?.close()
                 }
@@ -1980,6 +1988,7 @@ class MusicService :
         if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_IS_PLAYING_CHANGED) && player.isPlaying) {
             val mediaId = player.currentMetadata?.id
             if (mediaId != null) {
+                Timber.tag(TAG).d("Discord RPC: media transition/play event, updating for mediaId=%s", mediaId)
                 scope.launch {
                     // Fetch song from database to get full info
                     database.song(mediaId).first()?.let { song ->
@@ -2612,6 +2621,7 @@ class MusicService :
     }
 
     private fun updateDiscordRPC(song: Song, showFeedback: Boolean = false) {
+        Timber.tag(TAG).d("updateDiscordRPC: song=\"%s\", showFeedback=%s", song.song.title, showFeedback)
         val useDetails = dataStore.get(DiscordUseDetailsKey, false)
         val advancedMode = dataStore.get(DiscordAdvancedModeKey, false)
 
@@ -2638,6 +2648,7 @@ class MusicService :
                 activityType,
                 activityName
             )?.onFailure {
+                Timber.tag(TAG).w(it, "Discord RPC update failed for \"%s\"", song.song.title)
                 // Rate limited or error
                 if (showFeedback) {
                     Handler(Looper.getMainLooper()).post {
@@ -2918,7 +2929,11 @@ class MusicService :
             saveQueueToDisk()
         }
         if (discordRpc?.isRpcRunning() == true) {
-            discordRpc?.closeRPC()
+            Timber.tag(TAG).d("Discord RPC: service destroying, closing RPC")
+            @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+            kotlinx.coroutines.GlobalScope.launch {
+                discordRpc?.close()
+            }
         }
         discordRpc = null
         connectivityObserver.unregister()

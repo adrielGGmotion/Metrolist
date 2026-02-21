@@ -68,6 +68,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import com.metrolist.music.devtools.DevToolsLogBuffer
+import com.metrolist.music.devtools.ui.DevToolsOverlay
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
@@ -127,6 +129,7 @@ import com.metrolist.music.constants.AppLanguageKey
 import com.metrolist.music.constants.CheckForUpdatesKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
+import com.metrolist.music.constants.DeveloperModeKey
 import com.metrolist.music.constants.DisableScreenshotKey
 import com.metrolist.music.constants.DynamicThemeKey
 import com.metrolist.music.constants.EnableHighRefreshRateKey
@@ -219,6 +222,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var listenTogetherManager: com.metrolist.music.listentogether.ListenTogetherManager
+
+    @Inject
+    lateinit var devToolsLogBuffer: DevToolsLogBuffer
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
@@ -350,7 +356,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
     @Composable
     private fun MetrolistApp(
         latestVersionName: String,
@@ -448,6 +454,7 @@ class MainActivity : ComponentActivity() {
         val pureBlack = remember(pureBlackEnabled, useDarkTheme) {
             pureBlackEnabled && useDarkTheme
         }
+        val devMode by rememberPreference(DeveloperModeKey, defaultValue = false)
 
         val (selectedThemeColorInt) = rememberPreference(SelectedThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
         val selectedThemeColor = Color(selectedThemeColorInt)
@@ -1109,6 +1116,13 @@ class MainActivity : ComponentActivity() {
                                 homeViewModel.refresh()
                             },
                             latestVersionName = latestVersionName
+                        )
+                    }
+
+                    if (devMode) {
+                        DevToolsOverlay(
+                            logBuffer = devToolsLogBuffer,
+                            isPlayerExpanded = playerBottomSheetState.isExpanded
                         )
                     }
 

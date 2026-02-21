@@ -27,6 +27,7 @@ import com.metrolist.kugou.KuGou
 import com.metrolist.lastfm.LastFM
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.constants.*
+import com.metrolist.music.devtools.DevToolsTimberTree
 import com.metrolist.music.di.ApplicationScope
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toInetSocketAddress
@@ -58,6 +59,9 @@ class App : Application(), SingletonImageLoader.Factory {
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
 
+    @Inject
+    lateinit var devToolsTimberTree: DevToolsTimberTree
+
     override fun onCreate() {
         super.onCreate()
 
@@ -67,7 +71,10 @@ class App : Application(), SingletonImageLoader.Factory {
         // Initialize cipher deobfuscator for WEB_REMIX streaming
         CipherDeobfuscator.initialize(this)
 
-        Timber.plant(Timber.DebugTree())
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
+        Timber.plant(devToolsTimberTree)
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {

@@ -7,10 +7,11 @@ package com.metrolist.music.utils
 
 import android.content.Context
 import android.content.res.Configuration
+import timber.log.Timber
 import java.util.Locale
 
 fun reportException(throwable: Throwable) {
-    throwable.printStackTrace()
+    Timber.e(throwable, "Caught exception in reportException")
 }
 
 @Suppress("DEPRECATION")

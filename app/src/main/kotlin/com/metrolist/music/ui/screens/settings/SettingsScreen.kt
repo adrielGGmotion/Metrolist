@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -32,12 +33,14 @@ import androidx.navigation.NavController
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import com.metrolist.music.constants.DeveloperModeKey
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.ReleaseNotesCard
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.Updater
+import com.metrolist.music.utils.rememberPreference
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +52,7 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val isAndroid12OrLater = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val devMode by rememberPreference(DeveloperModeKey, defaultValue = false)
 
     Column(
         Modifier
@@ -197,6 +201,15 @@ fun SettingsScreen(
                         onClick = { navController.navigate("settings/about") }
                     )
                 )
+                if (devMode) {
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.bug_report),
+                            title = { Text(stringResource(R.string.dev_tools)) },
+                            onClick = { navController.navigate("settings/devtools") }
+                        )
+                    )
+                }
                 if (latestVersionName != BuildConfig.VERSION_NAME) {
                     val releaseInfo = Updater.getCachedLatestRelease()
                     val downloadUrl = releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) }
