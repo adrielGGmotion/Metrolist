@@ -110,7 +110,7 @@ val StopMusicOnTaskClearKey = booleanPreferencesKey("stopMusicOnTaskClear")
 val ShufflePlaylistFirstKey = booleanPreferencesKey("shufflePlaylistFirst")
 val PreventDuplicateTracksInQueueKey = booleanPreferencesKey("preventDuplicateTracksInQueue")
 val CrossfadeEnabledKey = booleanPreferencesKey("crossfadeEnabled")
-val CrossfadeDurationKey = floatPreferencesKey("crossfadeDuration")
+val CrossfadeDurationKey = floatPreferencesKey("crossfadeDurationFloat")
 val CrossfadeGaplessKey = booleanPreferencesKey("crossfadeGapless")
 
 val MaxImageCacheSizeKey = intPreferencesKey("maxImageCacheSize")
