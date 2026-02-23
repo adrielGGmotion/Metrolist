@@ -44,7 +44,7 @@ fun IntegrationScreen(
             title = stringResource(R.string.general),
             items = listOf(
                 IntegrationCardItem(
-                    icon = painterResource(R.drawable.discord),
+                    icon = painterResource(R.drawable.discord_outline),
                     title = { Text(stringResource(R.string.discord_integration)) },
                     onClick = {
                         navController.navigate("settings/integrations/discord")

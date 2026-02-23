@@ -739,4 +739,24 @@
     <string name="daily_discover_for_fans_of">For fans of %1$s</string>
     <string name="from_the_community">From the community</string>
     <string name="songs_count">%s songs</string>
+
+    <!-- Credits / About Screen -->
+    <string name="credits_lead_developer">Lead Developer</string>
+    <string name="credits_collaborator">Collaborator</string>
+    <string name="credits_collaborators_section">Collaborators</string>
+    <string name="credits_license_name">GNU General Public License v3.0</string>
+    <string name="credits_license_desc">Free, open-source software. You may use, study, share and improve it.</string>
+    <string name="credits_discord">Discord Server</string>
+    <string name="credits_telegram">Telegram Channel</string>
+    <string name="credits_website">Website</string>
+    <string name="credits_github">GitHub</string>
+    <string name="credits_view_repo">View Repository</string>
+    <string name="app_version_info">%1$s • %2$s</string>
+    <string name="like_what_i_do">Like what I do?</string>
+    <string name="buy_mo_a_coffee">Buy me a coffee</string>
+    <string name="community_and_info">Community &amp; Info</string>
+    <string name="metrolist">METROLIST</string>
+    <string name="wanna_play_favorite_song">Wanna play their favorite song?</string>
+    <string name="yeah">Yeah</string>
+    <string name="stands_with_palestine">This project stands with Palestine 🇵🇸</string>
 </resources>

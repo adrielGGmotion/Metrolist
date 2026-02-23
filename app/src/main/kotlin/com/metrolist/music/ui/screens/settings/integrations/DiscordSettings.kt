@@ -434,7 +434,7 @@ fun DiscordSettings(
                         )
                     } else {
                         Icon(
-                            painter = painterResource(R.drawable.discord),
+                            painter = painterResource(R.drawable.discord_outline),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(36.dp)
