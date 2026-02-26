@@ -40,10 +40,9 @@ object MusicRecognitionService {
     private const val RECORDING_SAMPLE_RATE = 44100
     private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
     private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-    // Recording duration: 10 seconds for better recognition accuracy
-    // Original MusicRecognizer uses: 3s -> 6s -> 9s -> 10s fallback
-    // We use 10s directly to match the fallback duration for maximum compatibility
-    private const val RECORDING_DURATION_MS = 10000L
+    // Recording duration: 12 seconds for better recognition accuracy
+    // We use 12s directly to match the fallback duration for maximum compatibility
+    private const val RECORDING_DURATION_MS = 12000L
     
     private val _recognitionStatus = MutableStateFlow<RecognitionStatus>(RecognitionStatus.Ready)
     val recognitionStatus: StateFlow<RecognitionStatus> = _recognitionStatus.asStateFlow()
