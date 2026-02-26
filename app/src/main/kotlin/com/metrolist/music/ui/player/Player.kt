@@ -5,6 +5,11 @@
 
 package com.metrolist.music.ui.player
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+
+
+import androidx.compose.material3.ButtonGroup
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -19,6 +24,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -58,7 +64,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -1297,9 +1303,10 @@ fun BottomSheetPlayer(
             ) {
                 Column {
                     if (useNewPlayerDesign) {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
+                        @Suppress("DEPRECATION")
+                        @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                        ButtonGroup(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = PlayerHorizontalPadding)
@@ -1313,28 +1320,28 @@ fun BottomSheetPlayer(
                             val isNextPressed by nextInteractionSource.collectIsPressedAsState()
 
                             val playPauseWeight by animateFloatAsState(
-                                targetValue = if (isPlayPausePressed) 1.9f else if (isBackPressed || isNextPressed) 1.1f else 1.3f,
+                                targetValue = if (isPlayPausePressed) 2.0f else 1.3f,
                                 animationSpec = spring(
-                                    dampingRatio = 0.6f,
-                                    stiffness = 500f
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
                                 ),
                                 label = "playPauseWeight"
                             )
 
                             val backButtonWeight by animateFloatAsState(
-                                targetValue = if (isBackPressed) 0.65f else if (isPlayPausePressed) 0.35f else 0.45f,
+                                targetValue = if (isBackPressed) 0.8f else 0.45f,
                                 animationSpec = spring(
-                                    dampingRatio = 0.6f,
-                                    stiffness = 500f
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
                                 ),
                                 label = "backButtonWeight"
                             )
 
                             val nextButtonWeight by animateFloatAsState(
-                                targetValue = if (isNextPressed) 0.65f else if (isPlayPausePressed) 0.35f else 0.45f,
+                                targetValue = if (isNextPressed) 0.8f else 0.45f,
                                 animationSpec = spring(
-                                    dampingRatio = 0.6f,
-                                    stiffness = 500f
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
                                 ),
                                 label = "nextButtonWeight"
                             )
@@ -1358,8 +1365,6 @@ fun BottomSheetPlayer(
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
 
                             FilledIconButton(
                                 onClick = {
@@ -1421,8 +1426,6 @@ fun BottomSheetPlayer(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
                             FilledIconButton(
                                 onClick = playerConnection::seekToNext,
                                 enabled = canSkipNext && !isListenTogetherGuest,
@@ -1434,8 +1437,7 @@ fun BottomSheetPlayer(
                                 ),
                                 modifier = Modifier
                                     .height(68.dp)
-                                    .weight(nextButtonWeight
-                                    )
+                                    .weight(nextButtonWeight)
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_next),
