@@ -98,7 +98,13 @@ import com.metrolist.music.constants.SwipeThumbnailKey
 import com.metrolist.music.constants.SwipeToRemoveSongKey
 import com.metrolist.music.constants.SwipeToSongKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
-import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.constants.PlayerDesignStyleKey
+import com.metrolist.music.constants.PlayerDesignStyle
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
@@ -164,9 +170,9 @@ fun AppearanceSettings(
     }
 
 
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
-        UseNewPlayerDesignKey,
-        defaultValue = true
+    val (playerDesignStyle, onPlayerDesignStyleChange) = rememberEnumPreference(
+        PlayerDesignStyleKey,
+        defaultValue = PlayerDesignStyle.MATERIAL_YOU
     )
     val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
         UseNewMiniPlayerDesignKey,
@@ -310,6 +316,10 @@ fun AppearanceSettings(
 
 
     var showPlayerBackgroundDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var showPlayerDesignStyleDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -695,6 +705,26 @@ fun AppearanceSettings(
         }
     }
 
+    if (showPlayerDesignStyleDialog) {
+        EnumDialog(
+            onDismiss = { showPlayerDesignStyleDialog = false },
+            onSelect = {
+                onPlayerDesignStyleChange(it)
+                showPlayerDesignStyleDialog = false
+            },
+            title = stringResource(R.string.new_player_design),
+            current = playerDesignStyle,
+            values = PlayerDesignStyle.entries.toList(),
+            valueText = {
+                when (it) {
+                    PlayerDesignStyle.LEGACY -> "Legacy"
+                    PlayerDesignStyle.MATERIAL_YOU -> "Material You"
+                    PlayerDesignStyle.EXPRESSIVE -> "Expressive"
+                }
+            }
+        )
+    }
+
     if (showSliderOptionDialog) {
         DefaultDialog(
             buttons = {
@@ -1037,22 +1067,16 @@ fun AppearanceSettings(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),
                     title = { Text(stringResource(R.string.new_player_design)) },
-                    trailingContent = {
-                        Switch(
-                            checked = useNewPlayerDesign,
-                            onCheckedChange = onUseNewPlayerDesignChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (useNewPlayerDesign) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
+                    description = {
+                        Text(
+                            when (playerDesignStyle) {
+                                PlayerDesignStyle.LEGACY -> "Legacy"
+                                PlayerDesignStyle.MATERIAL_YOU -> "Material You"
+                                PlayerDesignStyle.EXPRESSIVE -> "Expressive"
                             }
                         )
                     },
-                    onClick = { onUseNewPlayerDesignChange(!useNewPlayerDesign) }
+                    onClick = { showPlayerDesignStyleDialog = true }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.gradient),
@@ -1644,3 +1668,4 @@ enum class PlayerTextAlignment {
     SIDED,
     CENTER,
 }
+
