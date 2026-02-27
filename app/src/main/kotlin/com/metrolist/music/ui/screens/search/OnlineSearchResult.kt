@@ -88,6 +88,7 @@ import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.ChipsRow
+import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.EmptyPlaceholder
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.NavigationTitle
@@ -493,6 +494,11 @@ fun OnlineSearchResult(
                     pureBlack = pureBlack
                 )
             }
+            HideOnScrollFAB(
+                lazyListState = lazyListState,
+                icon = R.drawable.mic,
+                onClick = { navController.navigate("recognition") }
+            )
         }
     }
 }
