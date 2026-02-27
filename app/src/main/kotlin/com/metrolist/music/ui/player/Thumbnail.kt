@@ -648,6 +648,14 @@ private fun ExpressiveTransitionThumbnail(
         // Swap to new artwork immediately so both layers have their URIs
         displayedUri = currentArtworkUri
 
+        // If an animation was already running (rapid skip), we snap to the end
+        // to avoid a jarring visual pop where the half-scaled image suddenly jumps to 1x
+        if (transitionProgress.isRunning) {
+            transitionProgress.snapTo(1f)
+            previousUri = null
+            colorWashAlpha.snapTo(0f)
+        }
+
         // Drive the color wash: quick pulse that peaks mid-transition
         launch {
             colorWashAlpha.snapTo(0f)
@@ -701,7 +709,7 @@ private fun ExpressiveTransitionThumbnail(
                         }
                     )
                 }
-                .pointerInput(Unit) {
+                .pointerInput(isListenTogetherGuest, layoutDirection) {
                     var lastTapTime = 0L
                     var skipMultiplier = 1
                     detectTapGestures(
@@ -996,8 +1004,6 @@ private fun ThumbnailItem(
     modifier: Modifier = Modifier,
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
-    var skipMultiplier by remember { mutableIntStateOf(1) }
-    var lastTapTime by remember { mutableLongStateOf(0L) }
 
     Box(
         modifier = modifier
@@ -1022,7 +1028,9 @@ private fun ThumbnailItem(
                     compositingStrategy = CompositingStrategy.Offscreen
                 }
             )
-            .pointerInput(Unit) {
+            .pointerInput(isListenTogetherGuest, layoutDirection) {
+                var lastTapTime = 0L
+                var skipMultiplier = 1
                 detectTapGestures(
                     onDoubleTap = { offset ->
                         if (isListenTogetherGuest) return@detectTapGestures
