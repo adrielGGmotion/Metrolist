@@ -46,6 +46,13 @@ object MusicRecognitionService {
     
     private val _recognitionStatus = MutableStateFlow<RecognitionStatus>(RecognitionStatus.Ready)
     val recognitionStatus: StateFlow<RecognitionStatus> = _recognitionStatus.asStateFlow()
+
+    /**
+     * Set to true by the widget service after it has already persisted the result to the
+     * database, so that [RecognitionScreen] skips the duplicate insert.
+     * Reset to false by [reset].
+     */
+    var resultSavedExternally: Boolean = false
     
     fun hasRecordPermission(context: Context): Boolean {
         return ContextCompat.checkSelfPermission(
@@ -171,5 +178,6 @@ object MusicRecognitionService {
     
     fun reset() {
         _recognitionStatus.value = RecognitionStatus.Ready
+        resultSavedExternally = false
     }
 }

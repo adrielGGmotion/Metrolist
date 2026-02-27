@@ -211,6 +211,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val ACTION_SEARCH = "com.metrolist.music.action.SEARCH"
         private const val ACTION_LIBRARY = "com.metrolist.music.action.LIBRARY"
+        const val ACTION_RECOGNITION = "com.metrolist.music.action.RECOGNITION"
     }
 
     @Inject
@@ -748,15 +749,18 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     if (pendingIntent != null) {
+                        handleRecognitionIntent(pendingIntent!!, navController)
                         handleDeepLinkIntent(pendingIntent!!, navController)
                         pendingIntent = null
                     } else {
+                        handleRecognitionIntent(intent, navController)
                         handleDeepLinkIntent(intent, navController)
                     }
                 }
 
                 DisposableEffect(Unit) {
                     val listener = Consumer<Intent> { intent ->
+                        handleRecognitionIntent(intent, navController)
                         handleDeepLinkIntent(intent, navController)
                     }
 
@@ -1162,6 +1166,18 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Handles the ACTION_RECOGNITION intent sent from the Music Recognizer Widget.
+     * Always navigates to the recognition screen to show the result.
+     */
+    private fun handleRecognitionIntent(intent: Intent, navController: NavHostController) {
+        if (intent.action != ACTION_RECOGNITION) return
+        intent.action = null // consume so it isn't handled twice
+        navController.navigate("recognition") {
+            launchSingleTop = true
         }
     }
 

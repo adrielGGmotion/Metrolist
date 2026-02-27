@@ -508,6 +508,22 @@
     <string name="widget_music_player">Music Player</string>
     <string name="widget_turntable">Turntable</string>
 
+    <!-- Music Recognizer Widget strings -->
+    <string name="widget_recognizer_name">Music Recognizer</string>
+    <string name="widget_recognizer_description">Identify songs playing around you directly from your home screen</string>
+    <string name="widget_recognizer_tap_to_search">Tap to identify song</string>
+    <string name="widget_recognizer_listening">Listening…</string>
+    <string name="widget_recognizer_processing">Identifying…</string>
+    <string name="widget_recognizer_no_match">No match found. Try again</string>
+    <string name="widget_recognizer_error">Recognition failed</string>
+    <string name="widget_recognizer_error_generic">An error occurred. Please try again</string>
+    <string name="widget_recognizer_unknown_song">Unknown song</string>
+    <string name="widget_recognizer_unknown_artist">Unknown artist</string>
+    <string name="widget_recognizer_mic_desc">Identify song</string>
+    <string name="widget_recognizer_channel_name">Music Recognition</string>
+    <string name="widget_recognizer_channel_desc">Shows a notification while identifying a song from the widget</string>
+    <string name="widget_recognizer_notification_text">Recording audio to identify the song…</string>
+
     <!-- Player Client Settings -->
     <string name="player_client">Player client</string>
     <string name="player_client_android_vr">Android VR</string>
