@@ -102,6 +102,7 @@ import com.metrolist.music.listentogether.RoomRole
 import com.metrolist.music.ui.component.CastButton
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -596,8 +597,6 @@ private fun ExpressiveTransitionThumbnail(
     onSeekEffect: (String, Boolean) -> Unit,
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
-    var skipMultiplier by remember { mutableIntStateOf(1) }
-    var lastTapTime by remember { mutableLongStateOf(0L) }
 
     val currentArtworkUri = mediaMetadata?.thumbnailUrl
 
@@ -624,7 +623,7 @@ private fun ExpressiveTransitionThumbnail(
         previousWashColor = colorWashColor
 
         // Extract palette from the NEW artwork for color wash
-        launch {
+        launch(Dispatchers.Default) {
             try {
                 val request = ImageRequest.Builder(context)
                     .data(currentArtworkUri)
@@ -673,7 +672,6 @@ private fun ExpressiveTransitionThumbnail(
     }
 
     // Swipe state
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
 
@@ -685,6 +683,7 @@ private fun ExpressiveTransitionThumbnail(
                 .fillMaxSize()
                 .pointerInput(swipeThumbnail, isListenTogetherGuest) {
                     if (!swipeThumbnail || isListenTogetherGuest) return@pointerInput
+                    var dragAccumulator = 0f
                     detectHorizontalDragGestures(
                         onDragStart = { dragAccumulator = 0f },
                         onDragEnd = {
@@ -703,6 +702,8 @@ private fun ExpressiveTransitionThumbnail(
                     )
                 }
                 .pointerInput(Unit) {
+                    var lastTapTime = 0L
+                    var skipMultiplier = 1
                     detectTapGestures(
                         onDoubleTap = { offset ->
                             if (isListenTogetherGuest) return@detectTapGestures
@@ -745,16 +746,9 @@ private fun ExpressiveTransitionThumbnail(
                     )
                 }
         ) {
-            val progress = transitionProgress.value
-
             // --- LAYER 1: Previous (outgoing) image ---
             // Scales up, rotates slightly, drifts up, fades out
-            if (previousUri != null && progress < 1f) {
-                val outAlpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
-                val outScale = 1f + (progress * 0.35f)         // 1.0 -> 1.35x
-                val outRotation = progress * 4f                 // 0 -> 4 degrees
-                val outTranslateY = -(progress * 120f)          // drift upward
-
+            if (previousUri != null) {
                 ExpressiveCoverLayer(
                     artworkUri = previousUri,
                     hidePlayerThumbnail = hidePlayerThumbnail,
@@ -762,11 +756,17 @@ private fun ExpressiveTransitionThumbnail(
                     context = context,
                     showCastButton = false,
                     modifier = Modifier.graphicsLayer {
-                        alpha = outAlpha
+                        val progress = transitionProgress.value
+                        if (progress >= 1f) {
+                            alpha = 0f
+                            return@graphicsLayer
+                        }
+                        alpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
+                        val outScale = 1f + (progress * 0.35f)         // 1.0 -> 1.35x
                         scaleX = outScale
                         scaleY = outScale
-                        rotationZ = outRotation
-                        translationY = outTranslateY
+                        rotationZ = progress * 4f                 // 0 -> 4 degrees
+                        translationY = -(progress * 120f)          // drift upward
                         clip = true
                     }
                 )
@@ -774,27 +774,6 @@ private fun ExpressiveTransitionThumbnail(
 
             // --- LAYER 2: Current (incoming) image ---
             // Starts scaled up, rotated opposite direction, translated down, then settles
-            val inAlpha = if (previousUri != null && progress < 1f) {
-                (progress * 1.8f).coerceIn(0f, 1f)
-            } else {
-                1f
-            }
-            val inScale = if (previousUri != null && progress < 1f) {
-                1.3f - (progress * 0.3f)   // 1.3x -> 1.0x
-            } else {
-                1f
-            }
-            val inRotation = if (previousUri != null && progress < 1f) {
-                -3f * (1f - progress)       // -3deg -> 0deg
-            } else {
-                0f
-            }
-            val inTranslateY = if (previousUri != null && progress < 1f) {
-                80f * (1f - progress)       // 80px -> 0px
-            } else {
-                0f
-            }
-
             ExpressiveCoverLayer(
                 artworkUri = displayedUri,
                 hidePlayerThumbnail = hidePlayerThumbnail,
@@ -802,58 +781,69 @@ private fun ExpressiveTransitionThumbnail(
                 context = context,
                 showCastButton = true,
                 modifier = Modifier.graphicsLayer {
-                    alpha = inAlpha
-                    scaleX = inScale
-                    scaleY = inScale
-                    rotationZ = inRotation
-                    translationY = inTranslateY
+                    val progress = transitionProgress.value
+                    if (previousUri != null && progress < 1f) {
+                        alpha = (progress * 1.8f).coerceIn(0f, 1f)
+                        val inScale = 1.3f - (progress * 0.3f)   // 1.3x -> 1.0x
+                        scaleX = inScale
+                        scaleY = inScale
+                        rotationZ = -3f * (1f - progress)       // -3deg -> 0deg
+                        translationY = 80f * (1f - progress)       // 80px -> 0px
+                    } else {
+                        alpha = 1f
+                        scaleX = 1f
+                        scaleY = 1f
+                        rotationZ = 0f
+                        translationY = 0f
+                    }
                     clip = true
                 }
             )
 
             // --- LAYER 3: Color wash overlay ---
-            val washAlpha = colorWashAlpha.value
-            if (washAlpha > 0f) {
-                // Blend previous and new wash colors based on progress
-                val blendedWashColor = if (previousWashColor != Color.Transparent) {
-                    androidx.compose.ui.graphics.lerp(previousWashColor, colorWashColor, progress)
-                } else {
-                    colorWashColor
-                }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.7f)
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
+                        alpha = colorWashAlpha.value
+                    }
+                    .drawWithContent {
+                        val progress = transitionProgress.value
+                        val blendedWashColor = if (previousWashColor != Color.Transparent) {
+                            androidx.compose.ui.graphics.lerp(previousWashColor, colorWashColor, progress)
+                        } else {
+                            colorWashColor
+                        }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.7f)
-                        .graphicsLayer {
-                            compositingStrategy = CompositingStrategy.Offscreen
-                            alpha = washAlpha
-                        }
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    colorStops = arrayOf(
-                                        0.0f to Color.Black,
-                                        0.5f to Color.Black,
-                                        1.0f to Color.Transparent
-                                    )
-                                ),
-                                blendMode = BlendMode.DstIn
-                            )
-                        }
-                        .background(
-                            Brush.radialGradient(
+                        // Draw the background radial gradient directly to avoid recomposition
+                        drawRect(
+                            brush = Brush.radialGradient(
                                 colors = listOf(
                                     blendedWashColor.copy(alpha = 0.7f),
                                     blendedWashColor.copy(alpha = 0.35f),
                                     Color.Transparent
                                 ),
-                                radius = 1200f
+                                radius = size.width
                             )
                         )
-                )
-            }
+                        
+                        drawContent()
+
+                        // Apply bottom fade
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.Black,
+                                    0.5f to Color.Black,
+                                    1.0f to Color.Transparent
+                                )
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
+            )
         }
 
         // Now Playing header overlaid on top of art
