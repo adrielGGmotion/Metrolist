@@ -58,6 +58,7 @@ import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.ChipSortTypeKey
+import com.metrolist.music.constants.AlbumCoverTransitionKey
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.DefaultOpenTabKey
 import com.metrolist.music.constants.DensityScale
@@ -185,6 +186,10 @@ fun AppearanceSettings(
     val (cropAlbumArt, onCropAlbumArtChange) = rememberPreference(
         CropAlbumArtKey,
         defaultValue = false
+    )
+    val (albumCoverTransition, onAlbumCoverTransitionChange) = rememberPreference(
+        AlbumCoverTransitionKey,
+        defaultValue = true
     )
     val (playerBackground, onPlayerBackgroundChange) =
         rememberEnumPreference(
@@ -1133,6 +1138,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onCropAlbumArtChange(!cropAlbumArt) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.slow_motion_video),
+                    title = { Text(stringResource(R.string.album_cover_transition)) },
+                    description = { Text(stringResource(R.string.album_cover_transition_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = albumCoverTransition,
+                            onCheckedChange = onAlbumCoverTransitionChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (albumCoverTransition) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onAlbumCoverTransitionChange(!albumCoverTransition) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),

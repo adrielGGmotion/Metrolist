@@ -6,11 +6,16 @@
 package com.metrolist.music.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +47,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -71,12 +77,17 @@ import androidx.compose.ui.unit.sp
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.palette.graphics.Palette
 import coil3.compose.AsyncImage
+import coil3.imageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.toBitmap
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.AlbumCoverTransitionKey
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
@@ -92,6 +103,8 @@ import com.metrolist.music.ui.component.CastButton
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Pre-calculated thumbnail dimensions to avoid repeated calculations during recomposition.
@@ -227,6 +240,7 @@ fun Thumbnail(
     val swipeThumbnail = swipeThumbnailPref && !isListenTogetherGuest
     val hidePlayerThumbnail by rememberPreference(HidePlayerThumbnailKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val albumCoverTransition by rememberPreference(AlbumCoverTransitionKey, true)
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT
@@ -350,8 +364,26 @@ fun Thumbnail(
                     else Modifier
                 ),
         ) {
-            if (isExpressivePortrait) {
-                // Expressive portrait: Box layout so header overlays the art
+            if (isExpressivePortrait && albumCoverTransition) {
+                // Expressive portrait with Scale Morph + Color Wash transition
+                ExpressiveTransitionThumbnail(
+                    mediaMetadata = mediaMetadata,
+                    hidePlayerThumbnail = hidePlayerThumbnail,
+                    textBackgroundColor = textBackgroundColor,
+                    queueTitle = queueTitle,
+                    swipeThumbnail = swipeThumbnail,
+                    isListenTogetherGuest = isListenTogetherGuest,
+                    isPlayerExpanded = isPlayerExpanded,
+                    playerConnection = playerConnection,
+                    context = context,
+                    layoutDirection = layoutDirection,
+                    onSeekEffect = { direction, show ->
+                        seekDirection = direction
+                        showSeekEffect = show
+                    }
+                )
+            } else if (isExpressivePortrait) {
+                // Expressive portrait: Box layout so header overlays the art (no transition)
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -526,6 +558,374 @@ fun Thumbnail(
             modifier = Modifier.align(Alignment.Center)
         ) {
             SeekEffectOverlay(seekDirection = seekDirection)
+        }
+    }
+}
+
+/**
+ * Expressive portrait thumbnail with Scale Morph + Color Wash transition.
+ *
+ * Uses a manual two-layer animation system (NOT AnimatedContent) to achieve a
+ * truly dramatic, cinematic transition between album art:
+ *
+ * - Old image: scales up dramatically (1.0 -> 1.35x), rotates slightly (0 -> 4deg),
+ *   translates upward, and fades to transparent
+ * - New image: starts scaled up (1.3x), rotated (-3deg), translated downward, and
+ *   transparent — then settles into its final position at 1.0x with no rotation
+ * - A color wash overlay (extracted via Palette) sweeps across during the transition,
+ *   creating a smooth bridge between the old and new color palettes
+ *
+ * The entire transition is driven by a single Animatable progress (0f -> 1f) over
+ * ~1800ms, ensuring both layers stay perfectly synchronized. All transforms use
+ * graphicsLayer for GPU-accelerated rendering with zero overdraw impact.
+ *
+ * Horizontal swipe gestures and double-tap seek are preserved.
+ */
+@Composable
+private fun ExpressiveTransitionThumbnail(
+    mediaMetadata: com.metrolist.music.models.MediaMetadata?,
+    hidePlayerThumbnail: Boolean,
+    textBackgroundColor: Color,
+    queueTitle: String?,
+    swipeThumbnail: Boolean,
+    isListenTogetherGuest: Boolean,
+    isPlayerExpanded: () -> Boolean,
+    playerConnection: com.metrolist.music.playback.PlayerConnection,
+    context: android.content.Context,
+    layoutDirection: LayoutDirection,
+    onSeekEffect: (String, Boolean) -> Unit,
+) {
+    val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
+    var skipMultiplier by remember { mutableIntStateOf(1) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
+
+    val currentArtworkUri = mediaMetadata?.thumbnailUrl
+
+    // Two-layer state: track previous and current artwork URIs independently
+    var displayedUri by remember { mutableStateOf(currentArtworkUri) }
+    var previousUri by remember { mutableStateOf<String?>(null) }
+    val transitionProgress = remember { Animatable(1f) }
+
+    // Easing for the dramatic morph curve
+    val morphEasing = remember { CubicBezierEasing(0.22f, 1f, 0.36f, 1f) }
+
+    // Color wash state
+    var colorWashColor by remember { mutableStateOf(Color.Transparent) }
+    var previousWashColor by remember { mutableStateOf(Color.Transparent) }
+    val colorWashAlpha = remember { Animatable(0f) }
+
+    // Trigger transition when artwork changes
+    LaunchedEffect(currentArtworkUri) {
+        if (currentArtworkUri == null) return@LaunchedEffect
+        if (currentArtworkUri == displayedUri) return@LaunchedEffect
+
+        // Snapshot the old image URI before swapping
+        previousUri = displayedUri
+        previousWashColor = colorWashColor
+
+        // Extract palette from the NEW artwork for color wash
+        launch {
+            try {
+                val request = ImageRequest.Builder(context)
+                    .data(currentArtworkUri)
+                    .size(80, 80)
+                    .allowHardware(false)
+                    .memoryCacheKey("palette_transition_$currentArtworkUri")
+                    .build()
+                val result = context.imageLoader.execute(request)
+                val bitmap = result.image?.toBitmap()
+                if (bitmap != null) {
+                    val palette = Palette.from(bitmap).generate()
+                    val dominant = palette.getMutedColor(
+                        palette.getDominantColor(0)
+                    )
+                    if (dominant != 0) {
+                        colorWashColor = Color(dominant)
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+
+        // Swap to new artwork immediately so both layers have their URIs
+        displayedUri = currentArtworkUri
+
+        // Drive the color wash: quick pulse that peaks mid-transition
+        launch {
+            colorWashAlpha.snapTo(0f)
+            colorWashAlpha.animateTo(
+                targetValue = 0.55f,
+                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
+            )
+            colorWashAlpha.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing)
+            )
+        }
+
+        // Drive the main morph: 0f (fully old) -> 1f (fully new)
+        transitionProgress.snapTo(0f)
+        transitionProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 1800, easing = morphEasing)
+        )
+        // Clean up old layer after transition completes
+        previousUri = null
+    }
+
+    // Swipe state
+    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
+    val canSkipNext by playerConnection.canSkipNext.collectAsState()
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(swipeThumbnail, isListenTogetherGuest) {
+                    if (!swipeThumbnail || isListenTogetherGuest) return@pointerInput
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragAccumulator = 0f },
+                        onDragEnd = {
+                            val threshold = size.width * 0.2f
+                            if (dragAccumulator < -threshold && canSkipNext) {
+                                playerConnection.player.seekToNext()
+                            } else if (dragAccumulator > threshold && canSkipPrevious) {
+                                playerConnection.player.seekToPreviousMediaItem()
+                            }
+                            dragAccumulator = 0f
+                        },
+                        onDragCancel = { dragAccumulator = 0f },
+                        onHorizontalDrag = { _, dragAmount ->
+                            dragAccumulator += dragAmount
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = { offset ->
+                            if (isListenTogetherGuest) return@detectTapGestures
+
+                            val currentPosition = playerConnection.player.currentPosition
+                            val duration = playerConnection.player.duration
+
+                            val now = System.currentTimeMillis()
+                            if (incrementalSeekSkipEnabled && now - lastTapTime < 1000) {
+                                skipMultiplier++
+                            } else {
+                                skipMultiplier = 1
+                            }
+                            lastTapTime = now
+
+                            val skipAmount = 5000 * skipMultiplier
+
+                            val isLeftSide =
+                                (layoutDirection == LayoutDirection.Ltr && offset.x < size.width / 2) ||
+                                        (layoutDirection == LayoutDirection.Rtl && offset.x > size.width / 2)
+
+                            if (isLeftSide) {
+                                playerConnection.player.seekTo(
+                                    (currentPosition - skipAmount).coerceAtLeast(0)
+                                )
+                                onSeekEffect(
+                                    context.getString(R.string.seek_backward_dynamic, skipAmount / 1000),
+                                    true
+                                )
+                            } else {
+                                playerConnection.player.seekTo(
+                                    (currentPosition + skipAmount).coerceAtMost(duration)
+                                )
+                                onSeekEffect(
+                                    context.getString(R.string.seek_forward_dynamic, skipAmount / 1000),
+                                    true
+                                )
+                            }
+                        }
+                    )
+                }
+        ) {
+            val progress = transitionProgress.value
+
+            // --- LAYER 1: Previous (outgoing) image ---
+            // Scales up, rotates slightly, drifts up, fades out
+            if (previousUri != null && progress < 1f) {
+                val outAlpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
+                val outScale = 1f + (progress * 0.35f)         // 1.0 -> 1.35x
+                val outRotation = progress * 4f                 // 0 -> 4 degrees
+                val outTranslateY = -(progress * 120f)          // drift upward
+
+                ExpressiveCoverLayer(
+                    artworkUri = previousUri,
+                    hidePlayerThumbnail = hidePlayerThumbnail,
+                    textBackgroundColor = textBackgroundColor,
+                    context = context,
+                    showCastButton = false,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = outAlpha
+                        scaleX = outScale
+                        scaleY = outScale
+                        rotationZ = outRotation
+                        translationY = outTranslateY
+                        clip = true
+                    }
+                )
+            }
+
+            // --- LAYER 2: Current (incoming) image ---
+            // Starts scaled up, rotated opposite direction, translated down, then settles
+            val inAlpha = if (previousUri != null && progress < 1f) {
+                (progress * 1.8f).coerceIn(0f, 1f)
+            } else {
+                1f
+            }
+            val inScale = if (previousUri != null && progress < 1f) {
+                1.3f - (progress * 0.3f)   // 1.3x -> 1.0x
+            } else {
+                1f
+            }
+            val inRotation = if (previousUri != null && progress < 1f) {
+                -3f * (1f - progress)       // -3deg -> 0deg
+            } else {
+                0f
+            }
+            val inTranslateY = if (previousUri != null && progress < 1f) {
+                80f * (1f - progress)       // 80px -> 0px
+            } else {
+                0f
+            }
+
+            ExpressiveCoverLayer(
+                artworkUri = displayedUri,
+                hidePlayerThumbnail = hidePlayerThumbnail,
+                textBackgroundColor = textBackgroundColor,
+                context = context,
+                showCastButton = true,
+                modifier = Modifier.graphicsLayer {
+                    alpha = inAlpha
+                    scaleX = inScale
+                    scaleY = inScale
+                    rotationZ = inRotation
+                    translationY = inTranslateY
+                    clip = true
+                }
+            )
+
+            // --- LAYER 3: Color wash overlay ---
+            val washAlpha = colorWashAlpha.value
+            if (washAlpha > 0f) {
+                // Blend previous and new wash colors based on progress
+                val blendedWashColor = if (previousWashColor != Color.Transparent) {
+                    androidx.compose.ui.graphics.lerp(previousWashColor, colorWashColor, progress)
+                } else {
+                    colorWashColor
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.7f)
+                        .graphicsLayer {
+                            compositingStrategy = CompositingStrategy.Offscreen
+                            alpha = washAlpha
+                        }
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colorStops = arrayOf(
+                                        0.0f to Color.Black,
+                                        0.5f to Color.Black,
+                                        1.0f to Color.Transparent
+                                    )
+                                ),
+                                blendMode = BlendMode.DstIn
+                            )
+                        }
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    blendedWashColor.copy(alpha = 0.7f),
+                                    blendedWashColor.copy(alpha = 0.35f),
+                                    Color.Transparent
+                                ),
+                                radius = 1200f
+                            )
+                        )
+                )
+            }
+        }
+
+        // Now Playing header overlaid on top of art
+        Box(modifier = Modifier.statusBarsPadding()) {
+            ThumbnailHeader(
+                queueTitle = queueTitle,
+                albumTitle = mediaMetadata?.album?.title,
+                textColor = textBackgroundColor
+            )
+        }
+    }
+}
+
+/**
+ * A single layer of the Expressive cover art with edge-to-edge rendering
+ * and bottom gradient fade. Used by ExpressiveTransitionThumbnail to render
+ * both the outgoing and incoming artwork layers independently.
+ */
+@Composable
+private fun ExpressiveCoverLayer(
+    artworkUri: String?,
+    hidePlayerThumbnail: Boolean,
+    textBackgroundColor: Color,
+    context: android.content.Context,
+    showCastButton: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.7f)
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.0f to Color.Black,
+                            0.5f to Color.Black,
+                            1.0f to Color.Transparent
+                        )
+                    ),
+                    blendMode = BlendMode.DstIn
+                )
+            }
+    ) {
+        if (hidePlayerThumbnail) {
+            HiddenThumbnailPlaceholder(
+                textBackgroundColor = textBackgroundColor,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(artworkUri)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .networkCachePolicy(CachePolicy.ENABLED)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (showCastButton) {
+            CastButton(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp),
+                tintColor = textBackgroundColor
+            )
         }
     }
 }
