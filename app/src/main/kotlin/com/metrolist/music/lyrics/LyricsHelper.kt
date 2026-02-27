@@ -119,7 +119,7 @@ constructor(
             // If network check fails, try to proceed anyway
             true
         }
-        
+
         if (!isNetworkAvailable) {
             // Still proceed but return not found to avoid hanging
             return LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
@@ -127,14 +127,15 @@ constructor(
 
         val scope = CoroutineScope(SupervisorJob())
         val deferred = scope.async {
+            val cleanedTitle = LyricsUtils.cleanTitleForSearch(mediaMetadata.title)
             for (provider in lyricsProviders) {
                 if (provider.isEnabled(context)) {
                     try {
                         Timber.tag("LyricsHelper")
-                            .d("Trying provider: ${provider.name} for ${mediaMetadata.title}")
+                            .d("Trying provider: ${provider.name} for $cleanedTitle")
                         val result = provider.getLyrics(
                             mediaMetadata.id,
-                            mediaMetadata.title,
+                            cleanedTitle,
                             mediaMetadata.artists.joinToString { it.name },
                             mediaMetadata.duration,
                             mediaMetadata.album?.title,
@@ -190,7 +191,7 @@ constructor(
             // If network check fails, try to proceed anyway
             true
         }
-        
+
         if (!isNetworkAvailable) {
             // Still try to proceed in case of false negative
             return
@@ -198,10 +199,11 @@ constructor(
 
         val allResult = mutableListOf<LyricsResult>()
         currentLyricsJob = CoroutineScope(SupervisorJob()).launch {
+            val cleanedTitle = LyricsUtils.cleanTitleForSearch(songTitle)
             lyricsProviders.forEach { provider ->
                 if (provider.isEnabled(context)) {
                     try {
-                        provider.getAllLyrics(mediaId, songTitle, songArtists, duration, album) { lyrics ->
+                        provider.getAllLyrics(mediaId, cleanedTitle, songArtists, duration, album) { lyrics ->
                             val result = LyricsResult(provider.name, lyrics)
                             allResult += result
                             callback(result)
