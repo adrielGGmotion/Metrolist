@@ -233,18 +233,25 @@ fun BottomSheetPlayer(
     val isKeepScreenOn by rememberPreference(KeepScreenOn, false)
     val keepScreenOn = isPlaying && isKeepScreenOn
 
-    DisposableEffect(playerBackground, playerDesignStyle, state.isExpanded, useDarkTheme, keepScreenOn) {
+    // Brightness detection state for Expressive design (declared early so DisposableEffect can reference it)
+    var isExpressiveCoverBright by remember { mutableStateOf(false) }
+
+    DisposableEffect(playerBackground, playerDesignStyle, state.isExpanded, useDarkTheme, keepScreenOn, isExpressiveCoverBright) {
         val window = (context as? android.app.Activity)?.window
         if (window != null && state.isExpanded) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             
             when (playerBackground) {
                 PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> {
-                    insetsController.isAppearanceLightStatusBars = false
+                    if (playerDesignStyle == PlayerDesignStyle.EXPRESSIVE) {
+                        insetsController.isAppearanceLightStatusBars = isExpressiveCoverBright
+                    } else {
+                        insetsController.isAppearanceLightStatusBars = false
+                    }
                 }
                 PlayerBackgroundStyle.DEFAULT -> {
                     if (playerDesignStyle == PlayerDesignStyle.EXPRESSIVE) {
-                        insetsController.isAppearanceLightStatusBars = false
+                        insetsController.isAppearanceLightStatusBars = isExpressiveCoverBright
                     } else {
                         insetsController.isAppearanceLightStatusBars = !useDarkTheme
                     }
@@ -338,6 +345,54 @@ fun BottomSheetPlayer(
         mutableStateOf<List<Color>>(emptyList())
     }
     val gradientColorsCache = remember { mutableMapOf<String, List<Color>>() }
+
+    val brightnessCacheMap = remember { mutableMapOf<String, Boolean>() }
+
+    LaunchedEffect(mediaMetadata?.id, playerDesignStyle) {
+        if (playerDesignStyle == PlayerDesignStyle.EXPRESSIVE) {
+            val currentMetadata = mediaMetadata
+            if (currentMetadata != null && currentMetadata.thumbnailUrl != null) {
+                val cached = brightnessCacheMap[currentMetadata.id]
+                if (cached != null) {
+                    isExpressiveCoverBright = cached
+                    return@LaunchedEffect
+                }
+                withContext(Dispatchers.IO) {
+                    val request = ImageRequest.Builder(context)
+                        .data(currentMetadata.thumbnailUrl)
+                        .size(100, 100)
+                        .allowHardware(false)
+                        .memoryCacheKey("brightness_${currentMetadata.id}")
+                        .build()
+                    val result = runCatching { context.imageLoader.execute(request) }.getOrNull()
+                    val bitmap = result?.image?.toBitmap()
+                    if (bitmap != null) {
+                        // Analyze only the top 30% of the bitmap where header/status bar sit
+                        val topHeight = (bitmap.height * 0.3f).toInt().coerceAtLeast(1)
+                        var totalLuminance = 0.0
+                        var pixelCount = 0
+                        for (y in 0 until topHeight) {
+                            for (x in 0 until bitmap.width) {
+                                val pixel = bitmap.getPixel(x, y)
+                                val r = android.graphics.Color.red(pixel) / 255.0
+                                val g = android.graphics.Color.green(pixel) / 255.0
+                                val b = android.graphics.Color.blue(pixel) / 255.0
+                                // Relative luminance formula
+                                totalLuminance += 0.2126 * r + 0.7152 * g + 0.0722 * b
+                                pixelCount++
+                            }
+                        }
+                        val avgLuminance = if (pixelCount > 0) totalLuminance / pixelCount else 0.0
+                        val bright = avgLuminance > 0.6
+                        brightnessCacheMap[currentMetadata.id] = bright
+                        withContext(Dispatchers.Main) { isExpressiveCoverBright = bright }
+                    }
+                }
+            }
+        } else {
+            isExpressiveCoverBright = false
+        }
+    }
 
     if (!canSkipNext && automix.isNotEmpty()) {
         playerConnection.service.addToQueueAutomix(automix[0], 0)
@@ -1624,10 +1679,9 @@ fun BottomSheetPlayer(
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = sliderPositionProvider,
-                                    modifier = Modifier.animateContentSize(),
-                                    isPlayerExpanded = isExpandedProvider,
                                     isLandscape = true,
-                                    isListenTogetherGuest = isListenTogetherGuest
+                                    isListenTogetherGuest = isListenTogetherGuest,
+                                    isExpressiveCoverBright = isExpressiveCoverBright
                                 )
                             }
                         }
@@ -1681,14 +1735,15 @@ fun BottomSheetPlayer(
                                     positionProvider = { effectivePosition }
                                 )
                             } else {
-                                Thumbnail(
-                                    sliderPositionProvider = sliderPositionProvider,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .nestedScroll(state.preUpPostDownNestedScrollConnection),
-                                    isPlayerExpanded = isExpandedProvider,
-                                    isListenTogetherGuest = isListenTogetherGuest
-                                )
+                                    Thumbnail(
+                                        sliderPositionProvider = sliderPositionProvider,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                        isPlayerExpanded = isExpandedProvider,
+                                        isListenTogetherGuest = isListenTogetherGuest,
+                                        isExpressiveCoverBright = isExpressiveCoverBright
+                                    )
                             }
                         }
 

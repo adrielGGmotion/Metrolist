@@ -208,6 +208,7 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    isExpressiveCoverBright: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -234,9 +235,6 @@ fun Thumbnail(
         key = PlayerDesignStyleKey,
         defaultValue = PlayerDesignStyle.MATERIAL_YOU
     )
-    
-    // Pre-calculate text color based on background style
-    val textBackgroundColor = getTextColor(playerBackground)
     
     // Grid state
     val thumbnailLazyGridState = rememberLazyGridState()
@@ -329,11 +327,19 @@ fun Thumbnail(
             }
         }
 
-        // Main thumbnail view
-        // For Expressive portrait: no status bar padding on container (art goes edge-to-edge)
-        // but header is overlaid on top of art with its own status bar padding
-        val isExpressivePortrait = playerDesignStyle == PlayerDesignStyle.EXPRESSIVE && !isLandscape
-        AnimatedVisibility(
+    // Main thumbnail view
+    // For Expressive portrait: no status bar padding on container (art goes edge-to-edge)
+    // but header is overlaid on top of art with its own status bar padding
+    val isExpressivePortrait = playerDesignStyle == PlayerDesignStyle.EXPRESSIVE && !isLandscape
+    
+    // Pre-calculate text color based on background style and cover brightness for Expressive
+    val textBackgroundColor = if (isExpressivePortrait) {
+        if (isExpressiveCoverBright) Color.Black else Color.White
+    } else {
+        getTextColor(playerBackground)
+    }
+
+    AnimatedVisibility(
             visible = error == null,
             enter = fadeIn(),
             exit = fadeOut(),
