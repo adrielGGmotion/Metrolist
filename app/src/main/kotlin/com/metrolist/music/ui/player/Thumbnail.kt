@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,6 +50,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -76,6 +81,8 @@ import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
+import com.metrolist.music.constants.PlayerDesignStyle
+import com.metrolist.music.constants.PlayerDesignStyleKey
 import com.metrolist.music.constants.PlayerHorizontalPadding
 import com.metrolist.music.constants.SeekExtraSeconds
 import com.metrolist.music.constants.SwipeThumbnailKey
@@ -223,6 +230,10 @@ fun Thumbnail(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT
     )
+    val playerDesignStyle by rememberEnumPreference(
+        key = PlayerDesignStyleKey,
+        defaultValue = PlayerDesignStyle.MATERIAL_YOU
+    )
     
     // Pre-calculate text color based on background style
     val textBackgroundColor = getTextColor(playerBackground)
@@ -319,91 +330,175 @@ fun Thumbnail(
         }
 
         // Main thumbnail view
+        // For Expressive portrait: no status bar padding on container (art goes edge-to-edge)
+        // but header is overlaid on top of art with its own status bar padding
+        val isExpressivePortrait = playerDesignStyle == PlayerDesignStyle.EXPRESSIVE && !isLandscape
         AnimatedVisibility(
             visible = error == null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (!isLandscape) Modifier.statusBarsPadding() else Modifier),
+                .then(
+                    if (!isLandscape && !isExpressivePortrait) Modifier.statusBarsPadding()
+                    else Modifier
+                ),
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = if (isLandscape) Arrangement.Center else Arrangement.Top
-            ) {
-                // Now Playing header - hide in landscape mode
-                if (!isLandscape) {
-                    ThumbnailHeader(
-                        queueTitle = queueTitle,
-                        albumTitle = mediaMetadata?.album?.title,
-                        textColor = textBackgroundColor
-                    )
-                }
-                
-                // Thumbnail content
-                BoxWithConstraints(
-                    contentAlignment = Alignment.Center,
-                    modifier = if (isLandscape) {
-                        Modifier.weight(1f, false)
-                    } else {
-                        Modifier.fillMaxSize()
-                    }
+            if (isExpressivePortrait) {
+                // Expressive portrait: Box layout so header overlays the art
+                Box(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    // Calculate dimensions once per size change, considering landscape mode
-                    val dimensions = remember(maxWidth, maxHeight, isLandscape) {
-                        calculateThumbnailDimensions(
-                            containerWidth = maxWidth,
-                            containerHeight = maxHeight,
-                            isLandscape = isLandscape
+                    // Thumbnail content fills the entire space
+                    BoxWithConstraints(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // Calculate dimensions once per size change
+                        val dimensions = remember(maxWidth, maxHeight, isExpressivePortrait) {
+                            calculateThumbnailDimensions(
+                                containerWidth = maxWidth,
+                                containerHeight = maxHeight,
+                                horizontalPadding = 0.dp,
+                                cornerRadius = 0.dp,
+                                isLandscape = false
+                            )
+                        }
+
+                        val onSeekCallback = remember {
+                            { direction: String, showEffect: Boolean ->
+                                seekDirection = direction
+                                showSeekEffect = showEffect
+                            }
+                        }
+
+                        val isScrollEnabled by remember(swipeThumbnail) {
+                            derivedStateOf { swipeThumbnail && isPlayerExpanded() }
+                        }
+
+                        LazyHorizontalGrid(
+                            state = thumbnailLazyGridState,
+                            rows = GridCells.Fixed(1),
+                            flingBehavior = rememberSnapFlingBehavior(thumbnailSnapLayoutInfoProvider),
+                            userScrollEnabled = isScrollEnabled,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(
+                                items = mediaItems,
+                                key = { item ->
+                                    item.mediaId.ifEmpty { "unknown_${item.hashCode()}" }
+                                }
+                            ) { item ->
+                                ThumbnailItem(
+                                    item = item,
+                                    dimensions = dimensions,
+                                    hidePlayerThumbnail = hidePlayerThumbnail,
+                                    cropAlbumArt = cropAlbumArt,
+                                    textBackgroundColor = textBackgroundColor,
+                                    layoutDirection = layoutDirection,
+                                    onSeek = onSeekCallback,
+                                    playerConnection = playerConnection,
+                                    context = context,
+                                    isLandscape = false,
+                                    isListenTogetherGuest = isListenTogetherGuest,
+                                    currentMediaId = mediaMetadata?.id,
+                                    currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
+                                    isExpressivePortrait = true,
+                                    playerBackground = playerBackground
+                                )
+                            }
+                        }
+                    }
+
+                    // Now Playing header overlaid on top of art
+                    Box(modifier = Modifier.statusBarsPadding()) {
+                        ThumbnailHeader(
+                            queueTitle = queueTitle,
+                            albumTitle = mediaMetadata?.album?.title,
+                            textColor = textBackgroundColor
+                        )
+                    }
+                }
+            } else {
+                // Standard layout: Column with header above thumbnail
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = if (isLandscape) Arrangement.Center else Arrangement.Top
+                ) {
+                    // Now Playing header - hide in landscape mode
+                    if (!isLandscape) {
+                        ThumbnailHeader(
+                            queueTitle = queueTitle,
+                            albumTitle = mediaMetadata?.album?.title,
+                            textColor = textBackgroundColor
                         )
                     }
 
-                    // Remember the onSeek callback to prevent recomposition
-                    val onSeekCallback = remember {
-                        { direction: String, showEffect: Boolean ->
-                            seekDirection = direction
-                            showSeekEffect = showEffect
-                        }
-                    }
-                    
-                    // Derive scroll enabled state to prevent unnecessary recomposition
-                    val isScrollEnabled by remember(swipeThumbnail) {
-                        derivedStateOf { swipeThumbnail && isPlayerExpanded() }
-                    }
-                    
-                    LazyHorizontalGrid(
-                        state = thumbnailLazyGridState,
-                        rows = GridCells.Fixed(1),
-                        flingBehavior = rememberSnapFlingBehavior(thumbnailSnapLayoutInfoProvider),
-                        userScrollEnabled = isScrollEnabled,
+                    // Thumbnail content
+                    BoxWithConstraints(
+                        contentAlignment = Alignment.Center,
                         modifier = if (isLandscape) {
-                            Modifier.size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
+                            Modifier.weight(1f, false)
                         } else {
                             Modifier.fillMaxSize()
                         }
                     ) {
-                        items(
-                            items = mediaItems,
-                            key = { item -> 
-                                item.mediaId.ifEmpty { "unknown_${item.hashCode()}" }
-                            }
-                        ) { item ->
-                            ThumbnailItem(
-                                item = item,
-                                dimensions = dimensions,
-                                hidePlayerThumbnail = hidePlayerThumbnail,
-                                cropAlbumArt = cropAlbumArt,
-                                textBackgroundColor = textBackgroundColor,
-                                layoutDirection = layoutDirection,
-                                onSeek = onSeekCallback,
-                                playerConnection = playerConnection,
-                                context = context,
-                                isLandscape = isLandscape,
-                                isListenTogetherGuest = isListenTogetherGuest,
-                                currentMediaId = mediaMetadata?.id,
-                                currentMediaThumbnail = mediaMetadata?.thumbnailUrl
+                        // Calculate dimensions once per size change, considering landscape mode
+                        val dimensions = remember(maxWidth, maxHeight, isLandscape) {
+                            calculateThumbnailDimensions(
+                                containerWidth = maxWidth,
+                                containerHeight = maxHeight,
+                                isLandscape = isLandscape
                             )
+                        }
+
+                        val onSeekCallback = remember {
+                            { direction: String, showEffect: Boolean ->
+                                seekDirection = direction
+                                showSeekEffect = showEffect
+                            }
+                        }
+
+                        val isScrollEnabled by remember(swipeThumbnail) {
+                            derivedStateOf { swipeThumbnail && isPlayerExpanded() }
+                        }
+
+                        LazyHorizontalGrid(
+                            state = thumbnailLazyGridState,
+                            rows = GridCells.Fixed(1),
+                            flingBehavior = rememberSnapFlingBehavior(thumbnailSnapLayoutInfoProvider),
+                            userScrollEnabled = isScrollEnabled,
+                            modifier = if (isLandscape) {
+                                Modifier.size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
+                            } else {
+                                Modifier.fillMaxSize()
+                            }
+                        ) {
+                            items(
+                                items = mediaItems,
+                                key = { item ->
+                                    item.mediaId.ifEmpty { "unknown_${item.hashCode()}" }
+                                }
+                            ) { item ->
+                                ThumbnailItem(
+                                    item = item,
+                                    dimensions = dimensions,
+                                    hidePlayerThumbnail = hidePlayerThumbnail,
+                                    cropAlbumArt = cropAlbumArt,
+                                    textBackgroundColor = textBackgroundColor,
+                                    layoutDirection = layoutDirection,
+                                    onSeek = onSeekCallback,
+                                    playerConnection = playerConnection,
+                                    context = context,
+                                    isLandscape = isLandscape,
+                                    isListenTogetherGuest = isListenTogetherGuest,
+                                    currentMediaId = mediaMetadata?.id,
+                                    currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
+                                    isExpressivePortrait = false,
+                                    playerBackground = playerBackground
+                                )
+                            }
                         }
                     }
                 }
@@ -500,6 +595,8 @@ private fun ThumbnailItem(
     isListenTogetherGuest: Boolean = false,
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
+    isExpressivePortrait: Boolean = false,
+    playerBackground: PlayerBackgroundStyle = PlayerBackgroundStyle.DEFAULT,
     modifier: Modifier = Modifier,
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
@@ -517,11 +614,18 @@ private fun ThumbnailItem(
                         .fillMaxSize()
                 }
             )
-            .padding(horizontal = PlayerHorizontalPadding)
-            .graphicsLayer {
-                // Render entire thumbnail item on separate hardware layer for smooth animations
-                compositingStrategy = CompositingStrategy.Offscreen
-            }
+            .then(
+                if (isExpressivePortrait) Modifier
+                else Modifier.padding(horizontal = PlayerHorizontalPadding)
+            )
+            .then(
+                // Offscreen compositing enables alpha effects (e.g. squiggly slider blending)
+                // but it clips gradients drawn outside child bounds — skip it for Expressive
+                if (isExpressivePortrait) Modifier
+                else Modifier.graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { offset ->
@@ -553,35 +657,94 @@ private fun ThumbnailItem(
                     }
                 )
             },
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.TopCenter
     ) {
-        Box(
-            modifier = Modifier
-                .size(dimensions.thumbnailSize)
-                .clip(RoundedCornerShape(dimensions.cornerRadius))
-        ) {
-            if (hidePlayerThumbnail) {
-                HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
+        if (isExpressivePortrait) {
+            // Expressive portrait:
+            // - Album art spans the FULL height of the available space
+            // - The bottom of the image fades to transparent, revealing the
+            //   PlayerBackground (blur, gradient, or solid) below it smoothly.
+            val artworkUriToUse = if (item.mediaId == currentMediaId && !currentMediaThumbnail.isNullOrBlank()) {
+                currentMediaThumbnail
             } else {
-                val artworkUriToUse = if (item.mediaId == currentMediaId && !currentMediaThumbnail.isNullOrBlank()) {
-                    currentMediaThumbnail
+                item.mediaMetadata.artworkUri?.toString()
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.7f) // Restrict image to top 70% of screen (stops before slider)
+                    .align(Alignment.TopCenter)
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.Black, // Start of Green area
+                                    0.5f to Color.Black, // End of Green area (fully opaque)
+                                    1.0f to Color.Transparent // Blue area: fades to transparent at bottom of the 70% box
+                                )
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
+            ) {
+                if (hidePlayerThumbnail) {
+                    HiddenThumbnailPlaceholder(
+                        textBackgroundColor = textBackgroundColor,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
-                    item.mediaMetadata.artworkUri?.toString()
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(artworkUriToUse)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .networkCachePolicy(CachePolicy.ENABLED)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
-                ThumbnailImage(
-                    artworkUri = artworkUriToUse,
-                    cropArtwork = cropAlbumArt
+                // Cast button at top-right
+                CastButton(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    tintColor = textBackgroundColor
                 )
             }
-            
-            // Cast button at top-right corner of thumbnail
-            CastButton(
+        } else {
+            // Standard: square image with corner radius
+            Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp),
-                tintColor = textBackgroundColor
-            )
+                    .size(dimensions.thumbnailSize)
+                    .clip(RoundedCornerShape(dimensions.cornerRadius))
+            ) {
+                if (hidePlayerThumbnail) {
+                    HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
+                } else {
+                    val artworkUriToUse = if (item.mediaId == currentMediaId && !currentMediaThumbnail.isNullOrBlank()) {
+                        currentMediaThumbnail
+                    } else {
+                        item.mediaMetadata.artworkUri?.toString()
+                    }
+                    ThumbnailImage(
+                        artworkUri = artworkUriToUse,
+                        cropArtwork = cropAlbumArt
+                    )
+                }
+
+                CastButton(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    tintColor = textBackgroundColor
+                )
+            }
         }
     }
 }
