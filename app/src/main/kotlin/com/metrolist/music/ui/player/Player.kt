@@ -56,6 +56,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -141,7 +142,9 @@ import com.metrolist.music.constants.SliderStyle
 import com.metrolist.music.constants.SliderStyleKey
 import com.metrolist.music.constants.SquigglySliderKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
+import com.metrolist.music.constants.SleepTimerFadeOutKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.constants.SleepTimerStopAfterCurrentSongKey
 import com.metrolist.music.db.entities.LyricsEntity
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.toggleRepeatMode
@@ -502,6 +505,14 @@ fun BottomSheetPlayer(
     var sleepTimerValue by remember {
         mutableFloatStateOf(sleepTimerDefault)
     }
+    val sleepTimerStopAfterCurrentSongDefault by rememberPreference(SleepTimerStopAfterCurrentSongKey, false)
+    var sleepTimerStopAfterCurrentSong by remember {
+        mutableStateOf(sleepTimerStopAfterCurrentSongDefault)
+    }
+    val sleepTimerFadeOutDefault by rememberPreference(SleepTimerFadeOutKey, false)
+    var sleepTimerFadeOut by remember {
+        mutableStateOf(sleepTimerFadeOutDefault)
+    }
 
     if (showSleepTimerDialog) {
         AlertDialog(
@@ -518,7 +529,11 @@ fun BottomSheetPlayer(
                 TextButton(
                     onClick = {
                         showSleepTimerDialog = false
-                        playerConnection.service.sleepTimer.start(sleepTimerValue.roundToInt())
+                        playerConnection.service.sleepTimer.start(
+                            minute = sleepTimerValue.roundToInt(),
+                            stopAfterCurrentSong = sleepTimerStopAfterCurrentSong,
+                            fadeOut = sleepTimerFadeOut,
+                        )
                     },
                 ) {
                     Text(stringResource(android.R.string.ok))
@@ -549,10 +564,36 @@ fun BottomSheetPlayer(
                         steps = (120 - 5) / 5 - 1,
                     )
 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(
+                            checked = sleepTimerStopAfterCurrentSong,
+                            onCheckedChange = { sleepTimerStopAfterCurrentSong = it },
+                        )
+                        Text(stringResource(R.string.sleep_timer_stop_after_current_song))
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(
+                            checked = sleepTimerFadeOut,
+                            onCheckedChange = { sleepTimerFadeOut = it },
+                        )
+                        Text(stringResource(R.string.sleep_timer_fade_out))
+                    }
+
                     OutlinedIconButton(
                         onClick = {
                             showSleepTimerDialog = false
-                            playerConnection.service.sleepTimer.start(-1)
+                            playerConnection.service.sleepTimer.start(
+                                minute = -1,
+                                stopAfterCurrentSong = false,
+                                fadeOut = sleepTimerFadeOut,
+                            )
                         },
                     ) {
                         Text(stringResource(R.string.end_of_song))
@@ -562,6 +603,8 @@ fun BottomSheetPlayer(
                             scope.launch {
                                 context.dataStore.edit { settings ->
                                     settings[SleepTimerDefaultKey] = sleepTimerValue
+                                    settings[SleepTimerStopAfterCurrentSongKey] = sleepTimerStopAfterCurrentSong
+                                    settings[SleepTimerFadeOutKey] = sleepTimerFadeOut
                                 }
                             }
                             Toast.makeText(
