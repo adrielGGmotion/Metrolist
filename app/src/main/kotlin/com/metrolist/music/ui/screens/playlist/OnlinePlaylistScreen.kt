@@ -129,6 +129,7 @@ fun OnlinePlaylistScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val error by viewModel.error.collectAsState()
+    val isPodcastPlaylist = viewModel.isPodcastPlaylist
 
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
@@ -241,6 +242,7 @@ fun OnlinePlaylistScreen(
                                 navController = navController,
                                 coroutineScope = coroutineScope,
                                 continuation = viewModel.continuation,
+                                isPodcastPlaylist = isPodcastPlaylist,
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -328,7 +330,8 @@ fun OnlinePlaylistScreen(
             title = {
                 if (inSelectMode) {
                     Text(
-                        text = pluralStringResource(R.plurals.n_song, selection.size, selection.size),
+                        text = if (isPodcastPlaylist) pluralStringResource(R.plurals.n_episode, selection.size, selection.size)
+                               else pluralStringResource(R.plurals.n_song, selection.size, selection.size),
                         style = MaterialTheme.typography.titleLarge
                     )
                 } else if (isSearching) {
@@ -444,6 +447,7 @@ private fun OnlinePlaylistHeader(
     navController: NavController,
     coroutineScope: CoroutineScope,
     continuation: String?,
+    isPodcastPlaylist: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -493,7 +497,10 @@ private fun OnlinePlaylistHeader(
         val totalDuration = songs.sumOf { it.duration ?: 0 }
         Text(
             text = buildString {
-                append(pluralStringResource(R.plurals.n_song, songs.size, songs.size))
+                append(
+                    if (isPodcastPlaylist) pluralStringResource(R.plurals.n_episode, songs.size, songs.size)
+                    else pluralStringResource(R.plurals.n_song, songs.size, songs.size)
+                )
                 if (totalDuration > 0) {
                     append(" • ")
                     append(makeTimeString(totalDuration * 1000L))
