@@ -10,6 +10,7 @@ import com.metrolist.music.R
 import com.metrolist.music.db.entities.Song
 import com.my.kizzy.rpc.KizzyRPC
 import com.my.kizzy.rpc.RpcImage
+import timber.log.Timber
 
 class DiscordRPC(
     val context: Context,
@@ -22,6 +23,10 @@ class DiscordRPC(
     userAgent = SuperProperties.userAgent,
     superPropertiesBase64 = SuperProperties.superPropertiesBase64
 ) {
+    init {
+        Timber.d("DiscordRPC initialized (token=%s)", maskToken(token))
+    }
+
     suspend fun updateSong(
         song: Song,
         currentPlaybackTimeMillis: Long,
@@ -35,19 +40,22 @@ class DiscordRPC(
         activityType: String = "listening",
         activityName: String = "",
     ) = runCatching {
+        val validPlaybackSpeed = if (playbackSpeed <= 0f) 1.0f else playbackSpeed
+        Timber.d("updateSong: title=\"%s\", artist=\"%s\", activityType=%s",
+            song.song.title, song.artists.joinToString { it.name }, activityType)
         val currentTime = System.currentTimeMillis()
 
-        val adjustedPlaybackTime = (currentPlaybackTimeMillis / playbackSpeed).toLong()
+        val adjustedPlaybackTime = (currentPlaybackTimeMillis / validPlaybackSpeed).toLong()
         val calculatedStartTime = currentTime - adjustedPlaybackTime
 
-        val songTitleWithRate = if (playbackSpeed != 1.0f) {
-            "${song.song.title} [${String.format("%.2fx", playbackSpeed)}]"
+        val songTitleWithRate = if (validPlaybackSpeed != 1.0f) {
+            "${song.song.title} [${String.format(java.util.Locale.US, "%.2fx", validPlaybackSpeed)}]"
         } else {
             song.song.title
         }
 
-        val remainingDuration = song.song.duration * 1000L - currentPlaybackTimeMillis
-        val adjustedRemainingDuration = (remainingDuration / playbackSpeed).toLong()
+        val remainingDuration = (song.song.duration * 1000L - currentPlaybackTimeMillis).coerceAtLeast(0L)
+        val adjustedRemainingDuration = (remainingDuration / validPlaybackSpeed).toLong()
 
         val buttonsList = mutableListOf<Pair<String, String>>()
         if (button1Visible) {
@@ -94,14 +102,25 @@ class DiscordRPC(
             applicationId = APPLICATION_ID,
             status = status
         )
+        Timber.d("updateSong: activity set successfully for \"%s\"", song.song.title)
     }
 
     override suspend fun close() {
+        Timber.d("DiscordRPC closing connection")
         super.close()
     }
 
     companion object {
         private const val APPLICATION_ID = "1411019391843172514"
+
+        /**
+         * Masks a Discord token for safe logging. Shows only the first 4 and
+         * last 2 characters — enough to identify the token without leaking it.
+         */
+        fun maskToken(token: String): String {
+            if (token.length <= 12) return "****"
+            return "${token.take(3)}...${token.takeLast(3)}"
+        }
 
         /**
          * Resolves template variables in text.

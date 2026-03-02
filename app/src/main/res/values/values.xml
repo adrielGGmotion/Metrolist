@@ -5,4 +5,8 @@
     <drawable name="media3_notification_pause">@drawable/pause</drawable>
     <drawable name="media3_notification_seek_to_previous">@drawable/skip_previous</drawable>
     <drawable name="media3_notification_seek_to_next">@drawable/skip_next</drawable>
+
+    <!-- DevTools dimensions -->
+    <dimen name="devtools_fab_bottom_padding">120dp</dimen>
+    <dimen name="devtools_drag_bounds_padding">150dp</dimen>
 </resources>

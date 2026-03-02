@@ -15,6 +15,8 @@ import androidx.room.Room
 import com.metrolist.music.constants.MaxSongCacheSizeKey
 import com.metrolist.music.db.InternalDatabase
 import com.metrolist.music.db.MusicDatabase
+import com.metrolist.music.devtools.DevToolsLogBuffer
+import com.metrolist.music.devtools.DevToolsTimberTree
 import com.metrolist.music.listentogether.ListenTogetherClient
 import com.metrolist.music.listentogether.ListenTogetherManager
 import com.metrolist.music.utils.dataStore
@@ -33,8 +35,17 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    @Provides
     @Singleton
+    @Provides
+    fun provideDevToolsLogBuffer(): DevToolsLogBuffer = DevToolsLogBuffer(maxSize = 1000)
+
+    @Singleton
+    @Provides
+    fun provideDevToolsTimberTree(buffer: DevToolsLogBuffer): DevToolsTimberTree =
+        DevToolsTimberTree(buffer)
+
+    @Singleton
+    @Provides
     @ApplicationScope
     fun provideApplicationScope(): CoroutineScope {
         return CoroutineScope(SupervisorJob() + Dispatchers.Default)

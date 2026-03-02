@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import kotlin.math.min
 
 class ScrobbleManager(
@@ -19,6 +20,9 @@ class ScrobbleManager(
     var scrobbleDelayPercent: Float = 0.5f,
     var scrobbleDelaySeconds: Int = 50
 ) {
+    private companion object {
+        const val TAG = "LastFM"
+    }
     private var scrobbleJob: Job? = null
     private var scrobbleRemainingMillis: Long = 0L
     private var scrobbleTimerStartedAt: Long = 0L
@@ -32,12 +36,14 @@ class ScrobbleManager(
         scrobbleTimerStartedAt = 0L
         songStartedAt = 0L
         songStarted = false
+        Timber.tag(TAG).d("ScrobbleManager destroyed")
     }
 
     fun onSongStart(metadata: MediaMetadata?, duration: Long? = null) {
         if (metadata == null) return
         songStartedAt = System.currentTimeMillis() / 1000
         songStarted = true
+        Timber.tag(TAG).d("onSongStart: ${metadata.title}")
         startScrobbleTimer(metadata, duration)
         if (useNowPlaying) {
             updateNowPlaying(metadata)
@@ -45,14 +51,17 @@ class ScrobbleManager(
     }
 
     fun onSongResume(metadata: MediaMetadata) {
+        Timber.tag(TAG).d("onSongResume: ${metadata.title}")
         resumeScrobbleTimer(metadata)
     }
 
     fun onSongPause() {
+        Timber.tag(TAG).d("onSongPause")
         pauseScrobbleTimer()
     }
 
     fun onSongStop() {
+        Timber.tag(TAG).d("onSongStop")
         stopScrobbleTimer()
         songStarted = false
     }
@@ -61,7 +70,10 @@ class ScrobbleManager(
         scrobbleJob?.cancel()
         val duration = duration?.toInt()?.div(1000) ?: metadata.duration
 
-        if (duration <= minSongDuration) return
+        if (duration <= minSongDuration) {
+            Timber.tag(TAG).d("Song too short to scrobble (${duration}s)")
+            return
+        }
 
         val threshold = duration * 1000L * scrobbleDelayPercent
         scrobbleRemainingMillis = min(threshold.toLong(), scrobbleDelaySeconds * 1000L)
@@ -71,6 +83,7 @@ class ScrobbleManager(
             return
         }
         scrobbleTimerStartedAt = System.currentTimeMillis()
+        Timber.tag(TAG).d("Starting scrobble timer for ${scrobbleRemainingMillis}ms")
         scrobbleJob = scope.launch {
             delay(scrobbleRemainingMillis)
             scrobbleSong(metadata)
@@ -85,7 +98,7 @@ class ScrobbleManager(
             scrobbleRemainingMillis -= elapsed
             if (scrobbleRemainingMillis < 0) scrobbleRemainingMillis = 0
             scrobbleTimerStartedAt = 0L
-        } else {
+            Timber.tag(TAG).d("Scrobble timer paused. ${scrobbleRemainingMillis}ms remaining")
         }
     }
 
@@ -93,6 +106,7 @@ class ScrobbleManager(
         if (scrobbleRemainingMillis <= 0) return
         scrobbleJob?.cancel()
         scrobbleTimerStartedAt = System.currentTimeMillis()
+        Timber.tag(TAG).d("Resuming scrobble timer for ${scrobbleRemainingMillis}ms")
         scrobbleJob = scope.launch {
             delay(scrobbleRemainingMillis)
             scrobbleSong(metadata)
@@ -104,9 +118,11 @@ class ScrobbleManager(
         scrobbleJob?.cancel()
         scrobbleJob = null
         scrobbleRemainingMillis = 0
+        Timber.tag(TAG).d("Scrobble timer stopped")
     }
 
     private fun scrobbleSong(metadata: MediaMetadata) {
+        Timber.tag(TAG).d("Scrobbling: ${metadata.title}")
         scope.launch {
             LastFM.scrobble(
                 artist = metadata.artists.joinToString { it.name },
@@ -119,6 +135,7 @@ class ScrobbleManager(
     }
 
     private fun updateNowPlaying(metadata: MediaMetadata) {
+        Timber.tag(TAG).d("Updating Now Playing: ${metadata.title}")
         scope.launch {
             LastFM.updateNowPlaying(
                 artist = metadata.artists.joinToString { it.name },

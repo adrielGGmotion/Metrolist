@@ -251,7 +251,8 @@ class MusicService :
     private var wasPlayingBeforeVolumeMute = false
     private var isPausedByVolumeMute = false
 
-    private var crossfadeEnabled = false
+    internal var crossfadeEnabled = false
+        private set
     private var crossfadeDuration = 5000f
     private var crossfadeGapless = true
     private var crossfadeTriggerJob: Job? = null
@@ -359,14 +360,18 @@ class MusicService :
 
     private val instantSilenceSkipEnabled = MutableStateFlow(false)
 
-    private var isAudioEffectSessionOpened = false
-    private var loudnessEnhancer: LoudnessEnhancer? = null
-
-    private var discordRpc: DiscordRPC? = null
+    internal var isAudioEffectSessionOpened = false
+        private set
+    internal var loudnessEnhancer: LoudnessEnhancer? = null
+        private set
+ 
+    internal var discordRpc: DiscordRPC? = null
+        private set
     private var lastPlaybackSpeed = 1.0f
     private var discordUpdateJob: kotlinx.coroutines.Job? = null
-
-    private var scrobbleManager: ScrobbleManager? = null
+ 
+    internal var scrobbleManager: ScrobbleManager? = null
+        private set
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
@@ -402,14 +407,17 @@ class MusicService :
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
                     if (!player.isPlaying) {
+                        Timber.tag(TAG).d("Discord RPC: screen off while paused, closing connection")
                         scope.launch(Dispatchers.IO) {
-                            discordRpc?.closeRPC()
+                            runCatching { discordRpc?.close() }
+                                .onFailure { Timber.tag(TAG).e(it, "Failed to close Discord RPC") }
                         }
                     }
                 }
 
                 Intent.ACTION_SCREEN_ON -> {
                     if (player.isPlaying) {
+                        Timber.tag(TAG).d("Discord RPC: screen on while playing, updating presence")
                         scope.launch {
                             currentSong.value?.let { song ->
                                 updateDiscordRPC(song)
@@ -590,6 +598,7 @@ class MusicService :
                 }
                 // Update Discord RPC when network becomes available
                 if (isConnected && discordRpc != null && player.isPlaying) {
+                    Timber.tag(TAG).d("Discord RPC: network reconnected, refreshing presence")
                     val mediaId = player.currentMetadata?.id
                     if (mediaId != null) {
                         database.song(mediaId).first()?.let { song ->
@@ -759,16 +768,21 @@ class MusicService :
             .distinctUntilChanged()
             .collect(scope) { (key, enabled) ->
                 if (discordRpc?.isRpcRunning() == true) {
-                    discordRpc?.closeRPC()
+                    Timber.tag(TAG).d("Discord RPC: tearing down previous instance")
+                    runCatching { discordRpc?.close() }
+                        .onFailure { Timber.tag(TAG).e(it, "Failed to close Discord RPC") }
                 }
                 discordRpc = null
                 if (key != null && enabled) {
+                    Timber.tag(TAG).d("Discord RPC: creating instance (token=%s)", DiscordRPC.maskToken(key))
                     discordRpc = DiscordRPC(this, key)
                     if (player.playbackState == Player.STATE_READY && player.playWhenReady) {
                         currentSong.value?.let {
                             updateDiscordRPC(it, true)
                         }
                     }
+                } else {
+                    Timber.tag(TAG).d("Discord RPC: disabled (token=%s, enabled=%s)", key != null, enabled)
                 }
             }
 
@@ -2137,8 +2151,10 @@ class MusicService :
                     Player.EVENT_MEDIA_ITEM_TRANSITION
                 )
             ) {
-                scope.launch {
-                    discordRpc?.close()
+                Timber.tag(TAG).d("Discord RPC: playback stopped, closing presence")
+                scope.launch(Dispatchers.IO) {
+                    runCatching { discordRpc?.close() }
+                        .onFailure { Timber.tag(TAG).e(it, "Failed to close Discord RPC") }
                 }
             }
         }
@@ -2151,6 +2167,7 @@ class MusicService :
         ) {
             val mediaId = player.currentMetadata?.id
             if (mediaId != null) {
+                Timber.tag(TAG).d("Discord RPC: media transition/play event, updating for mediaId=%s", mediaId)
                 scope.launch {
                     // Fetch song from database to get full info
                     database.song(mediaId).first()?.let { song ->
@@ -2788,6 +2805,7 @@ class MusicService :
     }
 
     private fun updateDiscordRPC(song: Song, showFeedback: Boolean = false) {
+        Timber.tag(TAG).d("updateDiscordRPC: song=\"%s\", showFeedback=%s", song.song.title, showFeedback)
         val useDetails = dataStore.get(DiscordUseDetailsKey, false)
         val advancedMode = dataStore.get(DiscordAdvancedModeKey, false)
 
@@ -2814,6 +2832,7 @@ class MusicService :
                 activityType,
                 activityName
             )?.onFailure {
+                Timber.tag(TAG).w(it, "Discord RPC update failed for \"%s\"", song.song.title)
                 // Rate limited or error
                 if (showFeedback) {
                     Handler(Looper.getMainLooper()).post {
@@ -3107,9 +3126,16 @@ class MusicService :
             saveQueueToDisk()
         }
         if (discordRpc?.isRpcRunning() == true) {
-            discordRpc?.closeRPC()
+            Timber.tag(TAG).d("Discord RPC: service destroying, closing RPC")
+            val rpc = discordRpc
+            discordRpc = null
+            scope.launch(Dispatchers.IO) {
+                runCatching { rpc?.close() }
+                    .onFailure { Timber.tag(TAG).e(it, "Failed to close Discord RPC") }
+            }
+        } else {
+            discordRpc = null
         }
-        discordRpc = null
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()

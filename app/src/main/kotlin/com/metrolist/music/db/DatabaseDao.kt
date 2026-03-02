@@ -1727,6 +1727,18 @@ interface DatabaseDao {
     @RawQuery
     fun raw(supportSQLiteQuery: SupportSQLiteQuery): Int
 
+    @Query("SELECT COUNT(*) FROM song")
+    fun devCountSongs(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM album")
+    fun devCountAlbums(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM artist")
+    fun devCountArtists(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM playlist")
+    fun devCountPlaylists(): Flow<Int>
+
     fun checkpoint() {
         raw("PRAGMA wal_checkpoint(FULL)".toSQLiteQuery())
     }
