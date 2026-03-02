@@ -73,17 +73,8 @@ class App : Application(), SingletonImageLoader.Factory {
 
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
-            Timber.plant(devToolsTimberTree)
-        } else {
-            Timber.plant(object : Timber.Tree() {
-                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-                    if (priority >= android.util.Log.WARN) {
-                        android.util.Log.println(priority, tag ?: "Metrolist", message)
-                        t?.let { android.util.Log.e(tag ?: "Metrolist", it.message, it) }
-                    }
-                }
-            })
         }
+        Timber.plant(devToolsTimberTree)
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
