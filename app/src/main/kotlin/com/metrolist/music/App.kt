@@ -27,6 +27,7 @@ import com.metrolist.kugou.KuGou
 import com.metrolist.lastfm.LastFM
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.constants.*
+import com.metrolist.music.devtools.DevToolsTimberTree
 import com.metrolist.music.di.ApplicationScope
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toInetSocketAddress
@@ -58,6 +59,9 @@ class App : Application(), SingletonImageLoader.Factory {
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
 
+    @Inject
+    lateinit var devToolsTimberTree: DevToolsTimberTree
+
     override fun onCreate() {
         super.onCreate()
 
@@ -67,10 +71,23 @@ class App : Application(), SingletonImageLoader.Factory {
         // Initialize PlayerJsFetcher for n-transform solver
         PlayerJsFetcher.initialize(this)
 
-        Timber.plant(Timber.DebugTree())
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
+            // Only plant DevTools Timber tree if developer mode is enabled.
+            // Don't block/abort the rest of startup if this read fails.
+            val devModeEnabled = runCatching {
+                dataStore.data.first()[DeveloperModeKey] ?: false
+            }.getOrElse {
+                Timber.w(it, "Failed to read DeveloperModeKey; continuing startup")
+                false
+            }
+            if (devModeEnabled) {
+                Timber.plant(devToolsTimberTree)
+            }
             initializeSettings()
             observeSettingsChanges()
         }
@@ -222,9 +239,6 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = runBlocking {
-            dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
-        }
         return ImageLoader.Builder(this).apply {
             crossfade(true)
             allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
@@ -234,16 +248,12 @@ class App : Application(), SingletonImageLoader.Factory {
                     .maxSizePercent(context, 0.25)
                     .build()
             }
-            if (cacheSize == 0) {
-                diskCachePolicy(CachePolicy.DISABLED)
-            } else {
-                diskCache(
-                    DiskCache.Builder()
-                        .directory(cacheDir.resolve("coil"))
-                        .maxSizeBytes(cacheSize * 1024 * 1024L)
-                        .build()
-                )
-            }
+            diskCache(
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("coil"))
+                    .maxSizeBytes(512 * 1024 * 1024L)
+                    .build()
+            )
         }.build()
     }
 

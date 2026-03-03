@@ -53,7 +53,7 @@ class PlayerConnection(
     context: Context,
     binder: MusicBinder,
     val database: MusicDatabase,
-    scope: CoroutineScope,
+    val scope: CoroutineScope,
 ) : Player.Listener {
     private companion object {
         private const val TAG = "PlayerConnection"
@@ -441,7 +441,7 @@ class PlayerConnection(
         }.toMap()
     }
 
-    private fun checkAndStartAutomaticSleepTimer(): Boolean {
+    private suspend fun checkAndStartAutomaticSleepTimer(): Boolean {
         return try {
             val sleepTimerEnabled = service.applicationContext.dataStore.get(SleepTimerEnabledKey) ?: false
             Timber.tag(TAG).d("✓ Sleep Timer Check: enabled=$sleepTimerEnabled")
@@ -543,7 +543,9 @@ class PlayerConnection(
 
         // Central sleep timer trigger: fires on every paused -> playing transition,
         if (newPlayWhenReady && !wasPlaying) {
-            checkAndStartAutomaticSleepTimer()
+            scope.launch {
+                checkAndStartAutomaticSleepTimer()
+            }
         }
     }
 

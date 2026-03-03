@@ -700,6 +700,7 @@
     <string name="ai_deepl_formality_less">Less Formal</string>
     
     <!-- Crash Handler -->
+    <string name="export_failed">Export failed: %1$s</string>
     <string name="crash_title">App Crashed</string>
     <string name="crash_description">An unexpected error occurred. Please share the crash report to help us fix the issue.</string>
     <string name="crash_share_logs">Share Logs</string>
@@ -913,4 +914,135 @@
     <string name="delete_uploaded_songs_confirm">Are you sure you want to delete %1$d uploaded songs? This cannot be undone.</string>
     <string name="deleted_n_songs">Deleted %1$d songs</string>
     <string name="deleting">Deleting…</string>
+    <string name="select_log">Select Log</string>
+    <!-- DevTools -->
+    <string name="dev_mode_already_enabled">Developer mode is already enabled</string>
+    <plurals name="dev_mode_taps_remaining">
+        <item quantity="one">%d tap to enable developer mode</item>
+        <item quantity="other">%d taps to enable developer mode</item>
+    </plurals>
+    <string name="dev_mode_enabled">Developer mode enabled!</string>
+    <string name="dev_mode_required">Developer mode is required to access this screen</string>
+    <string name="dev_tools">Developer Tools</string>
+    <string name="enable_dev_tools">Enable Developer Tools</string>
+    <string name="enable_dev_tools_desc">Provides floating overlay for logs and state inspection</string>
+    <string name="dev_actions">Developer Actions</string>
+    <string name="dev_actions_subtitle">Active utility tools and exports</string>
+    <string name="export_logs">Export Logs</string>
+    <string name="export_logs_desc">Compiles the in-memory log buffer into a text file and opens the share sheet.</string>
+    <string name="export_now">Export Now</string>
+    <string name="export_devtools_logs">Export DevTools Logs</string>
+    <string name="clear_cache">Clear Cache</string>
+    <string name="clear_cache_desc">Recursively deletes the application cache directory.</string>
+    <string name="cleared_cache_mb">Cleared %d MB from cache</string>
+    <string name="failed_clear_cache">Failed to clear cache: %s</string>
+    <string name="test_crash_handler">Test Crash Handler</string>
+    <string name="test_crash_handler_desc">Throws a fatal RuntimeException to verify the global crash handler and crash activity.</string>
+    <string name="force_crash">Force Crash</string>
+    <string name="environment">Environment</string>
+    <string name="environment_subtitle">Device hardware and app build metrics</string>
+    <string name="app_info">App Info</string>
+    <string name="version_code">Version Code</string>
+    <string name="build_type">Build Type</string>
+    <string name="architecture">Architecture</string>
+    <string name="device_info">Device Info</string>
+    <string name="device_model">Model</string>
+    <string name="android_os">Android OS</string>
+    <string name="resolution">Resolution</string>
+    <string name="density">Density</string>
+    <string name="memory_metrics">Memory Metrics</string>
+    <string name="device_ram">Device RAM</string>
+    <string name="app_heap_limit">App Heap Limit</string>
+    <string name="database">Database</string>
+    <string name="database_subtitle">Local Room database statistics</string>
+    <string name="connection">Connection</string>
+    <string name="database_name">Database Name</string>
+    <string name="status">Status</string>
+    <string name="library_stats">Library Stats</string>
+    <string name="logs">Logs</string>
+    <string name="logs_subtitle">Real-time application logs</string>
+    <string name="search_logs">Search logs...</string>
+    <string name="clear_search">Clear search</string>
+    <string name="selected_count">%d Selected</string>
+    <string name="copy_selected">Copy Selected</string>
+    <string name="clear_selection">Clear Selection</string>
+    <string name="all_levels">All Levels</string>
+    <string name="log_verbose">Verbose</string>
+    <string name="log_debug">Debug</string>
+    <string name="log_info">Info</string>
+    <string name="log_warn">Warn</string>
+    <string name="log_error">Error</string>
+    <string name="all_tags">All Tags</string>
+    <string name="toggle_filters">Toggle Filters</string>
+    <string name="clear_logs">Clear Logs</string>
+
+    <string name="dev_playback">Playback</string>
+    <string name="dev_playback_subtitle">ExoPlayer and MediaSession state</string>
+    <string name="dev_player_status">Status</string>
+    <string name="dev_player_service">Service</string>
+    <string name="dev_player_not_initialized">PlayerConnection not initialized</string>
+    <string name="dev_engine_state">Engine State</string>
+    <string name="dev_service_ready">Service Ready</string>
+    <string name="dev_playback_state">Playback State</string>
+    <string name="dev_is_playing">Is Playing</string>
+    <string name="dev_active_error">Active Error</string>
+    <string name="dev_none">None</string>
+    <string name="dev_current_media">Current Media</string>
+    <string name="dev_media_id">Media ID</string>
+    <string name="dev_title">Title</string>
+    <string name="dev_queue_size">Queue Size</string>
+    <string name="dev_timeline">Timeline</string>
+    <string name="dev_timeline_format">%1$d ms / %2$d ms</string>
+    <string name="dev_tab_logs">Logs</string>
+    <string name="dev_tab_player">Player</string>
+    <string name="dev_tab_env">Env</string>
+    <string name="dev_tab_db">DB</string>
+    <string name="dev_tab_tools">Tools</string>
+    <string name="dev_filter_player">Player</string>
+    <string name="dev_filter_ui">UI</string>
+    <string name="dev_filter_db">DB</string>
+    <string name="dev_filter_integration">Integration</string>
+    <string name="dev_ram_format">%1$s GB (Total)\n%2$s GB (Free)</string>
+    <string name="dev_mb_format">%1$s MB</string>
+    <string name="dev_dpi_format">%1$d dpi</string>
+    <string name="dev_db_name">internal.db</string>
+    <string name="dev_db_connected">Connected</string>
+    <string name="dev_db_disconnected">Disconnected</string>
+    <string name="dev_build_type_debug">Debug</string>
+    <string name="dev_build_type_release">Release</string>
+
+    <string name="dev_background_processes">Background Processes</string>
+    <string name="dev_crossfade_enabled">Crossfade</string>
+    <string name="dev_loudness_enhancer">Loudness Enhancer</string>
+    <string name="dev_discord_rpc">Discord RPC</string>
+    <string name="dev_scrobbling">Scrobbling</string>
+    <string name="dev_sleep_timer_active">Sleep Timer</string>
+
+    <string name="dev_clear_image_cache">Clear Image Cache</string>
+    <string name="dev_clear_image_cache_desc">Clears the Coil memory and disk caches.</string>
+    <string name="dev_cleared_image_cache">Cleared Image Cache</string>
+    <string name="dev_listen_together">Listen Together</string>
+    <string name="dev_listen_together_status">Status</string>
+    <string name="dev_listen_together_room">Room</string>
+    <string name="dev_listen_together_role">Role</string>
+    <string name="dev_listen_together_sync">Drift</string>
+    <string name="dev_listen_together_ws">WebSocket</string>
+    <string name="dev_queue_viewer">Active Queue</string>
+    <string name="dev_queue_viewer_subtitle">Next items</string>
+    <string name="dev_unknown">Unknown</string>
+    <string name="dev_empty">Empty</string>
+    <string name="dev_export_header">--- METROLIST DEVTOOLS EXPORT ---
+App Version: %1$s (%2$s)
+Build Type: %3$s
+Architecture: %4$s
+Device: %5$s %6$s
+OS: Android %7$s (API %8$s)
+Screen: %9$s, %10$s dpi
+Memory: %11$s GB free / %12$s GB total (Max Heap: %13$s MB)
+---------------------------------
+</string>
+    <string name="dev_export_filename">metrolist_logs_%1$s.txt</string>
+    <string name="dev_debug">Debug</string>
+    <string name="dev_release">Release</string>
+
 </resources>

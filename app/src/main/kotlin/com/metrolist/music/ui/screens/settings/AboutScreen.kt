@@ -35,6 +35,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -80,6 +81,20 @@ import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.datastore.preferences.core.edit
+import com.metrolist.music.constants.DeveloperModeKey
+import com.metrolist.music.utils.dataStore
+import com.metrolist.music.utils.rememberPreference
+import androidx.compose.runtime.mutableLongStateOf
+
+
+
+private const val DEV_MODE_REQUIRED_TAPS = 9
+private const val DEV_MODE_TAP_TIMEOUT_MS = 2000L
+private const val DEV_MODE_COUNTDOWN_START = 3
 
 private data class Contributor(
     val name: String,
@@ -293,26 +308,48 @@ fun AboutScreen(
     val localSnackbarHostState = remember { SnackbarHostState() }
     val wannaPlayStr = stringResource(R.string.wanna_play_favorite_song)
     val yeahStr = stringResource(R.string.yeah)
-    
-    Box(modifier = Modifier.fillMaxSize()) {
+
+    val context = LocalContext.current
+    var tapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
+    val isDeveloperModeEnabled by rememberPreference(DeveloperModeKey, defaultValue = false)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.about)) },
+                navigationIcon = {
+                    IconButton(
+                        onClick = navController::navigateUp,
+                        onLongClick = navController::backToMain,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_back),
+                            contentDescription = stringResource(R.string.cd_back),
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
+        snackbarHost = {
+            androidx.compose.material3.SnackbarHost(
+                hostState = localSnackbarHostState,
+                modifier = Modifier
+                    .windowInsetsPadding(
+                        LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                    )
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(
-                    LocalPlayerAwareWindowInsets.current.only(
-                        WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
-                    )
-                )
+                .fillMaxSize()
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(
-                Modifier.windowInsetsPadding(
-                    LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)
-                )
-            )
-    
             Spacer(Modifier.height(16.dp))
     
             Surface(
@@ -330,7 +367,38 @@ fun AboutScreen(
                         modifier = Modifier
                             .size(80.dp)
                             .clip(MaterialShapes.SoftBurst.toShape())
-                            .background(MaterialTheme.colorScheme.primaryContainer),
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .clickable {
+                                if (isDeveloperModeEnabled) {
+                                    Toast.makeText(context, context.getString(R.string.dev_mode_already_enabled), Toast.LENGTH_SHORT).show()
+                                    return@clickable
+                                }
+                                val now = System.currentTimeMillis()
+                                if (now - lastTapTime > DEV_MODE_TAP_TIMEOUT_MS) {
+                                    tapCount = 0
+                                }
+                                lastTapTime = now
+                                tapCount++
+
+                                val remaining = DEV_MODE_REQUIRED_TAPS - tapCount
+                                when {
+                                    remaining in 1..DEV_MODE_COUNTDOWN_START -> {
+                                        Toast.makeText(context, context.resources.getQuantityString(R.plurals.dev_mode_taps_remaining, remaining, remaining), Toast.LENGTH_SHORT).show()
+                                    }
+                                    remaining <= 0 -> {
+                                        tapCount = 0
+                                        lastTapTime = 0L
+                                        coroutineScope.launch {
+                                            try {
+                                                context.dataStore.edit { it[DeveloperModeKey] = true }
+                                                Toast.makeText(context, context.getString(R.string.dev_mode_enabled), Toast.LENGTH_LONG).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Failed to enable developer mode", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         androidx.compose.foundation.Image(
@@ -578,30 +646,5 @@ fun AboutScreen(
             
             Spacer(Modifier.height(40.dp))
         }
-
-        TopAppBar(
-            title = { Text(stringResource(R.string.about)) },
-            navigationIcon = {
-                IconButton(
-                    onClick = navController::navigateUp,
-                    onLongClick = navController::backToMain,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_back),
-                        contentDescription = stringResource(R.string.cd_back),
-                    )
-                }
-            },
-            scrollBehavior = scrollBehavior,
-        )
-
-        androidx.compose.material3.SnackbarHost(
-            hostState = localSnackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .windowInsetsPadding(
-                    LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
-                )
-        )
     }
 }
