@@ -15,6 +15,7 @@ object YouTubeLyricsProvider : LyricsProvider {
     override fun isEnabled(context: Context) = true
 
     override suspend fun getLyrics(
+        context: Context,
         id: String,
         title: String,
         artist: String,
