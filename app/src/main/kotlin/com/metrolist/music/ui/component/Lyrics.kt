@@ -820,6 +820,7 @@ fun Lyrics(
             val anchorPadding = maxHeight * 0.02f
             LazyColumn(
             state = lazyListState,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = WindowInsets.systemBars
                 .only(WindowInsetsSides.Top)
                 .add(WindowInsets(top = anchorPadding, bottom = maxHeight / 2))
