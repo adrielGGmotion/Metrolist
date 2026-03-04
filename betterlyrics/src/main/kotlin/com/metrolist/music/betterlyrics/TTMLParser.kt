@@ -297,10 +297,16 @@ object TTMLParser {
                 val seconds = (timeMs % 60000) / 1000
                 val centiseconds = (timeMs % 1000) / 10
                 
-                // Add agent info if present
-                val agentPrefix = if (!line.agent.isNullOrEmpty()) "{agent:${line.agent}}" else ""
+                // Convert agent to Paxsenix format: v1, v2, etc.
+                val agentSuffix = when (line.agent?.lowercase()) {
+                    "v1" -> "v1:"
+                    "v2" -> "v2:"
+                    "v3" -> "v3:"
+                    "v4" -> "v4:"
+                    else -> if (!line.agent.isNullOrEmpty()) "${line.agent}:" else ""
+                }
                 
-                appendLine(String.format("[%02d:%02d.%02d]%s%s", minutes, seconds, centiseconds, agentPrefix, line.text))
+                appendLine(String.format("[%02d:%02d.%02d]%s%s", minutes, seconds, centiseconds, agentSuffix, line.text))
                 
                 if (line.words.isNotEmpty()) {
                     val wordsData = line.words.joinToString("|") { word ->
@@ -316,13 +322,14 @@ object TTMLParser {
                     val bgSeconds = (bgTimeMs % 60000) / 1000
                     val bgCentiseconds = (bgTimeMs % 1000) / 10
                     
-                    appendLine(String.format("[%02d:%02d.%02d]{bg}%s", bgMinutes, bgSeconds, bgCentiseconds, bgLine.text))
-                    
+                    // Paxsenix bg format: [bg: <MM:SS.mm>word<MM:SS.mm>]
                     if (bgLine.words.isNotEmpty()) {
-                        val bgWordsData = bgLine.words.joinToString("|") { word ->
-                            "${word.text}:${word.startTime}:${word.endTime}"
+                        val bgWordsData = bgLine.words.joinToString("") { word ->
+                            "<${String.format("%02d:%02d.%03d", (word.startTime / 60).toInt(), (word.startTime % 60).toInt(), ((word.startTime % 1) * 1000).toInt())}>${word.text}<${String.format("%02d:%02d.%03d", (word.endTime / 60).toInt(), (word.endTime % 60).toInt(), ((word.endTime % 1) * 1000).toInt())}>"
                         }
-                        appendLine("<$bgWordsData>")
+                        appendLine("[bg: $bgWordsData]")
+                    } else {
+                        appendLine(String.format("[%02d:%02d.%02d]{bg}%s", bgMinutes, bgSeconds, bgCentiseconds, bgLine.text))
                     }
                 }
             }
