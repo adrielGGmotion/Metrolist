@@ -1696,7 +1696,7 @@ fun BottomSheetPlayer(
                 )
                 val showControlsAtTop = showInlineLyrics && isFullScreen
                 val topPadding by animateDpAsState(
-                    targetValue = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 16.dp else 0.dp,
+                    targetValue = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 20.dp else 0.dp,
                     animationSpec = tween(300),
                     label = "topPadding"
                 )
