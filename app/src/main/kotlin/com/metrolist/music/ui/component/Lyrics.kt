@@ -1047,25 +1047,13 @@ fun Lyrics(
                         val mainText = if (romanizeAsMain && isRomanizedAvailable) romanizedText else item.text
                         val subText = if (romanizeAsMain && isRomanizedAvailable) item.text else romanizedText
                         
-                        if (isActiveLine) {
-                            Text(
-                                text = mainText,
-                                fontSize = 24.sp,
-                                color = expressiveAccent,
-                                textAlign = alignment,
-                                fontWeight = FontWeight.Bold,
-                                lineHeight = (24 * 1.3f).sp
-                            )
-                        } else {
-                            Text(
-                                text = mainText,
-                                fontSize = 24.sp,
-                                color = lineColor,
-                                textAlign = alignment,
-                                fontWeight = FontWeight.Normal,
-                                lineHeight = (24 * 1.3f).sp
-                            )
-                        }
+                        Text(
+                            text = mainText,
+                            fontSize = 24.sp,
+                            color = lineColor,
+                            textAlign = alignment,
+                            lineHeight = (24 * 1.3f).sp
+                        )
                         if (currentSong?.romanizeLyrics == true
                             && (romanizeJapaneseLyrics ||
                                     romanizeKoreanLyrics ||
