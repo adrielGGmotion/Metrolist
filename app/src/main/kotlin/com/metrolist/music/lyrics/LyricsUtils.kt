@@ -25,7 +25,13 @@ object LyricsUtils {
     private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.+)".toRegex()
     private val RICH_SYNC_WORD_REGEX = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>\\s*([^<]+)".toRegex()
 
-    // Regex for agent and background markers
+    // Regex for Paxsenix v1/v2/bg format
+    // [00:00.000]v1: <00:00.000>I <00:00.154>promise...
+    // [bg: <02:18.078>Yeah<02:19.341>]
+    private val PAXSENIX_AGENT_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](v\\d+):\\s*(.+)".toRegex()
+    private val PAXSENIX_BG_LINE_REGEX = "\\[bg:\\s*<(\\d{1,2}):(\\d{2})\\.(\\d{3})>([^<]+)<(\\d{1,2}):(\\d{2})\\.(\\d{3})>\\]".toRegex()
+
+    // Regex for agent and background markers (existing format)
     private val AGENT_REGEX = "\\{agent:([^}]+)\\}".toRegex()
     private val BACKGROUND_REGEX = "^\\{bg\\}".toRegex()
 
@@ -386,7 +392,53 @@ object LyricsUtils {
         val result = mutableListOf<LyricsEntry>()
 
         lines.forEachIndexed { index, line ->
-            val matchResult = RICH_SYNC_LINE_REGEX.matchEntire(line.trim())
+            val trimmedLine = line.trim()
+            
+            // Try Paxsenix bg format first: [bg: <02:18.078>Yeah<02:19.341>]
+            val bgMatch = PAXSENIX_BG_LINE_REGEX.find(trimmedLine)
+            if (bgMatch != null) {
+                val bgMinutes = bgMatch.groupValues[1].toLongOrNull() ?: 0L
+                val bgSeconds = bgMatch.groupValues[2].toLongOrNull() ?: 0L
+                val bgCentis = bgMatch.groupValues[3].toLongOrNull() ?: 0L
+                val bgWord = bgMatch.groupValues[4].trim()
+                val bgEndMin = bgMatch.groupValues[5].toLongOrNull() ?: 0L
+                val bgEndSec = bgMatch.groupValues[6].toLongOrNull() ?: 0L
+                val bgEndCs = bgMatch.groupValues[7].toLongOrNull() ?: 0L
+                
+                val bgStartMs = (bgMinutes * 60 + bgSeconds) * 1000 + bgCentis
+                val bgEndMs = (bgEndMin * 60 + bgEndSec) * 1000 + bgEndCs
+                
+                val wordTimestamp = WordTimestamp(bgWord, bgStartMs.toDouble() / 1000, bgEndMs.toDouble() / 1000)
+                result.add(LyricsEntry(bgStartMs, bgWord, listOf(wordTimestamp), agent = "bg", isBackground = true))
+                return@forEachIndexed
+            }
+            
+            // Try Paxsenix agent format: [00:00.000]v1: <00:00.000>I <00:00.154>promise...
+            val agentMatch = PAXSENIX_AGENT_LINE_REGEX.find(trimmedLine)
+            if (agentMatch != null) {
+                val minutes = agentMatch.groupValues[1].toLongOrNull() ?: 0L
+                val seconds = agentMatch.groupValues[2].toLongOrNull() ?: 0L
+                val centiseconds = agentMatch.groupValues[3].toLongOrNull() ?: 0L
+                val agent = agentMatch.groupValues[4] // v1, v2, etc.
+                val content = agentMatch.groupValues[5]
+                
+                val millisPart = if (agentMatch.groupValues[3].length == 3) centiseconds else centiseconds * 10
+                val lineTimeMs = minutes * DateUtils.MINUTE_IN_MILLIS + seconds * DateUtils.SECOND_IN_MILLIS + millisPart
+                
+                // Parse word-level timestamps from content
+                val wordTimings = parseRichSyncWords(content, index, lines)
+                
+                // Extract plain text (remove all <MM:SS.mm> tags)
+                val plainText = content.replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), "").trim()
+                
+                if (plainText.isNotBlank()) {
+                    result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = agent, isBackground = false))
+                }
+                return@forEachIndexed
+            }
+            
+            // Try existing format: [MM:SS.mm]{agent:v1}... or [MM:SS.mm]{bg}...
+            val matchResult = RICH_SYNC_LINE_REGEX.matchEntire(trimmedLine)
             if (matchResult != null) {
                 val minutes = matchResult.groupValues[1].toLongOrNull() ?: 0L
                 val seconds = matchResult.groupValues[2].toLongOrNull() ?: 0L
@@ -399,9 +451,9 @@ object LyricsUtils {
                 var content = matchResult.groupValues[4].trimStart()
 
                 // Parse agent marker {agent:v1}
-                val agentMatch = AGENT_REGEX.find(content)
-                val agent = agentMatch?.groupValues?.get(1)
-                if (agentMatch != null) {
+                val oldAgentMatch = AGENT_REGEX.find(content)
+                val agent = oldAgentMatch?.groupValues?.get(1)
+                if (oldAgentMatch != null) {
                     content = content.replaceFirst(AGENT_REGEX, "")
                 }
 
