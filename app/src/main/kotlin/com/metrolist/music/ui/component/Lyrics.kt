@@ -1061,7 +1061,7 @@ fun Lyrics(
                         if (annotatedString != null) {
                             Text(
                                 text = annotatedString,
-                                fontSize = 30.sp,
+                                fontSize = 39.sp,
                                 textAlign = alignment,
                                 lineHeight = (39 * 1.2f).sp
                             )
