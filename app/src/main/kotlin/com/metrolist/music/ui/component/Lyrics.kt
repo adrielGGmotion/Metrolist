@@ -820,13 +820,13 @@ fun Lyrics(
             val anchorPadding = maxHeight * 0.02f
             LazyColumn(
             state = lazyListState,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
             contentPadding = WindowInsets.systemBars
                 .only(WindowInsetsSides.Top)
                 .add(WindowInsets(top = anchorPadding, bottom = maxHeight / 2))
                 .asPaddingValues(),
             modifier = Modifier
-                .fadingEdge(vertical = 64.dp)
+                .fadingEdge(vertical = 120.dp)
                 .nestedScroll(remember {
                     object : NestedScrollConnection {
                         override fun onPostScroll(
@@ -1021,7 +1021,7 @@ fun Lyrics(
                         val lineColor = if (isActiveLine) {
                             if (item.isBackground) expressiveAccent.copy(alpha = 0.85f) else expressiveAccent
                         } else {
-                            expressiveAccent.copy(alpha = if (item.isBackground) 0.5f else 0.5f)
+                            expressiveAccent.copy(alpha = if (item.isBackground) 0.3f else 0.35f)
                         }
                         val alignment = agentTextAlign
                         
@@ -1063,6 +1063,7 @@ fun Lyrics(
                             Text(
                                 text = annotatedString,
                                 fontSize = 39.sp,
+                                fontWeight = FontWeight.Bold,
                                 textAlign = alignment,
                                 lineHeight = (39 * 1.2f).sp
                             )
@@ -1070,6 +1071,7 @@ fun Lyrics(
                             Text(
                                 text = mainText,
                                 fontSize = 39.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = lineColor,
                                 textAlign = alignment,
                                 lineHeight = (39 * 1.2f).sp
