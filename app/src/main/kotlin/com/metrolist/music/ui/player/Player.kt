@@ -1697,15 +1697,21 @@ fun BottomSheetPlayer(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
                     Modifier
-                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                        .windowInsetsPadding(WindowInsets.systemBars)
                         .padding(bottom = bottomPadding)
                         .animateContentSize(),
                 ) {
-                    if (showControlsAtTop) {
-                        mediaMetadata?.let {
-                            controlsContent(it)
+                    AnimatedVisibility(
+                        visible = showControlsAtTop,
+                        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+                    ) {
+                        Column {
+                            mediaMetadata?.let {
+                                controlsContent(it)
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
                     
                     Box(
@@ -1738,7 +1744,11 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    if (!showControlsAtTop) {
+                    AnimatedVisibility(
+                        visible = !showControlsAtTop,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                    ) {
                         mediaMetadata?.let {
                             controlsContent(it)
                         }
