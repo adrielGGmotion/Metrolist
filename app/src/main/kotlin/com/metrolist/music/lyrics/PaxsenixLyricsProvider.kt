@@ -6,7 +6,6 @@
 package com.metrolist.music.lyrics
 
 import android.content.Context
-import android.util.Log
 import com.metrolist.paxsenix.Paxsenix
 import com.metrolist.music.constants.EnablePaxsenixKey
 import com.metrolist.music.utils.dataStore
