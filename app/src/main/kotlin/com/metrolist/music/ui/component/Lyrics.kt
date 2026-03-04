@@ -1021,7 +1021,7 @@ fun Lyrics(
                         val lineColor = if (isActiveLine) {
                             if (item.isBackground) expressiveAccent.copy(alpha = 0.85f) else expressiveAccent
                         } else {
-                            expressiveAccent.copy(alpha = if (item.isBackground) 0.3f else 0.35f)
+                            expressiveAccent.copy(alpha = if (item.isBackground) 0.15f else 0.2f)
                         }
                         val alignment = agentTextAlign
                         
