@@ -994,10 +994,6 @@ fun Lyrics(
                         },
                         animationSpec = tween(durationMillis = 400)
                     )
-                    val scale by animateFloatAsState(
-                        targetValue = if (isActiveByIndex || isActiveByTime) 1.05f else 1f,
-                        animationSpec = tween(durationMillis = 400)
-                    )
 
                     // Determine alignment based on agent for multi-singer support
                     val agentAlignment = when {
@@ -1024,14 +1020,9 @@ fun Lyrics(
                         }
                     }
                     
-                    // Smaller scale for background vocals
-                    val bgScale = if (item.isBackground) 0.85f else 1f
-
                     Column(
                         modifier = itemModifier.graphicsLayer {
                             this.alpha = if (item.isBackground) alpha * 0.8f else alpha
-                            this.scaleX = scale * bgScale
-                            this.scaleY = scale * bgScale
                         },
                         horizontalAlignment = agentAlignment
                     ) {
@@ -1083,15 +1074,15 @@ fun Lyrics(
                                 text = annotatedString,
                                 fontSize = 30.sp,
                                 textAlign = alignment,
-                                lineHeight = (42 * 1.2f).sp
+                                lineHeight = (39 * 1.2f).sp
                             )
                         } else {
                             Text(
                                 text = mainText,
-                                fontSize = 42.sp,
+                                fontSize = 39.sp,
                                 color = lineColor,
                                 textAlign = alignment,
-                                lineHeight = (42 * 1.2f).sp
+                                lineHeight = (39 * 1.2f).sp
                             )
                         }
                         if (currentSong?.romanizeLyrics == true
