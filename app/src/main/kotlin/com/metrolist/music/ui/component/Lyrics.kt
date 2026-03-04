@@ -649,11 +649,11 @@ fun Lyrics(
             val lookUpIndex = if (isLyricsProviderShown) targetIndex + 1 else targetIndex
             val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lookUpIndex }
             if (itemInfo != null) {
-                // Item is visible, animate directly to center without sudden jumps
+                // Scroll to position active line near top (like Apple Music)
                 val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
-                val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight / 2)
+                val anchorPosition = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * 0.15f) // 15% from top
                 val itemCenter = itemInfo.offset + itemInfo.size / 2
-                val offset = itemCenter - center
+                val offset = itemCenter - anchorPosition
                 if (kotlin.math.abs(offset) > 10) {
                     lazyListState.animateScrollBy(
                         value = offset.toFloat(),
