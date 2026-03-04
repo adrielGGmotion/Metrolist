@@ -779,7 +779,7 @@ fun BottomSheetPlayer(
             )
         },
     ) {
-        val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
+        val controlsContent: @Composable (MediaMetadata, Boolean) -> Unit = { mediaMetadata, hideSlider ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
                 animationSpec = tween(durationMillis = 90, easing = LinearEasing),
@@ -1188,7 +1188,8 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(24.dp))
 
-            when (sliderStyle) {
+            if (!hideSlider) {
+                when (sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
                         value = (sliderPosition ?: effectivePosition).toFloat(),
@@ -1330,6 +1331,7 @@ fun BottomSheetPlayer(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            } // end hideSlider
 
             Spacer(Modifier.height(24.dp))
 
@@ -1679,7 +1681,7 @@ fun BottomSheetPlayer(
                         Spacer(Modifier.weight(1f))
 
                         mediaMetadata?.let {
-                            controlsContent(it)
+                            controlsContent(it, false)
                         }
 
                         Spacer(Modifier.weight(1f))
@@ -1693,7 +1695,11 @@ fun BottomSheetPlayer(
                     label = "bottomPadding"
                 )
                 val showControlsAtTop = showInlineLyrics && isFullScreen
-                val topPadding = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() else 0.dp
+                val topPadding by animateDpAsState(
+                    targetValue = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 8.dp else 0.dp,
+                    animationSpec = tween(300),
+                    label = "topPadding"
+                )
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
@@ -1704,7 +1710,7 @@ fun BottomSheetPlayer(
                 ) {
                     if (showControlsAtTop) {
                         mediaMetadata?.let {
-                            controlsContent(it)
+                            controlsContent(it, true)
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -1741,7 +1747,7 @@ fun BottomSheetPlayer(
 
                     if (!showControlsAtTop) {
                         mediaMetadata?.let {
-                            controlsContent(it)
+                            controlsContent(it, false)
                         }
                     }
 
