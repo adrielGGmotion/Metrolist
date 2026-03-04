@@ -1692,6 +1692,7 @@ fun BottomSheetPlayer(
                     targetValue = if (isFullScreen) 0.dp else queueSheetState.collapsedBound,
                     label = "bottomPadding"
                 )
+                val showControlsAtTop = showInlineLyrics && isFullScreen
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
@@ -1700,6 +1701,13 @@ fun BottomSheetPlayer(
                         .padding(bottom = bottomPadding)
                         .animateContentSize(),
                 ) {
+                    if (showControlsAtTop) {
+                        mediaMetadata?.let {
+                            controlsContent(it)
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
@@ -1730,8 +1738,10 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    mediaMetadata?.let {
-                        controlsContent(it)
+                    if (!showControlsAtTop) {
+                        mediaMetadata?.let {
+                            controlsContent(it)
+                        }
                     }
 
                     Spacer(Modifier.height(30.dp))
