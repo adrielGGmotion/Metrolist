@@ -95,10 +95,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -814,11 +817,12 @@ fun Lyrics(
                 )
             }
         } else {
+            val anchorPadding = maxHeight * 0.15f
             LazyColumn(
             state = lazyListState,
             contentPadding = WindowInsets.systemBars
                 .only(WindowInsetsSides.Top)
-                .add(WindowInsets(top = maxHeight / 3, bottom = maxHeight / 2))
+                .add(WindowInsets(top = anchorPadding, bottom = maxHeight / 2))
                 .asPaddingValues(),
             modifier = Modifier
                 .fadingEdge(vertical = 64.dp)
@@ -1047,13 +1051,49 @@ fun Lyrics(
                         val mainText = if (romanizeAsMain && isRomanizedAvailable) romanizedText else item.text
                         val subText = if (romanizeAsMain && isRomanizedAvailable) item.text else romanizedText
                         
-                        Text(
-                            text = mainText,
-                            fontSize = 24.sp,
-                            color = lineColor,
-                            textAlign = alignment,
-                            lineHeight = (24 * 1.3f).sp
-                        )
+                        val hasWordTimings = item.words?.isNotEmpty() == true
+                        
+                        val showWordHighlighting = hasWordTimings && isActiveLine
+                        
+                        val annotatedString = if (showWordHighlighting) {
+                            buildAnnotatedString {
+                                item.words?.forEachIndexed { wordIndex, word ->
+                                    val wordStartMs = (word.startTime * 1000).toLong()
+                                    val wordEndMs = (word.endTime * 1000).toLong()
+                                    
+                                    val isWordPassed = effectivePlaybackPosition >= wordEndMs
+                                    val isWordActive = effectivePlaybackPosition in wordStartMs until wordEndMs
+                                    
+                                    val wordColor = when {
+                                        isWordPassed -> expressiveAccent
+                                        isWordActive -> expressiveAccent.copy(alpha = 0.7f)
+                                        else -> lineColor
+                                    }
+                                    
+                                    withStyle(style = SpanStyle(color = wordColor)) {
+                                        append(word.text)
+                                    }
+                                    if (wordIndex < item.words.size - 1) append(" ")
+                                }
+                            }
+                        } else null
+                        
+                        if (annotatedString != null) {
+                            Text(
+                                text = annotatedString,
+                                fontSize = 30.sp,
+                                textAlign = alignment,
+                                lineHeight = (30 * 1.2f).sp
+                            )
+                        } else {
+                            Text(
+                                text = mainText,
+                                fontSize = 30.sp,
+                                color = lineColor,
+                                textAlign = alignment,
+                                lineHeight = (30 * 1.2f).sp
+                            )
+                        }
                         if (currentSong?.romanizeLyrics == true
                             && (romanizeJapaneseLyrics ||
                                     romanizeKoreanLyrics ||
