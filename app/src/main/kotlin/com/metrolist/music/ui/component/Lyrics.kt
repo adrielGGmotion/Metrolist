@@ -817,7 +817,7 @@ fun Lyrics(
                 )
             }
         } else {
-            val anchorPadding = maxHeight * 0.05f
+            val anchorPadding = maxHeight * 0.02f
             LazyColumn(
             state = lazyListState,
             contentPadding = WindowInsets.systemBars
