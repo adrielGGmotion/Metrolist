@@ -817,7 +817,7 @@ fun Lyrics(
                 )
             }
         } else {
-            val anchorPadding = maxHeight * 0.15f
+            val anchorPadding = maxHeight * 0.05f
             LazyColumn(
             state = lazyListState,
             contentPadding = WindowInsets.systemBars
@@ -1083,15 +1083,15 @@ fun Lyrics(
                                 text = annotatedString,
                                 fontSize = 30.sp,
                                 textAlign = alignment,
-                                lineHeight = (30 * 1.2f).sp
+                                lineHeight = (42 * 1.2f).sp
                             )
                         } else {
                             Text(
                                 text = mainText,
-                                fontSize = 30.sp,
+                                fontSize = 42.sp,
                                 color = lineColor,
                                 textAlign = alignment,
-                                lineHeight = (30 * 1.2f).sp
+                                lineHeight = (42 * 1.2f).sp
                             )
                         }
                         if (currentSong?.romanizeLyrics == true
