@@ -1693,25 +1693,20 @@ fun BottomSheetPlayer(
                     label = "bottomPadding"
                 )
                 val showControlsAtTop = showInlineLyrics && isFullScreen
+                val topPadding = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() else 0.dp
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
                     Modifier
-                        .windowInsetsPadding(WindowInsets.systemBars)
-                        .padding(bottom = bottomPadding)
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                        .padding(top = topPadding, bottom = bottomPadding)
                         .animateContentSize(),
                 ) {
-                    AnimatedVisibility(
-                        visible = showControlsAtTop,
-                        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
-                    ) {
-                        Column {
-                            mediaMetadata?.let {
-                                controlsContent(it)
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
+                    if (showControlsAtTop) {
+                        mediaMetadata?.let {
+                            controlsContent(it)
                         }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                     
                     Box(
@@ -1744,11 +1739,7 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    AnimatedVisibility(
-                        visible = !showControlsAtTop,
-                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
-                    ) {
+                    if (!showControlsAtTop) {
                         mediaMetadata?.let {
                             controlsContent(it)
                         }
