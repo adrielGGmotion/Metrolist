@@ -817,16 +817,15 @@ fun Lyrics(
                 )
             }
         } else {
-            val anchorPadding = maxHeight * 0.02f
             LazyColumn(
             state = lazyListState,
             verticalArrangement = Arrangement.spacedBy(24.dp),
             contentPadding = WindowInsets.systemBars
                 .only(WindowInsetsSides.Top)
-                .add(WindowInsets(top = anchorPadding, bottom = maxHeight / 2))
+                .add(WindowInsets(top = 0.dp, bottom = maxHeight / 2))
                 .asPaddingValues(),
             modifier = Modifier
-                .fadingEdge(vertical = 120.dp)
+                .fadingEdge(vertical = 48.dp)
                 .nestedScroll(remember {
                     object : NestedScrollConnection {
                         override fun onPostScroll(
