@@ -985,15 +985,6 @@ fun Lyrics(
                     val isLineAtSameTime = item.time == currentLineTime
                     val isActiveByIndex = index == displayedCurrentLineIndex
                     val isActiveByTime = isLineAtSameTime && displayedCurrentLineIndex >= 0
-                    
-                    val alpha by animateFloatAsState(
-                        targetValue = when {
-                            !isSynced || (isSelectionModeActive && isSelected) -> 1f
-                            isActiveByIndex || isActiveByTime -> 1f
-                            else -> 0.5f
-                        },
-                        animationSpec = tween(durationMillis = 400)
-                    )
 
                     // Determine alignment based on agent for multi-singer support
                     val agentAlignment = when {
