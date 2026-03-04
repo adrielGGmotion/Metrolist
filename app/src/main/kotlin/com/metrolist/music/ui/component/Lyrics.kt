@@ -1021,9 +1021,7 @@ fun Lyrics(
                     }
                     
                     Column(
-                        modifier = itemModifier.graphicsLayer {
-                            this.alpha = if (item.isBackground) alpha * 0.8f else alpha
-                        },
+                        modifier = itemModifier,
                         horizontalAlignment = agentAlignment
                     ) {
                         // Use time-based active check to sync both main and background lines with same timestamp
