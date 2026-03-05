@@ -266,32 +266,27 @@ object TTMLParser {
                 currentStartTime = span.startTime
                 currentEndTime = span.endTime
             } else {
-                // Check if previous span had trailing space (word boundary)
-                val prevSpan = spanInfos[index - 1]
-                if (prevSpan.hasTrailingSpace) {
-                    // Save current word and start new one
+                if (!span.hasTrailingSpace) {
+                    currentText.append(span.text)
+                    currentEndTime = span.endTime
+                } else {
                     if (currentText.isNotEmpty()) {
                         words.add(
                             ParsedWord(
                                 text = currentText.toString().trim(),
                                 startTime = currentStartTime,
                                 endTime = currentEndTime,
-                                hasTrailingSpace = false
+                                hasTrailingSpace = true
                             )
                         )
                     }
                     currentText = StringBuilder(span.text)
                     currentStartTime = span.startTime
                     currentEndTime = span.endTime
-                } else {
-                    // No space between spans - merge into same word (syllables)
-                    currentText.append(span.text)
-                    currentEndTime = span.endTime
                 }
             }
         }
         
-        // Add the last word
         if (currentText.isNotEmpty()) {
             val lastSpan = spanInfos.lastOrNull()
             words.add(

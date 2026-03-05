@@ -23,7 +23,7 @@ object LyricsUtils {
 
     // Regex for rich sync format: [MM:SS.mm]<MM:SS.mm> word <MM:SS.mm> word ...
     private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.+)".toRegex()
-    private val RICH_SYNC_WORD_REGEX = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>\\s*([^<]+)".toRegex()
+    private val RICH_SYNC_WORD_REGEX = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>([^<]+)".toRegex()
 
     // Regex for Paxsenix v1/v2/bg format
     // [00:00.000]v1: <00:00.000>I <00:00.154>promise...
@@ -494,41 +494,56 @@ object LyricsUtils {
             val seconds = match.groupValues[2].toLongOrNull() ?: 0L
             val fraction = match.groupValues[3].toLongOrNull() ?: 0L
 
-            // Convert to seconds (Double)
             val fractionPart = if (match.groupValues[3].length == 3) fraction / 1000.0 else fraction / 100.0
             val startTimeSeconds = minutes * 60.0 + seconds + fractionPart
 
-            val wordText = match.groupValues[4].trim()
+            val rawText = match.groupValues[4]
+            val words = rawText.split(Regex("\\s+")).filter { it.isNotBlank() }
 
-            // Check if there's a space after this word by looking at the original content
-            // The space is between the end of this match and the start of the next match
-            val hasTrailingSpace = if (index < wordMatches.size - 1) {
-                val currentMatchEnd = match.range.last
-                val nextMatchStart = wordMatches[index + 1].range.first
-                val betweenText = content.substring(currentMatchEnd, nextMatchStart)
-                betweenText.contains(" ")
-            } else {
-                // For last word, check what's after it until end of line
-                val afterWord = content.substring(match.range.last)
-                afterWord.contains(" ")
-            }
+            // Get the next timestamp for end time calculation
+            val nextTimestamp: Double
+            val nextLineTime: Double?
 
-            // Calculate end time: use next word's start time, or estimate from next line
-            val endTimeSeconds = if (index < wordMatches.size - 1) {
+            if (index < wordMatches.size - 1) {
                 val nextMatch = wordMatches[index + 1]
-                val nextMinutes = nextMatch.groupValues[1].toLongOrNull() ?: 0L
-                val nextSeconds = nextMatch.groupValues[2].toLongOrNull() ?: 0L
-                val nextFraction = nextMatch.groupValues[3].toLongOrNull() ?: 0L
-                val nextFractionPart = if (nextMatch.groupValues[3].length == 3) nextFraction / 1000.0 else nextFraction / 100.0
-                nextMinutes * 60.0 + nextSeconds + nextFractionPart
+                val nextMin = nextMatch.groupValues[1].toLongOrNull() ?: 0L
+                val nextSec = nextMatch.groupValues[2].toLongOrNull() ?: 0L
+                val nextFrac = nextMatch.groupValues[3].toLongOrNull() ?: 0L
+                val nextFracPart = if (nextMatch.groupValues[3].length == 3) nextFrac / 1000.0 else nextFrac / 100.0
+                nextTimestamp = nextMin * 60.0 + nextSec + nextFracPart
+                nextLineTime = null
             } else {
-                // For last word, try to get next line's start time or add a default duration
-                val nextLineTime = getNextLineStartTime(currentIndex, allLines)
-                nextLineTime ?: (startTimeSeconds + 0.5) // Default 500ms duration for last word
+                nextLineTime = getNextLineStartTime(currentIndex, allLines)
+                nextTimestamp = nextLineTime ?: (startTimeSeconds + 0.5)
             }
 
-            if (wordText.isNotBlank()) {
-                wordTimings.add(WordTimestamp(wordText, startTimeSeconds, endTimeSeconds, hasTrailingSpace))
+            words.forEachIndexed { wordIndex, word ->
+                val isLastWordInGroup = wordIndex == words.lastIndex
+                val isLastWordOverall = index == wordMatches.lastIndex && isLastWordInGroup
+
+                val wordEndTime = if (!isLastWordInGroup) {
+                    startTimeSeconds + (nextTimestamp - startTimeSeconds) * (wordIndex + 1) / words.size
+                } else if (!isLastWordOverall) {
+                    nextTimestamp
+                } else {
+                    nextLineTime ?: (startTimeSeconds + 0.5)
+                }
+
+                val hasTrailingSpace = if (!isLastWordInGroup) {
+                    true
+                } else if (index < wordMatches.size - 1) {
+                    val currentMatchEnd = match.range.last
+                    val nextMatchStart = wordMatches[index + 1].range.first
+                    val betweenText = content.substring(currentMatchEnd, nextMatchStart)
+                    betweenText.contains(" ")
+                } else {
+                    val afterWord = content.substring(match.range.last)
+                    afterWord.contains(" ")
+                }
+
+                if (word.isNotBlank()) {
+                    wordTimings.add(WordTimestamp(word, startTimeSeconds, wordEndTime, hasTrailingSpace))
+                }
             }
         }
 
