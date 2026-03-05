@@ -299,21 +299,25 @@ object TTMLParser {
                 
                 // Convert agent to Paxsenix format: v1, v2, etc.
                 val agentSuffix = when (line.agent?.lowercase()) {
-                    "v1" -> "v1:"
-                    "v2" -> "v2:"
-                    "v3" -> "v3:"
-                    "v4" -> "v4:"
-                    else -> if (!line.agent.isNullOrEmpty()) "${line.agent}:" else ""
+                    "v1" -> "v1: "
+                    "v2" -> "v2: "
+                    "v3" -> "v3: "
+                    "v4" -> "v4: "
+                    else -> if (!line.agent.isNullOrEmpty()) "${line.agent}: " else ""
                 }
                 
-                appendLine(String.format("[%02d:%02d.%02d]%s%s", minutes, seconds, centiseconds, agentSuffix, line.text))
-                
-                if (line.words.isNotEmpty()) {
-                    val wordsData = line.words.joinToString("|") { word ->
-                        "${word.text}:${word.startTime}:${word.endTime}"
+                val lineContent = if (line.words.isNotEmpty()) {
+                    line.words.joinToString(" ") { word ->
+                        val startMin = (word.startTime / 60).toInt()
+                        val startSec = (word.startTime % 60).toInt()
+                        val startMs = ((word.startTime % 1) * 1000).toInt()
+                        "<${String.format("%02d:%02d.%03d", startMin, startSec, startMs)}>${word.text}"
                     }
-                    appendLine("<$wordsData>")
+                } else {
+                    line.text
                 }
+                
+                appendLine(String.format("[%02d:%02d.%02d]%s%s", minutes, seconds, centiseconds, agentSuffix, lineContent))
                 
                 // Add background vocals as separate lines
                 line.backgroundLines.forEach { bgLine ->

@@ -75,6 +75,7 @@ object Paxsenix {
         Regex("""\s*\(ft\..*?\)""", RegexOption.IGNORE_CASE),
         Regex("""\s*feat\..*$""", RegexOption.IGNORE_CASE),
         Regex("""\s*ft\..*$""", RegexOption.IGNORE_CASE),
+        Regex("""\s*\([^)]*\d{4}[^)]*\)""", RegexOption.IGNORE_CASE),
     )
 
     // Patterns to extract primary artist
@@ -157,23 +158,32 @@ object Paxsenix {
             throw IllegalStateException("No tracks found on Paxsenix")
         }
         
-        // Try up to 3 results - prefer one with word-level lyrics
+        // First, try to find exact title match with word timings
+        // Only prioritize word timings if title also matches well
         for (item in allResults.take(3)) {
             val result = item.first
-            Log.d(TAG, "Trying: ${result.displayName} (ID: ${result.id}, dur: ${result.duration})")
+            val score = item.second
+            
+            // Only prefer word timings if this is a good title match (score >= 100)
+            val preferWordTimings = score >= 100
+            
+            Log.d(TAG, "Trying: ${result.displayName} (ID: ${result.id}, dur: ${result.duration}, score: $score, preferWord: $preferWordTimings)")
             
             val (lrc, hasWordTimings) = fetchLyricsForTrackWithType(result.id)
             
             if (lrc.isNotEmpty()) {
                 Log.d(TAG, "Got lyrics, hasWordTimings=$hasWordTimings")
                 
-                if (hasWordTimings) {
+                if (preferWordTimings && hasWordTimings) {
+                    return Result.success(lrc)
+                } else if (score >= 100) {
+                    // If exact title match, return even without word timings
                     return Result.success(lrc)
                 }
             }
         }
         
-        // Return first valid result
+        // Return first valid result if no good title match found
         val firstResult = allResults.first().first
         Log.d(TAG, "Returning: ${firstResult.displayName}")
         return fetchLyricsForTrack(firstResult.id)
@@ -185,22 +195,27 @@ object Paxsenix {
         artist: String,
         duration: Int
     ): List<Pair<SearchResult, Double>> {
+        val cleanedTitle = title.lowercase().trim()
+        
         return results.map { result ->
             var score = 0.0
             
-            // Exact title match
-            val titleLower = result.displayName.lowercase()
-            val targetTitleLower = title.lowercase()
+            // Exact title match (case-insensitive, after cleaning)
+            val resultTitleClean = result.displayName
+                .replace(Regex("""\s*\(.*?\)"""), "")
+                .replace(Regex("""\s*\[.*?\]"""), "")
+                .lowercase()
+                .trim()
             
             when {
-                titleLower == targetTitleLower -> score += 100
-                titleLower.contains(targetTitleLower) || targetTitleLower.contains(titleLower) -> score += 70
+                resultTitleClean == cleanedTitle -> score += 100
+                resultTitleClean.contains(cleanedTitle) || cleanedTitle.contains(resultTitleClean) -> score += 60
                 else -> {
                     // Fuzzy word matching
-                    val titleWords = titleLower.split(Regex("\\s+")).filter { it.length > 2 }
-                    val resultWords = titleLower.split(Regex("\\s+")).filter { it.length > 2 }
+                    val titleWords = cleanedTitle.split(Regex("\\s+")).filter { it.length > 2 }
+                    val resultWords = resultTitleClean.split(Regex("\\s+")).filter { it.length > 2 }
                     val matchingWords = titleWords.count { tw -> resultWords.any { rw -> rw.contains(tw) || tw.contains(rw) } }
-                    score += (matchingWords.toDouble() / maxOf(titleWords.size, 1)) * 50
+                    score += (matchingWords.toDouble() / maxOf(titleWords.size, 1)) * 40
                 }
             }
             
@@ -218,19 +233,19 @@ object Paxsenix {
                 }
             }
             
-            // Duration match - very important!
+            // Duration match - very important! (stricter)
             result.duration?.let { d ->
                 val diff = abs(d - duration)
                 when {
+                    diff <= 500 -> score += 50
                     diff <= 1000 -> score += 40
-                    diff <= 2000 -> score += 30
-                    diff <= 3000 -> score += 20
-                    diff <= 5000 -> score += 10
-                    diff <= 10000 -> score += 5
+                    diff <= 2000 -> score += 25
+                    diff <= 3000 -> score += 15
+                    diff <= 5000 -> score += 5
                 }
             }
             
-            Log.v(TAG, "  Score for '${result.displayName}': $score")
+            Log.v(TAG, "  Score for '${result.displayName}': $score (titleMatch=$resultTitleClean, target=$cleanedTitle)")
             result to score
         }.sortedByDescending { it.second }.take(5)
     }
