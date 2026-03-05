@@ -669,7 +669,7 @@ fun Lyrics(
 
                 if (kotlin.math.abs(offset) > 10) {
                     lazyListState.animateScrollBy(
-                        value = offset.toFloat(),
+                        value = offset,
                         animationSpec = tween(durationMillis = duration)
                     )
                 }
@@ -1056,7 +1056,7 @@ fun Lyrics(
                         
                         val annotatedString = if (showWordHighlighting) {
                             buildAnnotatedString {
-                                item.words?.forEachIndexed { wordIndex, word ->
+                                item.words.forEachIndexed { wordIndex, word ->
                                     val wordStartMs = (word.startTime * 1000).toLong()
                                     val wordEndMs = (word.endTime * 1000).toLong()
                                     
@@ -1072,7 +1072,7 @@ fun Lyrics(
                                     withStyle(style = SpanStyle(color = wordColor)) {
                                         append(word.text)
                                     }
-                                    if (wordIndex < item.words.size - 1) append(" ")
+                                    if (word.hasTrailingSpace && wordIndex < item.words.size - 1) append(" ")
                                 }
                             }
                         } else null

@@ -500,6 +500,19 @@ object LyricsUtils {
 
             val wordText = match.groupValues[4].trim()
 
+            // Check if there's a space after this word by looking at the original content
+            // The space is between the end of this match and the start of the next match
+            val hasTrailingSpace = if (index < wordMatches.size - 1) {
+                val currentMatchEnd = match.range.last
+                val nextMatchStart = wordMatches[index + 1].range.first
+                val betweenText = content.substring(currentMatchEnd, nextMatchStart)
+                betweenText.contains(" ")
+            } else {
+                // For last word, check what's after it until end of line
+                val afterWord = content.substring(match.range.last)
+                afterWord.contains(" ")
+            }
+
             // Calculate end time: use next word's start time, or estimate from next line
             val endTimeSeconds = if (index < wordMatches.size - 1) {
                 val nextMatch = wordMatches[index + 1]
@@ -515,7 +528,7 @@ object LyricsUtils {
             }
 
             if (wordText.isNotBlank()) {
-                wordTimings.add(WordTimestamp(wordText, startTimeSeconds, endTimeSeconds))
+                wordTimings.add(WordTimestamp(wordText, startTimeSeconds, endTimeSeconds, hasTrailingSpace))
             }
         }
 

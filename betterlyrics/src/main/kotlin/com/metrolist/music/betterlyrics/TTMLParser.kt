@@ -18,7 +18,8 @@ object TTMLParser {
     data class ParsedWord(
         val text: String,
         val startTime: Double,
-        val endTime: Double
+        val endTime: Double,
+        val hasTrailingSpace: Boolean = true
     )
     
     private data class SpanInfo(
@@ -126,7 +127,14 @@ object TTMLParser {
                 
                 // Merge consecutive spans without whitespace between them into single words
                 val words = mergeSpansIntoWords(spanInfos)
-                val lineText = words.joinToString(" ") { it.text }
+                val lineText = buildString {
+                    words.forEachIndexed { index, word ->
+                        append(word.text)
+                        if (word.hasTrailingSpace && index < words.lastIndex) {
+                            append(" ")
+                        }
+                    }
+                }
                 
                 // If no spans found, use text content directly (excluding background text)
                 val finalText = if (lineText.isEmpty()) {
@@ -196,7 +204,14 @@ object TTMLParser {
         }
         
         val words = mergeSpansIntoWords(spanInfos)
-        val lineText = words.joinToString(" ") { it.text }
+        val lineText = buildString {
+            words.forEachIndexed { index, word ->
+                append(word.text)
+                if (word.hasTrailingSpace && index < words.lastIndex) {
+                    append(" ")
+                }
+            }
+        }
         
         val finalText = if (lineText.isEmpty()) {
             getDirectTextContent(span).trim()
@@ -260,7 +275,8 @@ object TTMLParser {
                             ParsedWord(
                                 text = currentText.toString().trim(),
                                 startTime = currentStartTime,
-                                endTime = currentEndTime
+                                endTime = currentEndTime,
+                                hasTrailingSpace = false
                             )
                         )
                     }
@@ -277,11 +293,13 @@ object TTMLParser {
         
         // Add the last word
         if (currentText.isNotEmpty()) {
+            val lastSpan = spanInfos.lastOrNull()
             words.add(
                 ParsedWord(
                     text = currentText.toString().trim(),
                     startTime = currentStartTime,
-                    endTime = currentEndTime
+                    endTime = currentEndTime,
+                    hasTrailingSpace = lastSpan?.hasTrailingSpace ?: false
                 )
             )
         }
@@ -307,11 +325,16 @@ object TTMLParser {
                 }
                 
                 val lineContent = if (line.words.isNotEmpty()) {
-                    line.words.joinToString(" ") { word ->
-                        val startMin = (word.startTime / 60).toInt()
-                        val startSec = (word.startTime % 60).toInt()
-                        val startMs = ((word.startTime % 1) * 1000).toInt()
-                        "<${String.format("%02d:%02d.%03d", startMin, startSec, startMs)}>${word.text}"
+                    buildString {
+                        line.words.forEachIndexed { index, word ->
+                            val startMin = (word.startTime / 60).toInt()
+                            val startSec = (word.startTime % 60).toInt()
+                            val startMs = ((word.startTime % 1) * 1000).toInt()
+                            append("<${String.format("%02d:%02d.%03d", startMin, startSec, startMs)}>${word.text}")
+                            if (word.hasTrailingSpace && index < line.words.lastIndex) {
+                                append(" ")
+                            }
+                        }
                     }
                 } else {
                     line.text
