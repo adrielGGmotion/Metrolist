@@ -137,6 +137,7 @@ import com.metrolist.music.constants.LyricsRomanizeUkrainianKey
 import com.metrolist.music.constants.LyricsScrollKey
 import com.metrolist.music.constants.LyricsTextPositionKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
+import com.metrolist.music.constants.PlayerHorizontalPadding
 import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.DeeplApiKey
 import com.metrolist.music.constants.AiProviderKey
@@ -820,10 +821,7 @@ fun Lyrics(
             LazyColumn(
             state = lazyListState,
             verticalArrangement = Arrangement.spacedBy(24.dp),
-            contentPadding = WindowInsets.systemBars
-                .only(WindowInsetsSides.Top)
-                .add(WindowInsets(top = 0.dp, bottom = maxHeight / 2))
-                .asPaddingValues(),
+            contentPadding = WindowInsets(top = 0.dp, bottom = maxHeight / 2).asPaddingValues(),
             modifier = Modifier
                 .fadingEdge(vertical = 48.dp)
                 .nestedScroll(remember {
@@ -871,7 +869,10 @@ fun Lyrics(
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = when (lyricsTextPosition) {
+                                LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
+                                else -> 24.dp
+                            }, vertical = 8.dp)
                     )
                 }
             }
@@ -888,7 +889,10 @@ fun Lyrics(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 4.dp)
+                                    .padding(horizontal = when (lyricsTextPosition) {
+                                        LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
+                                        else -> 24.dp
+                                    }, vertical = 4.dp)
                             ) {
                                 TextPlaceholder()
                             }
@@ -975,7 +979,10 @@ fun Lyrics(
                             )
                             else Color.Transparent
                         )
-                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                        .padding(horizontal = when (lyricsTextPosition) {
+                            LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
+                            else -> 24.dp
+                        }, vertical = 8.dp)
                     
                     // Check if this line shares the same time as the currently active line
                     // This enables synchronized word-by-word animation for both main and background vocals

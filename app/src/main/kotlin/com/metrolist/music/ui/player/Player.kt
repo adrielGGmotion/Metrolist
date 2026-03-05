@@ -1186,9 +1186,8 @@ fun BottomSheetPlayer(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-
             if (!hideSlider) {
+                Spacer(Modifier.height(24.dp))
                 when (sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
@@ -1333,14 +1332,13 @@ fun BottomSheetPlayer(
             }
             } // end hideSlider
 
-            Spacer(Modifier.height(24.dp))
-
             AnimatedVisibility(
                 visible = !isFullScreen,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { it }) + fadeOut()
             ) {
                 Column {
+                    Spacer(Modifier.height(24.dp))
                     if (useNewPlayerDesign) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
@@ -1696,7 +1694,7 @@ fun BottomSheetPlayer(
                 )
                 val showControlsAtTop = showInlineLyrics && isFullScreen
                 val topPadding by animateDpAsState(
-                    targetValue = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 20.dp else 0.dp,
+                    targetValue = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 48.dp else 0.dp,
                     animationSpec = tween(300),
                     label = "topPadding"
                 )
