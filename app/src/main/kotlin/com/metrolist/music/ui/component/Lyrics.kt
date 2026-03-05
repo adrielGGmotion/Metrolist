@@ -651,10 +651,22 @@ fun Lyrics(
             val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lookUpIndex }
             if (itemInfo != null) {
                 // Scroll to position active line near top (like Apple Music)
+                // Anchor is an ABSOLUTE limit - item should never go above it
                 val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
-                val anchorPosition = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * 0.15f) // 15% from top
-                val itemCenter = itemInfo.offset + itemInfo.size / 2
-                val offset = itemCenter - anchorPosition
+                val anchorPosition = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * 0.15f)
+                val itemTop = itemInfo.offset
+                val itemHeight = itemInfo.size
+
+                // Offset needed to center item at anchor
+                val itemCenter = itemTop + itemHeight / 2
+                val centeredOffset = itemCenter - anchorPosition
+
+                // Max offset that keeps item top at or below anchor: offset <= itemTop - anchorPosition
+                val maxOffset = itemTop - anchorPosition
+
+                // Use smaller offset to ensure item never goes above anchor
+                val offset = minOf(centeredOffset, maxOffset)
+
                 if (kotlin.math.abs(offset) > 10) {
                     lazyListState.animateScrollBy(
                         value = offset.toFloat(),
@@ -1068,19 +1080,19 @@ fun Lyrics(
                         if (annotatedString != null) {
                             Text(
                                 text = annotatedString,
-                                fontSize = 39.sp,
+                                fontSize = 36.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = alignment,
-                                lineHeight = (39 * 1.2f).sp
+                                lineHeight = (36 * 1.2f).sp
                             )
                         } else {
                             Text(
                                 text = mainText,
-                                fontSize = 39.sp,
+                                fontSize = 36.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = lineColor,
                                 textAlign = alignment,
-                                lineHeight = (39 * 1.2f).sp
+                                lineHeight = (36 * 1.2f).sp
                             )
                         }
                         if (currentSong?.romanizeLyrics == true

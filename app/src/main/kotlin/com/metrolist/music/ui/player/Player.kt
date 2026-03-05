@@ -779,7 +779,7 @@ fun BottomSheetPlayer(
             )
         },
     ) {
-        val controlsContent: @Composable (MediaMetadata, Boolean) -> Unit = { mediaMetadata, hideSlider ->
+        val controlsContent: @Composable (MediaMetadata, Boolean, Modifier) -> Unit = { mediaMetadata, hideSlider, modifier ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
                 animationSpec = tween(durationMillis = 90, easing = LinearEasing),
@@ -790,7 +790,7 @@ fun BottomSheetPlayer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
-                Modifier
+                modifier
                     .fillMaxWidth()
                     .padding(horizontal = PlayerHorizontalPadding),
             ) {
@@ -1679,7 +1679,7 @@ fun BottomSheetPlayer(
                         Spacer(Modifier.weight(1f))
 
                         mediaMetadata?.let {
-                            controlsContent(it, false)
+                            controlsContent(it, false, Modifier)
                         }
 
                         Spacer(Modifier.weight(1f))
@@ -1692,27 +1692,14 @@ fun BottomSheetPlayer(
                     targetValue = if (isFullScreen) 0.dp else queueSheetState.collapsedBound,
                     label = "bottomPadding"
                 )
-                val showControlsAtTop = showInlineLyrics && isFullScreen
-                val topPadding by animateDpAsState(
-                    targetValue = if (showControlsAtTop) WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 48.dp else 0.dp,
-                    animationSpec = tween(300),
-                    label = "topPadding"
-                )
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
                     Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(top = topPadding, bottom = bottomPadding)
+                        .padding(bottom = bottomPadding)
                         .animateContentSize(),
                 ) {
-                    if (showControlsAtTop) {
-                        mediaMetadata?.let {
-                            controlsContent(it, true)
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                    
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
@@ -1743,13 +1730,15 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    if (!showControlsAtTop) {
-                        mediaMetadata?.let {
-                            controlsContent(it, false)
-                        }
+                    mediaMetadata?.let {
+                        controlsContent(
+                            it,
+                            false,
+                            Modifier.padding(horizontal = if (isFullScreen) 16.dp else 0.dp)
+                        )
                     }
 
-                    Spacer(Modifier.height(30.dp))
+                    Spacer(Modifier.height(48.dp))
                 }
             }
         }
