@@ -498,7 +498,8 @@ object LyricsUtils {
             val startTimeSeconds = minutes * 60.0 + seconds + fractionPart
 
             val rawText = match.groupValues[4]
-            val words = rawText.split(Regex("\\s+")).filter { it.isNotBlank() }
+            val hasTrailingSpace = rawText.endsWith(" ")
+            val words = rawText.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
 
             // Get the next timestamp for end time calculation
             val nextTimestamp: Double
@@ -529,20 +530,18 @@ object LyricsUtils {
                     nextLineTime ?: (startTimeSeconds + 0.5)
                 }
 
-                val hasTrailingSpace = if (!isLastWordInGroup) {
+                val wordHasTrailingSpace = if (!isLastWordInGroup) {
                     true
-                } else if (index < wordMatches.size - 1) {
-                    val currentMatchEnd = match.range.last
-                    val nextMatchStart = wordMatches[index + 1].range.first
-                    val betweenText = content.substring(currentMatchEnd, nextMatchStart)
-                    betweenText.contains(" ")
+                } else if (!isLastWordOverall) {
+                    hasTrailingSpace
                 } else {
-                    val afterWord = content.substring(match.range.last)
-                    afterWord.contains(" ")
+                    // Last word of last match - check if there's text after it
+                    val afterMatch = content.substring(match.range.last + 1)
+                    afterMatch.isNotBlank()
                 }
 
                 if (word.isNotBlank()) {
-                    wordTimings.add(WordTimestamp(word, startTimeSeconds, wordEndTime, hasTrailingSpace))
+                    wordTimings.add(WordTimestamp(word, startTimeSeconds, wordEndTime, wordHasTrailingSpace))
                 }
             }
         }

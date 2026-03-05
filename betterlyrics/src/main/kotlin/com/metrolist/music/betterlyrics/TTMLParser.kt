@@ -266,10 +266,8 @@ object TTMLParser {
                 currentStartTime = span.startTime
                 currentEndTime = span.endTime
             } else {
-                if (!span.hasTrailingSpace) {
-                    currentText.append(span.text)
-                    currentEndTime = span.endTime
-                } else {
+                val prevSpan = spanInfos[index - 1]
+                if (prevSpan.hasTrailingSpace) {
                     if (currentText.isNotEmpty()) {
                         words.add(
                             ParsedWord(
@@ -282,6 +280,9 @@ object TTMLParser {
                     }
                     currentText = StringBuilder(span.text)
                     currentStartTime = span.startTime
+                    currentEndTime = span.endTime
+                } else {
+                    currentText.append(span.text)
                     currentEndTime = span.endTime
                 }
             }
