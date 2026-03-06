@@ -304,6 +304,11 @@ object TTMLParser {
     }
     
     fun toLRC(lines: List<ParsedLine>): String {
+        // First pass: check if we have multiple vocalists
+        // If all lines have the same agent (or only v1/default), don't add agent prefix
+        val uniqueAgents = lines.mapNotNull { it.agent?.lowercase() }.distinct()
+        val hasMultipleVocalists = uniqueAgents.size > 1 || (uniqueAgents.isNotEmpty() && uniqueAgents.first() != "v1")
+        
         return buildString {
             lines.forEach { line ->
                 val timeMs = (line.startTime * 1000).toLong()
@@ -311,13 +316,17 @@ object TTMLParser {
                 val seconds = (timeMs % 60000) / 1000
                 val centiseconds = (timeMs % 1000) / 10
                 
-                // Convert agent to Paxsenix format: v1, v2, etc.
-                val agentSuffix = when (line.agent?.lowercase()) {
-                    "v1" -> "v1: "
-                    "v2" -> "v2: "
-                    "v3" -> "v3: "
-                    "v4" -> "v4: "
-                    else -> if (!line.agent.isNullOrEmpty()) "${line.agent}: " else ""
+                // Only add agent suffix if we have multiple vocalists
+                val agentSuffix = if (hasMultipleVocalists) {
+                    when (line.agent?.lowercase()) {
+                        "v1" -> "v1: "
+                        "v2" -> "v2: "
+                        "v3" -> "v3: "
+                        "v4" -> "v4: "
+                        else -> if (!line.agent.isNullOrEmpty()) "${line.agent}: " else ""
+                    }
+                } else {
+                    ""
                 }
                 
                 val lineContent = if (line.words.isNotEmpty()) {
