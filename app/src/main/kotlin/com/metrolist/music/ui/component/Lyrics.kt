@@ -84,6 +84,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -703,7 +704,7 @@ fun Lyrics(
                 if (currentLineIndex != previousLineIndex) {
                     // Calculate which line should be at the top to center the active group
                     val centerTargetIndex = currentLineIndex
-                    performSmoothPageScroll(centerTargetIndex, 1500) // Auto scroll duration
+                    performSmoothPageScroll(centerTargetIndex, 800) // Auto scroll duration
                 }
             }
         }
@@ -1029,12 +1030,28 @@ fun Lyrics(
                             LyricsPosition.RIGHT -> TextAlign.Right
                         }
                     }
-                    
+
                     Column(
                         modifier = itemModifier,
                         horizontalAlignment = agentAlignment
                     ) {
                         val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
+
+                        val scaleAnim = remember { Animatable(1f) }
+
+                        LaunchedEffect(isActiveLine) {
+                            if (isActiveLine) {
+                                scaleAnim.animateTo(
+                                    targetValue = 1.03f,
+                                    animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+                                )
+                            } else {
+                                scaleAnim.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+                                )
+                            }
+                        }
 
                         val baseAlpha = if (item.isBackground) 0.15f else 0.2f
                         val activeAlpha = if (item.isBackground) 0.85f else 1f
@@ -1059,6 +1076,7 @@ fun Lyrics(
                             label = "lyricsLineAlpha"
                         )
                         val lineColor = expressiveAccent.copy(alpha = animatedAlpha)
+
                         val alignment = agentTextAlign
                         
                         val romanizedTextState by item.romanizedTextFlow.collectAsState()
@@ -1095,13 +1113,24 @@ fun Lyrics(
                             }
                         } else null
                         
+                        val transformOrigin = when (alignment) {
+                            TextAlign.Left -> TransformOrigin(0f, 0.5f)
+                            TextAlign.Right -> TransformOrigin(1f, 0.5f)
+                            else -> TransformOrigin.Center
+                        }
+
                         if (annotatedString != null) {
                             Text(
                                 text = annotatedString,
                                 fontSize = 36.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = alignment,
-                                lineHeight = (36 * 1.2f).sp
+                                lineHeight = (36 * 1.2f).sp,
+                                modifier = Modifier.graphicsLayer(
+                                    scaleX = scaleAnim.value,
+                                    scaleY = scaleAnim.value,
+                                    transformOrigin = transformOrigin
+                                )
                             )
                         } else {
                             Text(
@@ -1110,7 +1139,12 @@ fun Lyrics(
                                 fontWeight = FontWeight.Bold,
                                 color = lineColor,
                                 textAlign = alignment,
-                                lineHeight = (36 * 1.2f).sp
+                                lineHeight = (36 * 1.2f).sp,
+                                modifier = Modifier.graphicsLayer(
+                                    scaleX = scaleAnim.value,
+                                    scaleY = scaleAnim.value,
+                                    transformOrigin = transformOrigin
+                                )
                             )
                         }
                         if (currentSong?.romanizeLyrics == true
@@ -1177,7 +1211,7 @@ fun Lyrics(
         ) {
             FilledTonalButton(onClick = {
                 scope.launch {
-                    performSmoothPageScroll(currentLineIndex, 1500)
+                    performSmoothPageScroll(currentLineIndex, 800)
                 }
                 isAutoScrollEnabled = true
             }) {
