@@ -1034,13 +1034,31 @@ fun Lyrics(
                         modifier = itemModifier,
                         horizontalAlignment = agentAlignment
                     ) {
-                        // Use time-based active check to sync both main and background lines with same timestamp
                         val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
-                        val lineColor = if (isActiveLine) {
-                            if (item.isBackground) expressiveAccent.copy(alpha = 0.85f) else expressiveAccent
+
+                        val baseAlpha = if (item.isBackground) 0.15f else 0.2f
+                        val activeAlpha = if (item.isBackground) 0.85f else 1f
+
+                        val targetAlpha = if (isActiveLine) {
+                            activeAlpha
+                        } else if (isAutoScrollEnabled && displayedCurrentLineIndex >= 0) {
+                            val distance = kotlin.math.abs(index - displayedCurrentLineIndex)
+                            when (distance) {
+                                1 -> 0.2f
+                                2 -> 0.15f
+                                3 -> 0.07f
+                                4 -> 0.05f
+                                else -> 0.03f
+                            }
                         } else {
-                            expressiveAccent.copy(alpha = if (item.isBackground) 0.15f else 0.2f)
+                            baseAlpha
                         }
+                        val animatedAlpha by animateFloatAsState(
+                            targetValue = targetAlpha,
+                            animationSpec = tween(durationMillis = 250),
+                            label = "lyricsLineAlpha"
+                        )
+                        val lineColor = expressiveAccent.copy(alpha = animatedAlpha)
                         val alignment = agentTextAlign
                         
                         val romanizedTextState by item.romanizedTextFlow.collectAsState()
