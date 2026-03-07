@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -81,11 +82,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -1045,7 +1050,7 @@ fun Lyrics(
                         ) {
                             val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
 
-                            val scaleAnim = remember { Animatable(1f) }
+                            val scaleAnim = remember(item.time) { Animatable(1f) }
 
                             LaunchedEffect(isActiveLine) {
                                 if (isActiveLine) {
@@ -1098,48 +1103,58 @@ fun Lyrics(
                         
                         val showWordHighlighting = hasWordTimings && isActiveLine
                         
-                        val annotatedString = if (showWordHighlighting) {
-                            buildAnnotatedString {
-                                item.words.forEachIndexed { wordIndex, word ->
-                                    val wordStartMs = (word.startTime * 1000).toLong()
-                                    val wordEndMs = (word.endTime * 1000).toLong()
-                                    
-                                    val isWordPassed = effectivePlaybackPosition >= wordEndMs
-                                    val isWordActive = effectivePlaybackPosition in wordStartMs until wordEndMs
-                                    
-                                    val wordColor = when {
-                                        isWordPassed -> expressiveAccent
-                                        isWordActive -> expressiveAccent.copy(alpha = 0.7f)
-                                        else -> lineColor
-                                    }
-                                    
-                                    withStyle(style = SpanStyle(color = wordColor)) {
-                                        append(word.text)
-                                    }
-                                    if (word.hasTrailingSpace && wordIndex < item.words.size - 1) append(" ")
-                                }
-                            }
-                        } else null
-                        
                         val transformOrigin = when (alignment) {
                             TextAlign.Left -> TransformOrigin(0f, 0.5f)
                             TextAlign.Right -> TransformOrigin(1f, 0.5f)
                             else -> TransformOrigin.Center
                         }
 
-                        if (annotatedString != null) {
-                            Text(
-                                text = annotatedString,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = alignment,
-                                lineHeight = (32 * 1.2f).sp,
+                        if (showWordHighlighting) {
+                            FlowRow(
                                 modifier = Modifier.graphicsLayer(
                                     scaleX = scaleAnim.value,
                                     scaleY = scaleAnim.value,
                                     transformOrigin = transformOrigin
-                                )
-                            )
+                                ),
+                                horizontalArrangement = when (alignment) {
+                                    TextAlign.Right -> Arrangement.End
+                                    TextAlign.Center -> Arrangement.Center
+                                    else -> Arrangement.Start
+                                }
+                            ) {
+                                item.words.forEachIndexed { wordIndex, word ->
+                                    val wordStartMs = (word.startTime * 1000).toLong()
+                                    val wordEndMs = (word.endTime * 1000).toLong()
+
+                                    val wordText = word.text + if (word.hasTrailingSpace && wordIndex < item.words.size - 1) " " else ""
+
+
+                                    Box {
+                                        Text(
+                                            text = wordText,
+                                            fontSize = 32.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = (32 * 1.2f).sp,
+                                            color = expressiveAccent.copy(alpha = 0.25f),
+                                        )
+                                        Text(
+                                            text = wordText,
+                                            fontSize = 32.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = (32 * 1.2f).sp,
+                                            color = expressiveAccent,
+                                            modifier = Modifier.drawWithContent {
+                                                val p = ((currentPlaybackPosition + lyricsOffset - wordStartMs).toFloat() / (wordEndMs - wordStartMs).toFloat()).coerceIn(0f, 1f)
+                                                if (p > 0f) {
+                                                    clipRect(right = size.width * p) {
+                                                        this@drawWithContent.drawContent()
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         } else {
                             Text(
                                 text = mainText,
