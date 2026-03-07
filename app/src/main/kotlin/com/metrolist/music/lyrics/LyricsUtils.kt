@@ -707,6 +707,37 @@ object LyricsUtils {
         return lines.lastIndex
     }
 
+    /**
+     * Returns the set of line indices that are currently active (being sung).
+     * A line is active if playback position >= line.time AND position < line end time.
+     * Line end time = the last word's endTime if word timings exist, otherwise the next line's start time.
+     * This supports simultaneous singers whose lines overlap in time.
+     */
+    fun findActiveLineIndices(
+        lines: List<LyricsEntry>,
+        position: Long,
+    ): Set<Int> {
+        val active = mutableSetOf<Int>()
+        for (index in lines.indices) {
+            val line = lines[index]
+            if (line.time > position + 300L) break // Past current position, stop early
+
+            // Determine this line's end time
+            val lineEndMs: Long = if (!line.words.isNullOrEmpty()) {
+                // Use last word's endTime converted to ms
+                (line.words.last().endTime * 1000).toLong()
+            } else {
+                // Fallback: next line's start time
+                if (index + 1 < lines.size) lines[index + 1].time else Long.MAX_VALUE
+            }
+
+            if (position <= lineEndMs + 300L) {
+                active.add(index)
+            }
+        }
+        return active
+    }
+
     // TODO: Will be useful if we let the user pick the language, useless for now
     /* enum class CyrillicLanguage {
         RUSSIAN,

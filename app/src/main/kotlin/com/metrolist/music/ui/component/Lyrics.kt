@@ -70,6 +70,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -159,6 +160,7 @@ import com.metrolist.music.constants.DeeplFormalityKey
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.metrolist.music.lyrics.LyricsEntry
+import com.metrolist.music.lyrics.LyricsUtils.findActiveLineIndices
 import com.metrolist.music.lyrics.LyricsUtils.findCurrentLineIndex
 import com.metrolist.music.lyrics.LyricsUtils.isBelarusian
 import com.metrolist.music.lyrics.LyricsUtils.isBulgarian
@@ -512,8 +514,19 @@ fun Lyrics(
     }
     val textColor = expressiveAccent
 
-    var currentLineIndex by remember {
+    var activeLineIndices by remember {
+        mutableStateOf(emptySet<Int>())
+    }
+    // Only advances when all previously active lines have finished singing
+    var scrollTargetIndex by rememberSaveable {
         mutableIntStateOf(-1)
+    }
+    var previousActiveLineIndices by remember {
+        mutableStateOf(emptySet<Int>())
+    }
+    // The "primary" active line — the last one in the active set — used for scrolling
+    val currentLineIndex by remember {
+        derivedStateOf { if (activeLineIndices.isEmpty()) -1 else activeLineIndices.maxOrNull() ?: -1 }
     }
     var currentPlaybackPosition by remember {
         mutableLongStateOf(0L)
@@ -630,7 +643,7 @@ fun Lyrics(
 
     LaunchedEffect(lyrics) {
         if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
-            currentLineIndex = -1
+            activeLineIndices = emptySet()
             return@LaunchedEffect
         }
         while (isActive) {
@@ -640,7 +653,20 @@ fun Lyrics(
             val position = sliderPosition ?: playerConnection.player.currentPosition
             currentPlaybackPosition = position
             val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
-            currentLineIndex = findCurrentLineIndex(lines, position + lyricsOffset)
+            val newActiveIndices = findActiveLineIndices(lines, position + lyricsOffset)
+            // Only advance the scroll target when the previous group of active lines
+            // has completely finished — i.e. no overlap between old and new active sets.
+            // This ensures simultaneous singers are both visible until both are done.
+            if (previousActiveLineIndices.isNotEmpty() &&
+                newActiveIndices.isNotEmpty() &&
+                newActiveIndices.none { it in previousActiveLineIndices }
+            ) {
+                scrollTargetIndex = newActiveIndices.maxOrNull() ?: -1
+            } else if (previousActiveLineIndices.isEmpty() && newActiveIndices.isNotEmpty()) {
+                scrollTargetIndex = newActiveIndices.maxOrNull() ?: -1
+            }
+            previousActiveLineIndices = newActiveIndices
+            activeLineIndices = newActiveIndices
         }
     }
 
@@ -691,37 +717,36 @@ fun Lyrics(
             isAnimating = false
         }
     }
-    LaunchedEffect(currentLineIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
+    LaunchedEffect(scrollTargetIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
         if (!isSynced) return@LaunchedEffect
         if (isAutoScrollEnabled) {
-        if((currentLineIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
+        if((scrollTargetIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
             shouldScrollToFirstLine = false
             // Initial scroll to center the first line with medium animation (600ms)
-            val initialCenterIndex = kotlin.math.max(0, currentLineIndex)
+            val initialCenterIndex = kotlin.math.max(0, scrollTargetIndex)
             performSmoothPageScroll(initialCenterIndex, 800) // Initial scroll duration
             if(!isAppMinimized) {
                 initialScrollDone = true
             }
-        } else if (currentLineIndex != -1) {
-            deferredCurrentLineIndex = currentLineIndex
+        } else if (scrollTargetIndex != -1) {
+            deferredCurrentLineIndex = scrollTargetIndex
             if (isSeeking) {
                 // Fast scroll for seeking to center the target line (300ms)
-                val seekCenterIndex = kotlin.math.max(0, currentLineIndex)
+                val seekCenterIndex = kotlin.math.max(0, scrollTargetIndex)
                 performSmoothPageScroll(seekCenterIndex, 500) // Fast seek duration
-            } else if ((lastPreviewTime == 0L || currentLineIndex != previousLineIndex) && scrollLyrics) {
+            } else if ((lastPreviewTime == 0L || scrollTargetIndex != previousLineIndex) && scrollLyrics) {
                 // Auto-scroll when lyrics settings allow it
-                if (currentLineIndex != previousLineIndex) {
+                if (scrollTargetIndex != previousLineIndex) {
                     // Calculate which line should be at the top to center the active group
-                    val centerTargetIndex = currentLineIndex
-                    performSmoothPageScroll(centerTargetIndex, 800) // Auto scroll duration
+                    performSmoothPageScroll(scrollTargetIndex, 800) // Auto scroll duration
                 }
             }
         }
         }
-        if(currentLineIndex > 0) {
+        if(scrollTargetIndex > 0) {
             shouldScrollToFirstLine = true
         }
-        previousLineIndex = currentLineIndex
+        previousLineIndex = scrollTargetIndex
     }
 
     BoxWithConstraints(
@@ -1007,12 +1032,7 @@ fun Lyrics(
                     
                     // Check if this line shares the same time as the currently active line
                     // This enables synchronized word-by-word animation for both main and background vocals
-                    val currentLineTime = if (displayedCurrentLineIndex >= 0 && displayedCurrentLineIndex < lines.size) {
-                        lines[displayedCurrentLineIndex].time
-                    } else -1L
-                    val isLineAtSameTime = item.time == currentLineTime
-                    val isActiveByIndex = index == displayedCurrentLineIndex
-                    val isActiveByTime = isLineAtSameTime && displayedCurrentLineIndex >= 0
+                    val isActiveByIndex = activeLineIndices.contains(index)
 
                     // Determine alignment based on agent for multi-singer support
                     val agentAlignment = when {
@@ -1051,7 +1071,7 @@ fun Lyrics(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = agentAlignment
                         ) {
-                            val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
+                            val isActiveLine = isActiveByIndex && isSynced
 
                             val baseAlpha = if (item.isBackground) 0.15f else 0.2f
                             val activeAlpha = if (item.isBackground) 0.85f else 1f
