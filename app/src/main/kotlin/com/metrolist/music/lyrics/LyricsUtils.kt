@@ -29,7 +29,7 @@ object LyricsUtils {
     // [00:00.000]v1: <00:00.000>I <00:00.154>promise...
     // [bg: <02:18.078>Yeah<02:19.341>]
     private val PAXSENIX_AGENT_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](v\\d+):\\s*(.+)".toRegex()
-    private val PAXSENIX_BG_LINE_REGEX = "\\[bg:\\s*<(\\d{1,2}):(\\d{2})\\.(\\d{3})>([^<]+)<(\\d{1,2}):(\\d{2})\\.(\\d{3})>\\]".toRegex()
+    private val PAXSENIX_BG_LINE_REGEX = "^\\[bg:\\s*(.+)\\]$".toRegex()
 
     // Regex for agent and background markers (existing format)
     private val AGENT_REGEX = "\\{agent:([^}]+)\\}".toRegex()
@@ -397,19 +397,18 @@ object LyricsUtils {
             // Try Paxsenix bg format first: [bg: <02:18.078>Yeah<02:19.341>]
             val bgMatch = PAXSENIX_BG_LINE_REGEX.find(trimmedLine)
             if (bgMatch != null) {
-                val bgMinutes = bgMatch.groupValues[1].toLongOrNull() ?: 0L
-                val bgSeconds = bgMatch.groupValues[2].toLongOrNull() ?: 0L
-                val bgCentis = bgMatch.groupValues[3].toLongOrNull() ?: 0L
-                val bgWord = bgMatch.groupValues[4].trim()
-                val bgEndMin = bgMatch.groupValues[5].toLongOrNull() ?: 0L
-                val bgEndSec = bgMatch.groupValues[6].toLongOrNull() ?: 0L
-                val bgEndCs = bgMatch.groupValues[7].toLongOrNull() ?: 0L
+                val content = bgMatch.groupValues[1]
                 
-                val bgStartMs = (bgMinutes * 60 + bgSeconds) * 1000 + bgCentis
-                val bgEndMs = (bgEndMin * 60 + bgEndSec) * 1000 + bgEndCs
+                // Parse word-level timestamps from content
+                val wordTimings = parseRichSyncWords(content, index, lines)
                 
-                val wordTimestamp = WordTimestamp(bgWord, bgStartMs.toDouble() / 1000, bgEndMs.toDouble() / 1000)
-                result.add(LyricsEntry(bgStartMs, bgWord, listOf(wordTimestamp), agent = "bg", isBackground = true))
+                // Extract plain text (remove all <MM:SS.mm> tags)
+                val plainText = content.replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), "").trim()
+                
+                if (plainText.isNotBlank()) {
+                    val lineTimeMs = wordTimings?.firstOrNull()?.startTime?.let { (it * 1000).toLong() } ?: 0L
+                    result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = "bg", isBackground = true))
+                }
                 return@forEachIndexed
             }
             
@@ -487,11 +486,16 @@ object LyricsUtils {
 
         if (wordMatches.isEmpty()) return null
 
-        // Check for a trailing bare timestamp that serves as an end marker for the last word
+        // Check for a trailing end timestamp after the last word.
+        // The provider uses two formats:
+        //   - Angle brackets: <MM:SS.mmm> (used in v1:/v2: prefixed lines)
+        //   - Square brackets: [MM:SS.xx] (used in non-prefixed lines)
         val lastMatchEnd = wordMatches.last().range.last
-        val trailingContent = content.substring(lastMatchEnd + 1)
-        val trailingTimeMatch = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>".toRegex().find(trailingContent)
-        val trailingEndTime: Double? = if (trailingTimeMatch != null && trailingContent.substring(trailingTimeMatch.range.last + 1).isBlank()) {
+        val trailingContent = content.substring(lastMatchEnd + 1).trim()
+        val angleTrailingMatch = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>".toRegex().find(trailingContent)
+        val squareTrailingMatch = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\]".toRegex().find(trailingContent)
+        val trailingTimeMatch = angleTrailingMatch ?: squareTrailingMatch
+        val trailingEndTime: Double? = if (trailingTimeMatch != null && trailingContent.substring(trailingTimeMatch.range.last + 1).removeSuffix("]").isBlank()) {
             val tMin = trailingTimeMatch.groupValues[1].toLongOrNull() ?: 0L
             val tSec = trailingTimeMatch.groupValues[2].toLongOrNull() ?: 0L
             val tFrac = trailingTimeMatch.groupValues[3].toLongOrNull() ?: 0L
@@ -572,14 +576,31 @@ object LyricsUtils {
         if (currentIndex + 1 >= allLines.size) return null
 
         val nextLine = allLines[currentIndex + 1].trim()
-        val matchResult = RICH_SYNC_LINE_REGEX.matchEntire(nextLine) ?: return null
+        
+        // Try standard rich sync line
+        val matchResult = RICH_SYNC_LINE_REGEX.matchEntire(nextLine)
+        if (matchResult != null) {
+            val minutes = matchResult.groupValues[1].toLongOrNull() ?: return null
+            val seconds = matchResult.groupValues[2].toLongOrNull() ?: return null
+            val fraction = matchResult.groupValues[3].toLongOrNull() ?: 0L
 
-        val minutes = matchResult.groupValues[1].toLongOrNull() ?: return null
-        val seconds = matchResult.groupValues[2].toLongOrNull() ?: return null
-        val fraction = matchResult.groupValues[3].toLongOrNull() ?: 0L
+            val fractionPart = if (matchResult.groupValues[3].length == 3) fraction / 1000.0 else fraction / 100.0
+            return minutes * 60.0 + seconds + fractionPart
+        }
+        
+        // Try background line
+        val bgMatch = PAXSENIX_BG_LINE_REGEX.matchEntire(nextLine)
+        if (bgMatch != null) {
+            val content = bgMatch.groupValues[1]
+            val wordMatch = RICH_SYNC_WORD_REGEX.find(content) ?: return null
+            val minutes = wordMatch.groupValues[1].toLongOrNull() ?: return null
+            val seconds = wordMatch.groupValues[2].toLongOrNull() ?: return null
+            val fraction = wordMatch.groupValues[3].toLongOrNull() ?: 0L
+            val fractionPart = if (wordMatch.groupValues[3].length == 3) fraction / 1000.0 else fraction / 100.0
+            return minutes * 60.0 + seconds + fractionPart
+        }
 
-        val fractionPart = if (matchResult.groupValues[3].length == 3) fraction / 1000.0 else fraction / 100.0
-        return minutes * 60.0 + seconds + fractionPart
+        return null
     }
 
     /**
@@ -620,11 +641,16 @@ object LyricsUtils {
         return try {
             data.split("|").mapNotNull { wordData ->
                 val parts = wordData.split(":")
-                if (parts.size == 3) {
+                if (parts.size >= 3) {
+                    val text = parts.dropLast(2).joinToString(":")
+                    val startTime = parts[parts.size - 2].toDoubleOrNull() ?: 0.0
+                    val endTime = parts[parts.size - 1].toDoubleOrNull() ?: 0.0
+                    val isLast = wordData == data.split("|").last()
                     WordTimestamp(
-                        text = parts[0],
-                        startTime = parts[1].toDouble(),
-                        endTime = parts[2].toDouble()
+                        text = text,
+                        startTime = startTime,
+                        endTime = endTime,
+                        hasTrailingSpace = !isLast
                     )
                 } else null
             }

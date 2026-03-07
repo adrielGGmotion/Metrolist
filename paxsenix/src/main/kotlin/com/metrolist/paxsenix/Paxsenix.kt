@@ -270,30 +270,19 @@ object Paxsenix {
         val lyricsType = response.type
         Log.d(TAG, "Lyrics response: type=$lyricsType")
         
-        // Use elrcMultiPerson directly - it's already in v1:/v2:/bg: format
-        val elrcMultiPerson = response.elrcMultiPerson
-        if (!elrcMultiPerson.isNullOrBlank()) {
-            Log.d(TAG, "Using elrcMultiPerson format (raw v1/v2/bg)")
-            return@runCatching elrcMultiPerson
-        }
-        
-        // Try TTML as fallback
-        val ttml = response.ttmlContent
-        if (!ttml.isNullOrBlank()) {
-            Log.d(TAG, "Using TTML format as fallback")
-            val converted = convertTTMLToAppFormat(ttml)
-            if (converted.isNotBlank()) {
-                return@runCatching converted
-            }
-        }
-        
-        // Fallback to regular content parsing
-        val hasWordLevel = lyricsType == "Syllable"
-        Log.d(TAG, "Using content fallback, hasWordLevel=$hasWordLevel")
-        
         if (response.content.isEmpty()) {
+            // Check if there are other fields we can use
+            if (!response.elrcMultiPerson.isNullOrBlank()) {
+                return@runCatching response.elrcMultiPerson
+            }
+            if (!response.elrc.isNullOrBlank()) {
+                return@runCatching response.elrc
+            }
             throw IllegalStateException("No lyrics found")
         }
+        
+        val hasWordLevel = lyricsType == "Syllable"
+        Log.d(TAG, "Using content array as primary source, hasWordLevel=$hasWordLevel")
         
         val lrc = buildString {
             response.content.forEach { line ->
@@ -302,13 +291,20 @@ object Paxsenix {
                 val seconds = (timeMs / 1000) % 60
                 val centiseconds = (timeMs % 1000) / 10
                 
+                // Determine agent
+                val agent = when {
+                    line.background -> "{bg}"
+                    line.oppositeTurn -> "{agent:v2}"
+                    else -> "{agent:v1}"
+                }
+                
                 val lineText = line.text.joinToString(" ") { it.text }
                 
                 if (lineText.isNotBlank()) {
-                    appendLine(String.format("[%02d:%02d.%02d]%s", minutes, seconds, centiseconds, lineText))
+                    appendLine(String.format("[%02d:%02d.%02d]%s%s", minutes, seconds, centiseconds, agent, lineText))
                     
-                    if (hasWordLevel && line.text.size > 1) {
-                        val wordsData = line.text.filter { it.timestamp > 0 }.joinToString("|") { word ->
+                    if (hasWordLevel && line.text.isNotEmpty()) {
+                        val wordsData = line.text.joinToString("|") { word ->
                             "${word.text}:${word.timestamp.toDouble() / 1000}:${word.endtime.toDouble() / 1000}"
                         }
                         if (wordsData.isNotEmpty()) {
@@ -319,13 +315,8 @@ object Paxsenix {
             }
         }
         
-        Log.d(TAG, "Parsed ${response.content.size} lines of lyrics")
-        
-        if (lrc.isBlank()) {
-            throw IllegalStateException("No lyrics found")
-        }
-        
-        lrc
+        Log.d(TAG, "Generated ${response.content.size} lines from content array")
+        return@runCatching lrc
     }
 
     private fun findBestMatch(
@@ -535,7 +526,10 @@ object Paxsenix {
                     val plainText = spans.joinToString(" ") { it.first.substringAfter(":") }
                     
                     val lineTime = String.format("%02d:%02d.%02d", startMin, startSec, startCs)
-                    lines.add("$lineTime]$speakerTag$plainText<$wordsData>")
+                    lines.add("[$lineTime]$speakerTag$plainText")
+                    if (wordsData.isNotEmpty()) {
+                        lines.add("<$wordsData>")
+                    }
                 }
             }
             
