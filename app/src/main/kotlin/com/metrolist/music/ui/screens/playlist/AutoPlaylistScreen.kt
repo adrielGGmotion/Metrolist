@@ -191,9 +191,11 @@ fun AutoPlaylistScreen(
                     restore = { it.toMutableStateList() },
                 ),
         ) { mutableStateListOf() }
+    var selectionAnchorSongId by rememberSaveable { mutableStateOf<String?>(null) }
     val onExitSelectionMode = {
         inSelectMode = false
         selection.clear()
+        selectionAnchorSongId = null
     }
 
     if (isSearching) {
@@ -480,6 +482,10 @@ fun AutoPlaylistScreen(
                 selection.remove(songId)
             }
         }
+
+        if (selectionAnchorSongId != null && filteredSongs.none { it.id == selectionAnchorSongId }) {
+            selectionAnchorSongId = filteredSongs.firstOrNull { it.id in selection }?.id
+        }
     }
 
     val state = rememberLazyListState()
@@ -622,6 +628,25 @@ fun AutoPlaylistScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 inSelectMode = true
                                                 onCheckedChange(true)
+                                                selectionAnchorSongId = song.id
+                                            } else {
+                                                val anchorIndex =
+                                                    selectionAnchorSongId?.let { anchorSongId ->
+                                                        filteredSongs.indexOfFirst { it.id == anchorSongId }
+                                                    } ?: -1
+
+                                                if (anchorIndex == -1) {
+                                                    onCheckedChange(true)
+                                                    selectionAnchorSongId = song.id
+                                                } else {
+                                                    val range = if (anchorIndex <= index) anchorIndex..index else index..anchorIndex
+                                                    for (rangeIndex in range) {
+                                                        val rangeSongId = filteredSongs[rangeIndex].id
+                                                        if (rangeSongId !in selection) {
+                                                            selection.add(rangeSongId)
+                                                        }
+                                                    }
+                                                }
                                             }
                                         },
                                     ).animateItem(),
