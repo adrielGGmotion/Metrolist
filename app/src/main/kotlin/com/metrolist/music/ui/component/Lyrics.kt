@@ -1003,7 +1003,7 @@ fun Lyrics(
                         .padding(horizontal = when (lyricsTextPosition) {
                             LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
                             else -> 24.dp
-                        }, vertical = 8.dp)
+                        }, vertical = 12.dp)
                     
                     // Check if this line shares the same time as the currently active line
                     // This enables synchronized word-by-word animation for both main and background vocals
@@ -1056,17 +1056,10 @@ fun Lyrics(
                             val scaleAnim = remember(item.time) { Animatable(1f) }
 
                             LaunchedEffect(isActiveLine) {
-                                if (isActiveLine) {
-                                    scaleAnim.animateTo(
-                                        targetValue = 1.06f,
-                                        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-                                    )
-                                } else {
-                                    scaleAnim.animateTo(
-                                        targetValue = 1f,
-                                        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-                                    )
-                                }
+                                scaleAnim.animateTo(
+                                    targetValue = if (isActiveLine) 1.06f else 1f,
+                                    animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+                                )
                             }
 
                             val baseAlpha = if (item.isBackground) 0.15f else 0.2f
@@ -1115,11 +1108,6 @@ fun Lyrics(
                         if (showWordHighlighting) {
                             val textMeasurer = rememberTextMeasurer()
                             FlowRow(
-                                modifier = Modifier.graphicsLayer(
-                                    scaleX = scaleAnim.value,
-                                    scaleY = scaleAnim.value,
-                                    transformOrigin = transformOrigin
-                                ),
                                 horizontalArrangement = when (alignment) {
                                     TextAlign.Right -> Arrangement.End
                                     TextAlign.Center -> Arrangement.Center
@@ -1205,7 +1193,8 @@ fun Lyrics(
                                 modifier = Modifier.graphicsLayer(
                                     scaleX = scaleAnim.value,
                                     scaleY = scaleAnim.value,
-                                    transformOrigin = transformOrigin
+                                    transformOrigin = transformOrigin,
+                                    clip = false
                                 )
                             )
                         }
