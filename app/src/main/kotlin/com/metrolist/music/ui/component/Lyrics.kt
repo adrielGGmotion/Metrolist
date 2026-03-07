@@ -885,7 +885,7 @@ fun Lyrics(
                             .padding(horizontal = when (lyricsTextPosition) {
                                 LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
                                 else -> 24.dp
-                            }, vertical = 8.dp)
+                        }, vertical = 4.dp)
                     )
                 }
             }
@@ -1040,9 +1040,7 @@ fun Lyrics(
                         }
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth(
-                                if (lyricsTextPosition == LyricsPosition.CENTER) 1f else 0.85f
-                            ),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = agentAlignment
                         ) {
                             val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
@@ -1052,7 +1050,7 @@ fun Lyrics(
                             LaunchedEffect(isActiveLine) {
                                 if (isActiveLine) {
                                     scaleAnim.animateTo(
-                                        targetValue = 1.03f,
+                                        targetValue = 1.06f,
                                         animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
                                     )
                                 } else {
@@ -1132,10 +1130,10 @@ fun Lyrics(
                         if (annotatedString != null) {
                             Text(
                                 text = annotatedString,
-                                fontSize = 36.sp,
+                                fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = alignment,
-                                lineHeight = (36 * 1.2f).sp,
+                                lineHeight = (32 * 1.2f).sp,
                                 modifier = Modifier.graphicsLayer(
                                     scaleX = scaleAnim.value,
                                     scaleY = scaleAnim.value,
@@ -1145,11 +1143,11 @@ fun Lyrics(
                         } else {
                             Text(
                                 text = mainText,
-                                fontSize = 36.sp,
+                                fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = lineColor,
                                 textAlign = alignment,
-                                lineHeight = (36 * 1.2f).sp,
+                                lineHeight = (32 * 1.2f).sp,
                                 modifier = Modifier.graphicsLayer(
                                     scaleX = scaleAnim.value,
                                     scaleY = scaleAnim.value,
