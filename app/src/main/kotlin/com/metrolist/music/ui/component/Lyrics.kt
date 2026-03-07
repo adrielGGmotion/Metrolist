@@ -1031,30 +1031,40 @@ fun Lyrics(
                         }
                     }
 
-                    Column(
+                    Box(
                         modifier = itemModifier,
-                        horizontalAlignment = agentAlignment
-                    ) {
-                        val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
-
-                        val scaleAnim = remember { Animatable(1f) }
-
-                        LaunchedEffect(isActiveLine) {
-                            if (isActiveLine) {
-                                scaleAnim.animateTo(
-                                    targetValue = 1.03f,
-                                    animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-                                )
-                            } else {
-                                scaleAnim.animateTo(
-                                    targetValue = 1f,
-                                    animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-                                )
-                            }
+                        contentAlignment = when (lyricsTextPosition) {
+                            LyricsPosition.LEFT -> Alignment.CenterStart
+                            LyricsPosition.RIGHT -> Alignment.CenterEnd
+                            else -> Alignment.Center
                         }
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(
+                                if (lyricsTextPosition == LyricsPosition.CENTER) 1f else 0.85f
+                            ),
+                            horizontalAlignment = agentAlignment
+                        ) {
+                            val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
 
-                        val baseAlpha = if (item.isBackground) 0.15f else 0.2f
-                        val activeAlpha = if (item.isBackground) 0.85f else 1f
+                            val scaleAnim = remember { Animatable(1f) }
+
+                            LaunchedEffect(isActiveLine) {
+                                if (isActiveLine) {
+                                    scaleAnim.animateTo(
+                                        targetValue = 1.03f,
+                                        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+                                    )
+                                } else {
+                                    scaleAnim.animateTo(
+                                        targetValue = 1f,
+                                        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+                                    )
+                                }
+                            }
+
+                            val baseAlpha = if (item.isBackground) 0.15f else 0.2f
+                            val activeAlpha = if (item.isBackground) 0.85f else 1f
 
                         val targetAlpha = if (isActiveLine) {
                             activeAlpha
@@ -1193,6 +1203,7 @@ fun Lyrics(
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
+                    }
                     }
                 }
             }
