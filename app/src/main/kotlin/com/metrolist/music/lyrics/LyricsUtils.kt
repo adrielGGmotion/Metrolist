@@ -487,6 +487,18 @@ object LyricsUtils {
 
         if (wordMatches.isEmpty()) return null
 
+        // Check for a trailing bare timestamp that serves as an end marker for the last word
+        val lastMatchEnd = wordMatches.last().range.last
+        val trailingContent = content.substring(lastMatchEnd + 1)
+        val trailingTimeMatch = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>".toRegex().find(trailingContent)
+        val trailingEndTime: Double? = if (trailingTimeMatch != null && trailingContent.substring(trailingTimeMatch.range.last + 1).isBlank()) {
+            val tMin = trailingTimeMatch.groupValues[1].toLongOrNull() ?: 0L
+            val tSec = trailingTimeMatch.groupValues[2].toLongOrNull() ?: 0L
+            val tFrac = trailingTimeMatch.groupValues[3].toLongOrNull() ?: 0L
+            val tFracPart = if (trailingTimeMatch.groupValues[3].length == 3) tFrac / 1000.0 else tFrac / 100.0
+            tMin * 60.0 + tSec + tFracPart
+        } else null
+
         val wordTimings = mutableListOf<WordTimestamp>()
 
         wordMatches.forEachIndexed { index, match ->
@@ -515,7 +527,7 @@ object LyricsUtils {
                 nextLineTime = null
             } else {
                 nextLineTime = getNextLineStartTime(currentIndex, allLines)
-                nextTimestamp = nextLineTime ?: (startTimeSeconds + 0.5)
+                nextTimestamp = trailingEndTime ?: nextLineTime ?: (startTimeSeconds + 0.5)
             }
 
             words.forEachIndexed { wordIndex, word ->
@@ -527,7 +539,7 @@ object LyricsUtils {
                 } else if (!isLastWordOverall) {
                     nextTimestamp
                 } else {
-                    nextLineTime ?: (startTimeSeconds + 0.5)
+                    trailingEndTime ?: nextLineTime ?: (startTimeSeconds + 0.5)
                 }
 
                 val wordHasTrailingSpace = if (!isLastWordInGroup) {
@@ -535,9 +547,13 @@ object LyricsUtils {
                 } else if (!isLastWordOverall) {
                     hasTrailingSpace
                 } else {
-                    // Last word of last match - check if there's text after it
-                    val afterMatch = content.substring(match.range.last + 1)
-                    afterMatch.isNotBlank()
+                    // Last word of last match - check if there's text after it (excluding our optional trailing timestamp)
+                    val textAfterMatch = if (trailingTimeMatch != null) {
+                        trailingContent.substring(0, trailingTimeMatch.range.first)
+                    } else {
+                        trailingContent
+                    }
+                    textAfterMatch.isNotBlank()
                 }
 
                 if (word.isNotBlank()) {

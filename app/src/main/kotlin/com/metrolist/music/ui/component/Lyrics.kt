@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -76,8 +77,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -104,6 +107,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -919,7 +923,6 @@ fun Lyrics(
                 }
             } else {
                 val lyricsOffset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
-                val effectivePlaybackPosition = currentPlaybackPosition + lyricsOffset
 
                 itemsIndexed(
                     items = lines,
@@ -1110,6 +1113,7 @@ fun Lyrics(
                         }
 
                         if (showWordHighlighting) {
+                            val textMeasurer = rememberTextMeasurer()
                             FlowRow(
                                 modifier = Modifier.graphicsLayer(
                                     scaleX = scaleAnim.value,
@@ -1125,33 +1129,59 @@ fun Lyrics(
                                 item.words.forEachIndexed { wordIndex, word ->
                                     val wordStartMs = (word.startTime * 1000).toLong()
                                     val wordEndMs = (word.endTime * 1000).toLong()
-
                                     val wordText = word.text + if (word.hasTrailingSpace && wordIndex < item.words.size - 1) " " else ""
 
+                                    val progress = remember { Animatable(0f) }
 
-                                    Box {
-                                        Text(
-                                            text = wordText,
-                                            fontSize = 32.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            lineHeight = (32 * 1.2f).sp,
-                                            color = expressiveAccent.copy(alpha = 0.25f),
-                                        )
-                                        Text(
-                                            text = wordText,
-                                            fontSize = 32.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            lineHeight = (32 * 1.2f).sp,
-                                            color = expressiveAccent,
-                                            modifier = Modifier.drawWithContent {
-                                                val p = ((currentPlaybackPosition + lyricsOffset - wordStartMs).toFloat() / (wordEndMs - wordStartMs).toFloat()).coerceIn(0f, 1f)
-                                                if (p > 0f) {
-                                                    clipRect(right = size.width * p) {
-                                                        this@drawWithContent.drawContent()
+                                    LaunchedEffect(isActiveLine) {
+                                        if (isActiveLine) {
+                                            while (isActive) {
+                                                var isFinished = false
+                                                val p = withFrameMillis {
+                                                    val currentPos = playerConnection.player.currentPosition
+                                                    val offset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
+                                                    val adjustedPos = currentPos + offset
+                                                    if (adjustedPos >= wordEndMs) {
+                                                        isFinished = true
+                                                        1f
+                                                    } else {
+                                                        ((adjustedPos - wordStartMs).toFloat() / (wordEndMs - wordStartMs).toFloat()).coerceIn(0f, 1f)
                                                     }
                                                 }
+                                                progress.snapTo(p)
+                                                if (isFinished) break
                                             }
+                                        }
+                                    }
+
+                                    val textStyle = TextStyle(
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = (32 * 1.2f).sp
+                                    )
+                                    val textLayoutResult = remember(wordText, textStyle) {
+                                        textMeasurer.measure(wordText, textStyle)
+                                    }
+
+                                    Canvas(
+                                        modifier = Modifier.size(
+                                            width = with(density) { textLayoutResult.size.width.toDp() },
+                                            height = with(density) { textLayoutResult.size.height.toDp() }
                                         )
+                                    ) {
+                                        drawText(
+                                            textLayoutResult = textLayoutResult,
+                                            color = expressiveAccent.copy(alpha = 0.25f)
+                                        )
+                                        val p = progress.value
+                                        if (p > 0f) {
+                                            clipRect(right = size.width * p) {
+                                                drawText(
+                                                    textLayoutResult = textLayoutResult,
+                                                    color = expressiveAccent
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
