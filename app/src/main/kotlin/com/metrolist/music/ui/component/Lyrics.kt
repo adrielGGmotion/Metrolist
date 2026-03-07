@@ -1166,18 +1166,50 @@ fun Lyrics(
                                             height = with(density) { textLayoutResult.size.height.toDp() }
                                         )
                                     ) {
+                                        val p = progress.value
+
+                                        // Draw inactive (dim) text underneath
                                         drawText(
                                             textLayoutResult = textLayoutResult,
                                             color = expressiveAccent.copy(alpha = 0.25f)
                                         )
-                                        val p = progress.value
-                                        if (p > 0f) {
-                                            clipRect(right = size.width * p) {
-                                                drawText(
-                                                    textLayoutResult = textLayoutResult,
-                                                    color = expressiveAccent
-                                                )
+
+                                        if (p >= 1f) {
+                                            // Word fully completed: draw at full alpha, no gradient
+                                            drawText(
+                                                textLayoutResult = textLayoutResult,
+                                                color = expressiveAccent
+                                            )
+                                        } else if (p > 0f) {
+                                            // Word in progress: use a horizontal gradient shimmer at the fill edge
+                                            // The gradient spans a soft edge of ~20% of the word width, clamped to word bounds
+                                            val fillX = size.width * p
+                                            val edgeWidth = (size.width * 0.20f).coerceAtMost(fillX)
+                                            val gradientStart = (fillX - edgeWidth).coerceAtLeast(0f)
+
+                                            val brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                                0f to expressiveAccent,
+                                                1f to expressiveAccent.copy(alpha = 0f),
+                                                startX = gradientStart,
+                                                endX = fillX
+                                            )
+
+                                            // Draw the fully-filled portion (left of gradient start) at full alpha
+                                            if (gradientStart > 0f) {
+                                                clipRect(right = gradientStart) {
+                                                    drawText(
+                                                        textLayoutResult = textLayoutResult,
+                                                        color = expressiveAccent
+                                                    )
+                                                }
                                             }
+
+                                            // Draw the gradient edge using drawRect with the brush
+                                            drawRect(
+                                                brush = brush,
+                                                topLeft = androidx.compose.ui.geometry.Offset(gradientStart, 0f),
+                                                size = androidx.compose.ui.geometry.Size(fillX - gradientStart, size.height)
+                                            )
                                         }
                                     }
                                 }
