@@ -1135,21 +1135,30 @@ fun Lyrics(
 
                                     LaunchedEffect(isActiveLine) {
                                         if (isActiveLine) {
-                                            while (isActive) {
-                                                var isFinished = false
+                                            val wStartMs = (word.startTime * 1000).toLong()
+                                            val wEndMs = (word.endTime * 1000).toLong()
+                                            val offset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
+
+                                            var currentPosWithOffset = playerConnection.player.currentPosition + offset
+                                            
+                                            if (currentPosWithOffset >= wEndMs) {
+                                                progress.snapTo(1f)
+                                                return@LaunchedEffect
+                                            } else if (currentPosWithOffset < wStartMs) {
+                                                progress.snapTo(0f)
+                                            }
+
+                                            while (isActive && currentPosWithOffset < wEndMs) {
                                                 val p = withFrameMillis {
-                                                    val currentPos = playerConnection.player.currentPosition
-                                                    val offset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
-                                                    val adjustedPos = currentPos + offset
-                                                    if (adjustedPos >= wordEndMs) {
-                                                        isFinished = true
-                                                        1f
-                                                    } else {
-                                                        ((adjustedPos - wordStartMs).toFloat() / (wordEndMs - wordStartMs).toFloat()).coerceIn(0f, 1f)
-                                                    }
+                                                    currentPosWithOffset = playerConnection.player.currentPosition + offset
+                                                    ((currentPosWithOffset - wStartMs).toFloat() / (wEndMs - wStartMs).toFloat()).coerceIn(0f, 1f)
                                                 }
                                                 progress.snapTo(p)
-                                                if (isFinished) break
+                                            }
+                                            
+                                            // Ensure we are at 1f if the loop finished because of time
+                                            if (currentPosWithOffset >= wEndMs) {
+                                                progress.snapTo(1f)
                                             }
                                         }
                                     }
