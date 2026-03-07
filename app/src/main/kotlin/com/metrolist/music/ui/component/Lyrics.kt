@@ -1053,15 +1053,6 @@ fun Lyrics(
                         ) {
                             val isActiveLine = (isActiveByIndex || isActiveByTime) && isSynced
 
-                            val scaleAnim = remember(item.time) { Animatable(1f) }
-
-                            LaunchedEffect(isActiveLine) {
-                                scaleAnim.animateTo(
-                                    targetValue = if (isActiveLine) 1.06f else 1f,
-                                    animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-                                )
-                            }
-
                             val baseAlpha = if (item.isBackground) 0.15f else 0.2f
                             val activeAlpha = if (item.isBackground) 0.85f else 1f
 
@@ -1168,35 +1159,27 @@ fun Lyrics(
                                     ) {
                                         val p = progress.value
 
-                                        // Draw inactive (dim) text underneath
+                                        // Always draw dim inactive layer first
                                         drawText(
                                             textLayoutResult = textLayoutResult,
                                             color = expressiveAccent.copy(alpha = 0.25f)
                                         )
 
                                         if (p >= 1f) {
-                                            // Word fully completed: draw at full alpha, no gradient
+                                            // Word fully completed: solid full alpha, no gradient artifact
                                             drawText(
                                                 textLayoutResult = textLayoutResult,
                                                 color = expressiveAccent
                                             )
                                         } else if (p > 0f) {
-                                            // Word in progress: use a horizontal gradient shimmer at the fill edge
-                                            // The gradient spans a soft edge of ~20% of the word width, clamped to word bounds
                                             val fillX = size.width * p
-                                            val edgeWidth = (size.width * 0.20f).coerceAtMost(fillX)
-                                            val gradientStart = (fillX - edgeWidth).coerceAtLeast(0f)
+                                            // Soft edge: 18% of word width, never exceeding the fill region
+                                            val edgeWidth = (size.width * 0.18f).coerceAtMost(fillX)
+                                            val solidRight = (fillX - edgeWidth).coerceAtLeast(0f)
 
-                                            val brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                                                0f to expressiveAccent,
-                                                1f to expressiveAccent.copy(alpha = 0f),
-                                                startX = gradientStart,
-                                                endX = fillX
-                                            )
-
-                                            // Draw the fully-filled portion (left of gradient start) at full alpha
-                                            if (gradientStart > 0f) {
-                                                clipRect(right = gradientStart) {
+                                            // Draw solid filled portion to the left of the gradient edge
+                                            if (solidRight > 0f) {
+                                                clipRect(right = solidRight) {
                                                     drawText(
                                                         textLayoutResult = textLayoutResult,
                                                         color = expressiveAccent
@@ -1204,12 +1187,21 @@ fun Lyrics(
                                                 }
                                             }
 
-                                            // Draw the gradient edge using drawRect with the brush
-                                            drawRect(
-                                                brush = brush,
-                                                topLeft = androidx.compose.ui.geometry.Offset(gradientStart, 0f),
-                                                size = androidx.compose.ui.geometry.Size(fillX - gradientStart, size.height)
-                                            )
+                                            // Soft gradient edge using 8 vertical slices with decreasing alpha.
+                                            // This fades the text itself rather than drawing a rect on top of it.
+                                            val slices = 8
+                                            val sliceWidth = edgeWidth / slices
+                                            for (i in 0 until slices) {
+                                                val sliceStart = solidRight + i * sliceWidth
+                                                val sliceEnd = sliceStart + sliceWidth
+                                                val sliceAlpha = 1f - ((i + 0.5f) / slices)
+                                                clipRect(left = sliceStart, right = sliceEnd) {
+                                                    drawText(
+                                                        textLayoutResult = textLayoutResult,
+                                                        color = expressiveAccent.copy(alpha = sliceAlpha)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1223,8 +1215,6 @@ fun Lyrics(
                                 textAlign = alignment,
                                 lineHeight = (32 * 1.2f).sp,
                                 modifier = Modifier.graphicsLayer(
-                                    scaleX = scaleAnim.value,
-                                    scaleY = scaleAnim.value,
                                     transformOrigin = transformOrigin,
                                     clip = false
                                 )
