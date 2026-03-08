@@ -442,17 +442,6 @@ fun Lyrics(
         }
     }
 
-    // Average ms between line starts → determines how early we pre-scroll during gaps
-    val lyricsBpmLeadMs: Long = remember(lines) {
-        if (lines.size < 2) return@remember 500L
-        val gaps = (1 until lines.size).map { i ->
-            (lines[i].time - lines[i - 1].time).coerceAtLeast(0L)
-        }
-        val avgGap = gaps.average()
-        // Scale: 35% of avg gap, clamped between 150ms and 800ms
-        (avgGap * 0.35).toLong().coerceIn(150L, 800L)
-    }
-
     val isSynced =
         remember(lyrics) {
             !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
@@ -672,43 +661,26 @@ fun Lyrics(
             val aLineJustEnded = previousActiveLineIndices.isNotEmpty() &&
                 previousActiveLineIndices.any { it !in newActiveIndices }
 
-            when {
-                // A line finished — scroll to whatever is now the highest active line
-                aLineJustEnded && newActiveIndices.isNotEmpty() && newMax != scrollTargetIndex -> {
-                    scrollTargetIndex = newMax
-                }
-                // Normal advance: single active line moved forward (no overlap)
-                previousActiveLineIndices.size <= 1 && newActiveIndices.size <= 1 && newMax > prevMax -> {
-                    scrollTargetIndex = newMax
-                }
-                // First line becoming active
-                previousActiveLineIndices.isEmpty() && newActiveIndices.isNotEmpty() -> {
-                    scrollTargetIndex = newMax
-                }
-                // Pre-scroll: gap to next line is > 1000ms and we are within leadTime of it starting
-                else -> {
-                    val nextLineIndex = if (newMax >= 0) newMax + 1 else 0
-                    if (nextLineIndex < lines.size && newActiveIndices.isNotEmpty()) {
-                        val nextLineStartMs = lines[nextLineIndex].time
-                        val msUntilNextLine = nextLineStartMs - (position + lyricsOffset)
-                        // Only pre-scroll if gap is meaningfully long (> 1 second)
-                        val currentLineEndMs: Long = run {
-                            val currentLine = lines[newMax]
-                            if (!currentLine.words.isNullOrEmpty()) {
-                                (currentLine.words.last().endTime * 1000).toLong()
-                            } else if (newMax + 1 < lines.size) {
-                                lines[newMax + 1].time
-                            } else Long.MAX_VALUE
-                        }
-                        val gapMs = nextLineStartMs - currentLineEndMs
-                        if (gapMs > 1000L &&
-                            msUntilNextLine in 0..lyricsBpmLeadMs &&
-                            scrollTargetIndex != nextLineIndex
-                        ) {
-                            scrollTargetIndex = nextLineIndex
-                        }
-                    }
-                }
+            val shouldScroll = when {
+                aLineJustEnded && newActiveIndices.isNotEmpty() && newMax != scrollTargetIndex -> true
+                previousActiveLineIndices.size <= 1 && newActiveIndices.size <= 1 && newMax > prevMax -> true
+                previousActiveLineIndices.isEmpty() && newActiveIndices.isNotEmpty() -> true
+                else -> false
+            }
+
+            if (shouldScroll) {
+                // If the next line after this scroll target starts more than 300ms from now,
+                // wait 150ms before setting scrollTargetIndex so the scroll animation fires early
+                // and lands right as that next line begins — matching Apple Music's pre-scroll feel.
+                val nextLineIndex = newMax + 1
+                val preScrollDelay = if (
+                    !isSeeking &&
+                    nextLineIndex < lines.size &&
+                    lines[nextLineIndex].time - (position + lyricsOffset) > 300L
+                ) 150L else 0L
+
+                if (preScrollDelay > 0L) delay(preScrollDelay)
+                scrollTargetIndex = newMax
             }
             previousActiveLineIndices = newActiveIndices
             activeLineIndices = newActiveIndices
