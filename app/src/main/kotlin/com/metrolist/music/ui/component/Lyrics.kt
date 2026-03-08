@@ -49,6 +49,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -197,6 +199,152 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.graphics.shapes.toPath
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun IntervalIndicator(
+    intervalMs: Long,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier
+) {
+    // Pick 3 random shapes from M3 Expressive set, seeded by intervalMs so they're stable
+    val shapePool = remember {
+        listOf(
+            MaterialShapes.Cookie4Sided,
+            MaterialShapes.Clover4Leaf,
+            MaterialShapes.Sunny,
+            MaterialShapes.Flower,
+            MaterialShapes.Puffy,
+            MaterialShapes.Pentagon,
+            MaterialShapes.Gem,
+            MaterialShapes.Burst,
+            MaterialShapes.SoftBurst,
+            MaterialShapes.Diamond,
+            MaterialShapes.VerySunny,
+            MaterialShapes.Cookie9Sided,
+            MaterialShapes.Clover8Leaf,
+            MaterialShapes.PuffyDiamond,
+            MaterialShapes.Bun,
+        )
+    }
+    val selectedShapes = remember(intervalMs) {
+        shapePool.shuffled().take(3)
+    }
+
+    // Speed: slower for longer gaps (clamped between 0.4 and 1.0)
+    // intervalMs is in ms, we normalize against 8000ms as "max slow"
+    val speedFactor = remember(intervalMs) {
+        (1f - ((intervalMs - 4000f) / 12000f).coerceIn(0f, 0.6f))
+    }
+    val baseDuration = (800 / speedFactor).toInt().coerceIn(500, 2000)
+
+    // Animation state machine: Idle -> Entering -> Inflating(0,1,2) -> GroupPuff -> Floating
+    var phase by remember { mutableStateOf(0) } // 0=entering, 1=inflate0, 2=inflate1, 3=inflate2, 4=grouppuff, 5=floating
+
+    LaunchedEffect(Unit) {
+        // Staggered entrance
+        phase = 0
+        delay(80L)
+        phase = 1
+        delay((baseDuration * 0.7f).toLong())
+        phase = 2
+        delay((baseDuration * 0.7f).toLong())
+        phase = 3
+        delay((baseDuration * 0.7f).toLong())
+        // Brief pause then group puff
+        delay((baseDuration * 0.4f).toLong())
+        phase = 4
+        delay((baseDuration * 0.8f).toLong())
+        // Float away
+        phase = 5
+    }
+
+    // Per-shape scales — each inflates when its phase is reached, then group puff, then release
+    val scales = (0..2).map { i ->
+        val inflatePhase = i + 1    // phases 1, 2, 3
+        val targetScale = when {
+            phase < inflatePhase -> 0f           // not yet entered
+            phase == inflatePhase -> 1f           // inflating
+            phase == 4 -> 1.15f                  // group puff
+            phase >= 5 -> 0f                     // floating away (shrink)
+            else -> 1f
+        }
+        animateFloatAsState(
+            targetValue = targetScale,
+            animationSpec = when {
+                phase >= 5 -> spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessVeryLow)
+                phase == 4 -> spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessLow)
+                else -> spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium)
+            },
+            label = "shapeScale$i"
+        )
+    }
+
+    // Y offset for floating away
+    val floatOffset by animateFloatAsState(
+        targetValue = if (phase >= 5) -80f else 0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessVeryLow),
+        label = "floatOffset"
+    )
+
+    // Alpha: fade in on enter, fade out when floating
+    val alpha by animateFloatAsState(
+        targetValue = when {
+            phase == 0 -> 0f
+            phase >= 5 -> 0f
+            else -> 1f
+        },
+        animationSpec = tween(durationMillis = 300),
+        label = "indicatorAlpha"
+    )
+
+    Row(
+        modifier = modifier
+            .padding(vertical = 16.dp)
+            .alpha(alpha)
+            .offset(y = with(androidx.compose.ui.platform.LocalDensity.current) { floatOffset.toDp() }),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        selectedShapes.forEachIndexed { i, shape ->
+            val scale = scales[i].value
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .graphicsLayer(scaleX = scale, scaleY = scale, transformOrigin = TransformOrigin.Center)
+                    .drawWithCache {
+                        val path = shape
+                            .normalized()
+                            .toPath()
+                            .asComposePath()
+                        // Scale path to fill the 32dp box
+                        val matrix = android.graphics.Matrix()
+                        val bounds = android.graphics.RectF()
+                        path.asAndroidPath().computeBounds(bounds, true)
+                        matrix.setRectToRect(
+                            bounds,
+                            android.graphics.RectF(0f, 0f, size.width, size.height),
+                            android.graphics.Matrix.ScaleToFit.CENTER
+                        )
+                        path.asAndroidPath().transform(matrix)
+                        onDrawBehind {
+                            drawPath(path, color = color)
+                        }
+                    }
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedBoxWithConstraintsScope", "StringFormatInvalid")
@@ -446,6 +594,31 @@ fun Lyrics(
         remember(lyrics) {
             !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
         }
+
+    // Precompute where interval indicators should appear: index = line index BEFORE the gap
+    // -1 means "before the first line"
+    val intervalGaps: List<Pair<Int, Long>> = remember(lines) {
+        val result = mutableListOf<Pair<Int, Long>>()
+        // Gap before first line (from 0 to lines[0].time)
+        if (lines.isNotEmpty() && lines[0].time > 4000L) {
+            result.add(Pair(-1, lines[0].time))
+        }
+        // Gaps between lines
+        for (i in 0 until lines.size - 1) {
+            val words = lines[i].words
+            val currentEnd: Long = if (!words.isNullOrEmpty()) {
+                (words.last().endTime * 1000).toLong()
+            } else {
+                lines[i].time
+            }
+            val nextStart = lines[i + 1].time
+            val gap = nextStart - currentEnd
+            if (gap > 4000L) {
+                result.add(Pair(i, gap))
+            }
+        }
+        result
+    }
 
     // State for translation status
     val translationStatus by LyricsTranslationHelper.status.collectAsState()
@@ -966,6 +1139,26 @@ fun Lyrics(
             } else {
                 val lyricsOffset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
 
+                // Interval indicator before first line
+                val preGap = intervalGaps.firstOrNull { it.first == -1 }
+                if (preGap != null && isSynced) {
+                    item(key = "interval_pre") {
+                        IntervalIndicator(
+                            intervalMs = preGap.second,
+                            color = expressiveAccent,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentWidth(
+                                    when (lyricsTextPosition) {
+                                        LyricsPosition.LEFT -> androidx.compose.ui.Alignment.Start
+                                        LyricsPosition.RIGHT -> androidx.compose.ui.Alignment.End
+                                        else -> androidx.compose.ui.Alignment.CenterHorizontally
+                                    }
+                                )
+                        )
+                    }
+                }
+
                 itemsIndexed(
                     items = lines,
                     key = { index, item -> "$index-${item.time}" } // Add stable key
@@ -1304,6 +1497,24 @@ fun Lyrics(
                                 },
                                 fontWeight = FontWeight.Normal,
                                 modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        // Interval indicator after this line if gap > 4s
+                        val gap = intervalGaps.firstOrNull { it.first == index }
+                        if (gap != null && isSynced) {
+                            IntervalIndicator(
+                                intervalMs = gap.second,
+                                color = expressiveAccent,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentWidth(
+                                        when (lyricsTextPosition) {
+                                            LyricsPosition.LEFT -> Alignment.Start
+                                            LyricsPosition.RIGHT -> Alignment.End
+                                            else -> Alignment.CenterHorizontally
+                                        }
+                                    )
                             )
                         }
                     }
