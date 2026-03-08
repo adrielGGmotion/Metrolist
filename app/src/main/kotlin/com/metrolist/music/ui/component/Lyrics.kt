@@ -15,8 +15,11 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -50,6 +53,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
@@ -200,10 +204,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.ui.draw.drawWithCache
@@ -213,7 +219,7 @@ import androidx.graphics.shapes.toPath
 
 private sealed class LyricsListItem {
     data class Line(val index: Int, val entry: com.metrolist.music.lyrics.LyricsEntry) : LyricsListItem()
-    data class Indicator(val afterLineIndex: Int, val gapMs: Long, val gapStartMs: Long, val gapEndMs: Long) : LyricsListItem()
+    data class Indicator(val afterLineIndex: Int, val gapMs: Long, val gapStartMs: Long, val gapEndMs: Long, val nextAgent: String?) : LyricsListItem()
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -222,133 +228,159 @@ private fun IntervalIndicator(
     intervalMs: Long,
     gapStartMs: Long,
     gapEndMs: Long,
-    currentPositionMs: Long,
+    currentPositionMs: () -> Long,
     color: androidx.compose.ui.graphics.Color,
+    nextAgent: String? = null,
     modifier: Modifier = Modifier
 ) {
-    // Pick 3 random shapes from M3 Expressive set, seeded by intervalMs so they're stable
     val shapePool = remember {
         listOf(
-            MaterialShapes.Cookie4Sided,
-            MaterialShapes.Clover4Leaf,
-            MaterialShapes.Sunny,
-            MaterialShapes.Flower,
-            MaterialShapes.Puffy,
-            MaterialShapes.Pentagon,
-            MaterialShapes.Gem,
-            MaterialShapes.Burst,
-            MaterialShapes.SoftBurst,
-            MaterialShapes.Diamond,
-            MaterialShapes.VerySunny,
-            MaterialShapes.Cookie9Sided,
-            MaterialShapes.Clover8Leaf,
-            MaterialShapes.PuffyDiamond,
-            MaterialShapes.Bun,
+            MaterialShapes.Cookie4Sided, MaterialShapes.Clover4Leaf, MaterialShapes.Sunny,
+            MaterialShapes.Flower, MaterialShapes.Puffy, MaterialShapes.Pentagon,
+            MaterialShapes.Gem, MaterialShapes.Burst, MaterialShapes.SoftBurst,
+            MaterialShapes.Diamond, MaterialShapes.VerySunny, MaterialShapes.Cookie9Sided,
+            MaterialShapes.Clover8Leaf, MaterialShapes.PuffyDiamond, MaterialShapes.Bun,
         )
     }
-    val selectedShapes = remember(intervalMs) {
-        shapePool.shuffled().take(3)
+    val selectedShapes = remember(intervalMs) { shapePool.shuffled().take(3) }
+
+    // Each inflate phase gets 25% of gap, group puff 15%, float away 10%
+    // Clamped so very short/long gaps still feel right
+    val inflateDuration = remember(intervalMs) {
+        (intervalMs * 0.25f).toInt().coerceIn(400, 5000)
+    }
+    val puffDuration = remember(intervalMs) {
+        (intervalMs * 0.15f).toInt().coerceIn(200, 3000)
+    }
+    val floatDuration = remember(intervalMs) {
+        (intervalMs * 0.10f).toInt().coerceIn(300, 2000)
     }
 
-    // Speed: slower for longer gaps (clamped between 0.4 and 1.0)
-    // intervalMs is in ms, we normalize against 8000ms as "max slow"
-    val speedFactor = remember(intervalMs) {
-        (1f - ((intervalMs - 4000f) / 12000f).coerceIn(0f, 0.6f))
-    }
-    val baseDuration = (800 / speedFactor).toInt().coerceIn(500, 2000)
+    // End the full animation 150ms before the next lyric fires
+    val effectiveEndMs = gapEndMs - 150L
 
-    // Animation state machine: Idle -> Entering -> Inflating(0,1,2) -> GroupPuff -> Floating
-    var phase by remember { mutableStateOf(0) } // 0=entering, 1=inflate0, 2=inflate1, 3=inflate2, 4=grouppuff, 5=floating
+    val inGap = currentPositionMs() in gapStartMs..effectiveEndMs
 
-    val isInGap = currentPositionMs in gapStartMs..gapEndMs
-    LaunchedEffect(isInGap) {
-        if (!isInGap) { phase = 0; return@LaunchedEffect }
-        val elapsed = (currentPositionMs - gapStartMs).coerceAtLeast(0L)
-        val t1 = 80L
-        val t2 = t1 + (baseDuration * 0.7f).toLong()
-        val t3 = t2 + (baseDuration * 0.7f).toLong()
-        val t4 = t3 + (baseDuration * 1.1f).toLong()
-        val t5 = t4 + (baseDuration * 0.8f).toLong()
-        phase = when { elapsed < t1 -> 0; elapsed < t2 -> 1; elapsed < t3 -> 2; elapsed < t4 -> 3; elapsed < t5 -> 4; else -> 5 }
-        if (phase < 1) { delay(t1 - elapsed); phase = 1 }
-        if (phase < 2) { delay((t2 - maxOf(elapsed, t1)).coerceAtLeast(0L)); phase = 2 }
-        if (phase < 3) { delay((t3 - maxOf(elapsed, t2)).coerceAtLeast(0L)); phase = 3 }
-        if (phase < 4) { delay((t4 - maxOf(elapsed, t3)).coerceAtLeast(0L)); phase = 4 }
-        if (phase < 5) { delay((t5 - maxOf(elapsed, t4)).coerceAtLeast(0L)); phase = 5 }
-    }
+    // Phase is purely derived from playback position — no coroutines, no delays.
+    // Pause freezes it, seek jumps to the right phase, speed changes work naturally.
+    val stagger = 80L
+    val t1 = stagger
+    val t2 = t1 + inflateDuration + stagger
+    val t3 = t2 + inflateDuration + stagger
+    val t4 = t3 + inflateDuration + stagger
+    val t5 = t4 + puffDuration
+    val t6 = t5 + floatDuration
 
-    // Per-shape scales — each inflates when its phase is reached, then group puff, then release
-    val scales = (0..2).map { i ->
-        val inflatePhase = i + 1    // phases 1, 2, 3
-        val targetScale = when {
-            phase < inflatePhase -> 0f           // not yet entered
-            phase == inflatePhase -> 1f           // inflating
-            phase == 4 -> 1.15f                  // group puff
-            phase >= 5 -> 0f                     // floating away (shrink)
-            else -> 1f
+    val phase: Int = if (!inGap) {
+        0
+    } else {
+        val elapsed = (currentPositionMs() - gapStartMs).coerceAtLeast(0L)
+        when {
+            elapsed < t1 -> 0
+            elapsed < t2 -> 1
+            elapsed < t3 -> 2
+            elapsed < t4 -> 3
+            elapsed < t5 -> 4
+            elapsed < t6 -> 5
+            else -> 6
         }
+    }
+
+    // Height animates from 0 to 64dp — creates space dynamically, not statically
+    val rowHeight by animateDpAsState(
+        targetValue = if (phase == 0 || phase == 6) 0.dp else 48.dp,
+        animationSpec = tween(durationMillis = 150),
+        label = "indicatorHeight"
+    )
+
+    // M3 Expressive easing curves
+    // EmphasizedDecelerate: fast entry, slow settle — for shapes popping in
+    val emphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
+    // EmphasizedAccelerate: slow start, fast exit — for shapes flying away
+    val emphasizedAccelerate = CubicBezierEasing(0.3f, 0.0f, 0.8f, 0.15f)
+    // Standard: for the puff overshoot
+    val standardEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
+
+    // Per-shape: scale 0->1 when it's that shape's inflate phase, 1->1.4 on group puff (big overshoot), 1.4->0 on float
+    val scales = (0..2).map { i ->
+        val myPhase = i + 1
         animateFloatAsState(
-            targetValue = targetScale,
-            animationSpec = when {
-                phase >= 5 -> spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessVeryLow)
-                phase == 4 -> spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessLow)
-                else -> spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium)
+            targetValue = when {
+                phase < myPhase -> 0f
+                phase == myPhase -> 1f
+                phase in 1..3 && phase > myPhase -> 1f  // stays full after inflated
+                phase == 4 -> 1.12f                     // subtle expressive puff
+                phase >= 5 -> 0f
+                else -> 0f
             },
-            label = "shapeScale$i"
+            animationSpec = tween(
+                durationMillis = when {
+                    phase >= 5 -> floatDuration
+                    phase == 4 -> puffDuration
+                    else -> inflateDuration
+                },
+                easing = when {
+                    phase >= 5 -> emphasizedAccelerate   // fast exit
+                    phase == 4 -> standardEasing         // smooth overshoot
+                    else -> emphasizedDecelerate         // bouncy pop-in
+                }
+            ),
+            label = "scale$i"
         )
     }
 
-    // Y offset for floating away
-    val floatOffset by animateFloatAsState(
-        targetValue = if (phase >= 5) -80f else 0f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessVeryLow),
-        label = "floatOffset"
-    )
-
-    // Alpha: fade in on enter, fade out when floating
+    // No float offset — shapes shrink to their own center on exit
     val alpha by animateFloatAsState(
-        targetValue = when {
-            phase == 0 -> 0f
-            phase >= 5 -> 0f
-            else -> 1f
-        },
-        animationSpec = tween(durationMillis = 300),
-        label = "indicatorAlpha"
+        targetValue = if (phase == 0 || phase >= 5) 0f else 1f,
+        animationSpec = tween(
+            durationMillis = if (phase >= 5) 120 else 150,
+            easing = if (phase >= 5) FastOutSlowInEasing else LinearOutSlowInEasing
+        ),
+        label = "alpha"
     )
 
-    Row(
-        modifier = modifier
-            .padding(vertical = 16.dp)
-            .alpha(alpha)
-            .offset(y = with(androidx.compose.ui.platform.LocalDensity.current) { floatOffset.toDp() }),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        selectedShapes.forEachIndexed { i, shape ->
-            val scale = scales[i].value
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .graphicsLayer(scaleX = scale, scaleY = scale, transformOrigin = TransformOrigin.Center)
-                    .drawWithCache {
-                        val path = shape
-                            .normalized()
-                            .toPath()
-                            .asComposePath()
-                        // Scale path to fill the 32dp box
-                        val matrix = android.graphics.Matrix()
-                        val bounds = android.graphics.RectF()
-                        path.asAndroidPath().computeBounds(bounds, true)
-                        matrix.setRectToRect(
-                            bounds,
-                            android.graphics.RectF(0f, 0f, size.width, size.height),
-                            android.graphics.Matrix.ScaleToFit.CENTER
-                        )
-                        path.asAndroidPath().transform(matrix)
-                        onDrawBehind {
-                            drawPath(path, color = color)
-                        }
-                    }
-            )
+    Box(modifier = modifier) {
+        // Spacer that drives the layout height so the LazyColumn reserves the right space.
+        // The shapes themselves are drawn in a separate layer that can overflow this.
+        Spacer(modifier = Modifier.height(rowHeight).fillMaxWidth())
+
+        // Alignment based on next singer: v2 = right, anything else = left
+        val rowAlignment = when (nextAgent) {
+            "v2" -> Alignment.CenterEnd
+            else -> Alignment.CenterStart
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .wrapContentSize(unbounded = true, align = rowAlignment)
+        ) {
+            Row(
+                modifier = Modifier.alpha(alpha),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                selectedShapes.forEachIndexed { i, shape ->
+                    val scale = scales[i].value
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .graphicsLayer(scaleX = scale, scaleY = scale, transformOrigin = TransformOrigin.Center)
+                            .drawWithCache {
+                                val path = shape.normalized().toPath().asComposePath()
+                                val matrix = android.graphics.Matrix()
+                                val bounds = android.graphics.RectF()
+                                path.asAndroidPath().computeBounds(bounds, true)
+                                matrix.setRectToRect(
+                                    bounds,
+                                    android.graphics.RectF(0f, 0f, size.width, size.height),
+                                    android.graphics.Matrix.ScaleToFit.CENTER
+                                )
+                                path.asAndroidPath().transform(matrix)
+                                onDrawBehind { drawPath(path, color = color) }
+                            }
+                    )
+                }
+            }
         }
     }
 }
@@ -605,18 +637,23 @@ fun Lyrics(
     val mergedLyricsList: List<LyricsListItem> = remember(lines) {
         val result = mutableListOf<LyricsListItem>()
         if (lines.isEmpty()) return@remember result
-        if (lines[0].time > 4000L) {
-            result.add(LyricsListItem.Indicator(-1, lines[0].time, 0L, lines[0].time))
+        val firstRealLine = lines.firstOrNull { it.time > 0L }
+        if (firstRealLine != null && firstRealLine.time > 4000L) {
+            result.add(LyricsListItem.Indicator(-1, firstRealLine.time, -1L, firstRealLine.time, firstRealLine.agent))
         }
         lines.forEachIndexed { i, entry ->
             result.add(LyricsListItem.Line(i, entry))
             if (i < lines.size - 1) {
-                val currentEnd: Long = if (!entry.words.isNullOrEmpty())
-                    (entry.words.last().endTime * 1000).toLong() else entry.time
+                // Only compute a meaningful gap for word-synced lines.
+                // Plain LRC lines have no end timestamp — their "end" is when the next line starts,
+                // so there is no gap between them by definition.
+                val hasWordTimings = !entry.words.isNullOrEmpty()
+                if (!hasWordTimings) return@forEachIndexed
+                val currentEnd = (entry.words.last().endTime * 1000).toLong()
                 val nextStart = lines[i + 1].time
                 val gap = nextStart - currentEnd
                 if (gap > 4000L) {
-                    result.add(LyricsListItem.Indicator(i, gap, currentEnd, nextStart))
+                    result.add(LyricsListItem.Indicator(i, gap, currentEnd, nextStart, lines[i + 1].agent))
                 }
             }
         }
@@ -876,9 +913,16 @@ fun Lyrics(
         if (isAnimating) return // Prevent multiple animations
         isAnimating = true
         try {
-            // Convert original line index to merged list index
-            val mergedIndex = mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == targetIndex }
-            val resolvedIndex = if (mergedIndex >= 0) mergedIndex else targetIndex
+            // If scrolling to the first line and a pre-first indicator exists, scroll to the indicator instead
+            val resolvedIndex = if (
+                targetIndex == 0 &&
+                mergedLyricsList.firstOrNull() is LyricsListItem.Indicator
+            ) {
+                0
+            } else {
+                val mergedIndex = mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == targetIndex }
+                if (mergedIndex >= 0) mergedIndex else targetIndex
+            }
             val lookUpIndex = if (isLyricsProviderShown) resolvedIndex + 1 else resolvedIndex
             
             val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lookUpIndex }
@@ -1162,8 +1206,9 @@ fun Lyrics(
                                     intervalMs = listItem.gapMs,
                                     gapStartMs = listItem.gapStartMs,
                                     gapEndMs = listItem.gapEndMs,
-                                    currentPositionMs = currentPlaybackPosition,
+                                    currentPositionMs = { currentPlaybackPosition },
                                     color = expressiveAccent,
+                                    nextAgent = listItem.nextAgent,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .wrapContentWidth(
