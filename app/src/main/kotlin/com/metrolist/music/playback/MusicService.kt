@@ -992,7 +992,7 @@ class MusicService :
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
         val bpmProcessor = BpmDetectorAudioProcessor()
-        AutomixAnalyzer.setProcessor(bpmProcessor)
+        AutomixAnalyzer.setProcessor(bpmProcessor, database)
 
         // Set initial state
         runBlocking {
@@ -1953,7 +1953,7 @@ class MusicService :
         mediaItem: MediaItem?,
         reason: Int,
     ) {
-        AutomixAnalyzer.startListening()
+        AutomixAnalyzer.startListening(mediaItem?.mediaId, database)
         // Save previous episode position if it was an episode
         previousEpisodeId?.let { episodeId ->
             if (previousEpisodePosition > 0) {

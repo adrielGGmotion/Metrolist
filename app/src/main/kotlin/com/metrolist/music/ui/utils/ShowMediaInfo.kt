@@ -120,6 +120,7 @@ fun ShowMediaInfo(videoId: String) {
                         R.drawable.contrast,
                         R.drawable.volume_up,
                         R.drawable.volume_mute,
+                        R.drawable.speed,
                         R.drawable.content_copy
                     )
 
@@ -135,6 +136,7 @@ fun ShowMediaInfo(videoId: String) {
                             stringResource(R.string.sample_rate) to currentFormat?.sampleRate?.let { "$it Hz" },
                             stringResource(R.string.loudness) to currentFormat?.loudnessDb?.let { "$it dB" },
                             stringResource(R.string.volume) to if (playerConnection != null) "${(playerConnection.player.volume * 100).toInt()}%" else null,
+                            stringResource(R.string.bpm) to (song?.song?.bpm?.let { "%.1f".format(it) } ?: "—"),
                             stringResource(R.string.file_size) to
                                     currentFormat?.contentLength?.let {
                                         Formatter.formatShortFileSize(

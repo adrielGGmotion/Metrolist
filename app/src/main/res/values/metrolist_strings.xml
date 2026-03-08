@@ -228,6 +228,7 @@
     <string name="top_length">My Top list length</string>
     <string name="history_duration">History duration</string>
     <string name="information">Information</string>
+    <string name="bpm">BPM</string>
     <string name="description">Description</string>
     <string name="views">Views</string>
     <string name="likes">Likes</string>

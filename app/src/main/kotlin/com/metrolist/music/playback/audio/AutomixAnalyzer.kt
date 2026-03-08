@@ -5,29 +5,56 @@
 
 package com.metrolist.music.playback.audio
 
+import com.metrolist.music.db.MusicDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
  * Singleton that manages BPM analysis for Automix.
  */
 object AutomixAnalyzer {
-    
+
     private var bpmProcessor: BpmDetectorAudioProcessor? = null
-    
+    private var scope = CoroutineScope(Dispatchers.IO)
+    private var currentSongId: String? = null
+
     var lastDetectedBpm: Float = 0f
         private set
 
-    fun setProcessor(processor: BpmDetectorAudioProcessor) {
+    fun setProcessor(processor: BpmDetectorAudioProcessor, database: MusicDatabase) {
         bpmProcessor = processor
         processor.onBpmDetected = { bpm ->
             lastDetectedBpm = bpm
             Timber.tag("AutomixAnalyzer").d("Updated lastDetectedBpm = $bpm")
+            currentSongId?.let { songId ->
+                scope.launch {
+                    database.updateSongBpm(songId, bpm)
+                }
+            }
         }
     }
 
-    fun startListening() {
-        Timber.tag("AutomixAnalyzer").d("startListening()")
-        bpmProcessor?.isAnalysisEnabled = true
+    fun startListening(mediaId: String?, database: MusicDatabase) {
+        Timber.tag("AutomixAnalyzer").d("startListening(mediaId=$mediaId)")
+        currentSongId = mediaId
+        if (mediaId == null) {
+            bpmProcessor?.isAnalysisEnabled = false
+            return
+        }
+
+        scope.launch {
+            val cachedBpm = database.getSongBpm(mediaId)
+            if (cachedBpm != null && cachedBpm > 0f) {
+                Timber.tag("AutomixBpm").d("AutomixBpm: cache hit = $cachedBpm BPM for songId $mediaId")
+                lastDetectedBpm = cachedBpm
+                bpmProcessor?.isAnalysisEnabled = false
+                bpmProcessor?.onBpmDetected?.invoke(cachedBpm)
+            } else {
+                bpmProcessor?.isAnalysisEnabled = true
+            }
+        }
     }
 
     fun stopListening() {
