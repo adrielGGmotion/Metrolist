@@ -654,16 +654,13 @@ fun Lyrics(
             currentPlaybackPosition = position
             val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
             val newActiveIndices = findActiveLineIndices(lines, position + lyricsOffset)
-            // Only advance the scroll target when the previous group of active lines
-            // has completely finished — i.e. no overlap between old and new active sets.
-            // This ensures simultaneous singers are both visible until both are done.
-            if (previousActiveLineIndices.isNotEmpty() &&
-                newActiveIndices.isNotEmpty() &&
-                newActiveIndices.none { it in previousActiveLineIndices }
-            ) {
-                scrollTargetIndex = newActiveIndices.maxOrNull() ?: -1
-            } else if (previousActiveLineIndices.isEmpty() && newActiveIndices.isNotEmpty()) {
-                scrollTargetIndex = newActiveIndices.maxOrNull() ?: -1
+            val newMax = newActiveIndices.maxOrNull() ?: -1
+            val prevMax = previousActiveLineIndices.maxOrNull() ?: -1
+
+            // Scroll whenever a new highest line becomes active (new singer started or next line began).
+            // Lines finishing do not trigger scroll — only new lines starting do.
+            if (newMax > prevMax) {
+                scrollTargetIndex = newMax
             }
             previousActiveLineIndices = newActiveIndices
             activeLineIndices = newActiveIndices
