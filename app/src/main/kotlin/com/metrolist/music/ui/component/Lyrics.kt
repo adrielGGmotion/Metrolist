@@ -1125,7 +1125,10 @@ fun Lyrics(
                             else -> TransformOrigin.Center
                         }
 
-                        if (showWordHighlighting) {
+                        if (hasWordTimings) {
+                            // Always use FlowRow+Canvas for word-timed lines regardless of active state.
+                            // This prevents layout snapping when switching between active/inactive —
+                            // the composable tree never changes, only the canvas drawing does.
                             val textMeasurer = rememberTextMeasurer()
                             FlowRow(
                                 horizontalArrangement = when (alignment) {
@@ -1135,8 +1138,6 @@ fun Lyrics(
                                 }
                             ) {
                                 item.words.forEachIndexed { wordIndex, word ->
-                                    val wordStartMs = (word.startTime * 1000).toLong()
-                                    val wordEndMs = (word.endTime * 1000).toLong()
                                     val wordText = word.text + if (word.hasTrailingSpace && wordIndex < item.words.size - 1) " " else ""
 
                                     val progress = remember { Animatable(0f) }
@@ -1148,7 +1149,7 @@ fun Lyrics(
                                             val offset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
 
                                             var currentPosWithOffset = playerConnection.player.currentPosition + offset
-                                            
+
                                             if (currentPosWithOffset >= wEndMs) {
                                                 progress.snapTo(1f)
                                                 return@LaunchedEffect
@@ -1163,11 +1164,13 @@ fun Lyrics(
                                                 }
                                                 progress.snapTo(p)
                                             }
-                                            
-                                            // Ensure we are at 1f if the loop finished because of time
+
                                             if (currentPosWithOffset >= wEndMs) {
                                                 progress.snapTo(1f)
                                             }
+                                        } else {
+                                            // Line became inactive — reset fill so it's ready for next activation
+                                            progress.snapTo(0f)
                                         }
                                     }
 
@@ -1180,6 +1183,9 @@ fun Lyrics(
                                         textMeasurer.measure(wordText, textStyle)
                                     }
 
+                                    // Dim alpha follows the line's animated alpha when inactive
+                                    val inactiveAlpha = if (isActiveLine) 0.25f else animatedAlpha
+
                                     Canvas(
                                         modifier = Modifier.size(
                                             width = with(density) { textLayoutResult.size.width.toDp() },
@@ -1188,47 +1194,44 @@ fun Lyrics(
                                     ) {
                                         val p = progress.value
 
-                                        // Always draw dim inactive layer first
+                                        // Dim base layer
                                         drawText(
                                             textLayoutResult = textLayoutResult,
-                                            color = expressiveAccent.copy(alpha = 0.25f)
+                                            color = expressiveAccent.copy(alpha = inactiveAlpha)
                                         )
 
-                                        if (p >= 1f) {
-                                            // Word fully completed: solid full alpha, no gradient artifact
-                                            drawText(
-                                                textLayoutResult = textLayoutResult,
-                                                color = expressiveAccent
-                                            )
-                                        } else if (p > 0f) {
-                                            val fillX = size.width * p
-                                            // Soft edge: 18% of word width, never exceeding the fill region
-                                            val edgeWidth = (size.width * 0.18f).coerceAtMost(fillX)
-                                            val solidRight = (fillX - edgeWidth).coerceAtLeast(0f)
+                                        if (isActiveLine) {
+                                            if (p >= 1f) {
+                                                drawText(
+                                                    textLayoutResult = textLayoutResult,
+                                                    color = expressiveAccent
+                                                )
+                                            } else if (p > 0f) {
+                                                val fillX = size.width * p
+                                                val edgeWidth = (size.width * 0.18f).coerceAtMost(fillX)
+                                                val solidRight = (fillX - edgeWidth).coerceAtLeast(0f)
 
-                                            // Draw solid filled portion to the left of the gradient edge
-                                            if (solidRight > 0f) {
-                                                clipRect(right = solidRight) {
-                                                    drawText(
-                                                        textLayoutResult = textLayoutResult,
-                                                        color = expressiveAccent
-                                                    )
+                                                if (solidRight > 0f) {
+                                                    clipRect(right = solidRight) {
+                                                        drawText(
+                                                            textLayoutResult = textLayoutResult,
+                                                            color = expressiveAccent
+                                                        )
+                                                    }
                                                 }
-                                            }
 
-                                            // Soft gradient edge using 8 vertical slices with decreasing alpha.
-                                            // This fades the text itself rather than drawing a rect on top of it.
-                                            val slices = 8
-                                            val sliceWidth = edgeWidth / slices
-                                            for (i in 0 until slices) {
-                                                val sliceStart = solidRight + i * sliceWidth
-                                                val sliceEnd = sliceStart + sliceWidth
-                                                val sliceAlpha = 1f - ((i + 0.5f) / slices)
-                                                clipRect(left = sliceStart, right = sliceEnd) {
-                                                    drawText(
-                                                        textLayoutResult = textLayoutResult,
-                                                        color = expressiveAccent.copy(alpha = sliceAlpha)
-                                                    )
+                                                val slices = 8
+                                                val sliceWidth = edgeWidth / slices
+                                                for (i in 0 until slices) {
+                                                    val sliceStart = solidRight + i * sliceWidth
+                                                    val sliceEnd = sliceStart + sliceWidth
+                                                    val sliceAlpha = 1f - ((i + 0.5f) / slices)
+                                                    clipRect(left = sliceStart, right = sliceEnd) {
+                                                        drawText(
+                                                            textLayoutResult = textLayoutResult,
+                                                            color = expressiveAccent.copy(alpha = sliceAlpha)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
