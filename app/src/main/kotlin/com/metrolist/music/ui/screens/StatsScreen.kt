@@ -25,6 +25,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -82,6 +83,10 @@ fun StatsScreen(
     val mostPlayedAlbums by viewModel.mostPlayedAlbums.collectAsState()
     val firstEvent by viewModel.firstEvent.collectAsState()
     val currentDate = LocalDateTime.now()
+    val orderedMostPlayedSongs = remember(mostPlayedSongsStats, mostPlayedSongs) {
+        val songsById = mostPlayedSongs.associateBy { it.song.id }
+        mostPlayedSongsStats.mapNotNull { statsSong -> songsById[statsSong.id] }
+    }
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
@@ -247,6 +252,19 @@ fun StatsScreen(
             item(key = "mostPlayedSongs") {
                 NavigationTitle(
                     title = "${mostPlayedSongsStats.size} ${stringResource(id = R.string.songs)}",
+                    onPlayAllClick =
+                    if (orderedMostPlayedSongs.isNotEmpty()) {
+                        {
+                            playerConnection.playQueue(
+                                ListQueue(
+                                    title = context.getString(R.string.most_played_songs),
+                                    items = orderedMostPlayedSongs.map { it.toMediaMetadata().toMediaItem() },
+                                )
+                            )
+                        }
+                    } else {
+                        null
+                    },
                     modifier = Modifier.animateItem(),
                 )
 
@@ -279,22 +297,25 @@ fun StatsScreen(
                                             if (song.id == mediaMetadata?.id) {
                                                 playerConnection.togglePlayPause()
                                             } else {
+                                                val preloadSong = orderedMostPlayedSongs.getOrNull(index)
                                                 playerConnection.playQueue(
                                                     YouTubeQueue(
                                                         endpoint = WatchEndpoint(song.id),
-                                                        preloadItem = mostPlayedSongs[index].toMediaMetadata(),
+                                                        preloadItem = preloadSong?.toMediaMetadata(),
                                                     ),
                                                 )
                                             }
                                         },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                SongMenu(
-                                                    originalSong = mostPlayedSongs[index],
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
+                                            orderedMostPlayedSongs.getOrNull(index)?.let { selectedSong ->
+                                                menuState.show {
+                                                    SongMenu(
+                                                        originalSong = selectedSong,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
                                             }
                                         },
                                     ).animateItem(),
@@ -404,8 +425,7 @@ fun StatsScreen(
         }
 
         // FAB to shuffle most played songs
-        if (mostPlayedSongs.isNotEmpty()) {
-            val mostPlayedSongsTitle = stringResource(R.string.most_played_songs)
+        if (orderedMostPlayedSongs.isNotEmpty()) {
             HideOnScrollFAB(
                 visible = true,
                 lazyListState = lazyListState,
@@ -413,8 +433,8 @@ fun StatsScreen(
                 onClick = {
                     playerConnection.playQueue(
                         ListQueue(
-                            title = mostPlayedSongsTitle,
-                            items = mostPlayedSongs.map { it.toMediaMetadata().toMediaItem() }.shuffled(),
+                            title = context.getString(R.string.most_played_songs),
+                            items = orderedMostPlayedSongs.map { it.toMediaMetadata().toMediaItem() }.shuffled(),
                         ),
                     )
                 },
