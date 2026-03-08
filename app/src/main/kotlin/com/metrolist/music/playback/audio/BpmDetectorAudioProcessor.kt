@@ -8,26 +8,19 @@ package com.metrolist.music.playback.audio
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import be.tarsos.dsp.AudioDispatcher
-import be.tarsos.dsp.AudioEvent
-import be.tarsos.dsp.beatroot.Agent
-import be.tarsos.dsp.beatroot.AgentList
-import be.tarsos.dsp.beatroot.Event
-import be.tarsos.dsp.beatroot.EventList
-import be.tarsos.dsp.beatroot.Induction
-import be.tarsos.dsp.io.TarsosDSPAudioFormat
-import be.tarsos.dsp.io.jvm.AudioDispatcherFactory
-import be.tarsos.dsp.onsets.ComplexOnsetDetector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.max
+import kotlin.math.PI
+import kotlin.math.sqrt
 
 /**
  * Pass-through audio processor that accumulates samples into a rolling buffer
- * and can trigger BPM analysis using TarsosDSP.
+ * and can trigger BPM analysis using a pure Kotlin autocorrelation-based detector.
  */
 @UnstableApi
 class BpmDetectorAudioProcessor : AudioProcessor {
@@ -125,7 +118,7 @@ class BpmDetectorAudioProcessor : AudioProcessor {
 
         scope.launch {
             try {
-                // Convert PCM 16-bit to FloatArray
+                // 1. Convert PCM 16-bit to FloatArray (mono)
                 val frameCount = rb.limit() / 2 / currentChannelCount
                 val floatBuffer = FloatArray(frameCount)
                 rb.order(ByteOrder.LITTLE_ENDIAN)
@@ -138,29 +131,75 @@ class BpmDetectorAudioProcessor : AudioProcessor {
                     floatBuffer[i] = sum / currentChannelCount
                 }
 
-                // TarsosDSP BPM detection manually using onset detector and Induction
-                val onsetList = EventList()
-                val bufferSize = 512
-                val detector = ComplexOnsetDetector(bufferSize, 0.5)
-                detector.setHandler { time, salience ->
-                    val event = Event(time, time, -1.0, 0, 0, -1.0, -1.0, 0)
-                    event.salience = salience
-                    onsetList.add(event)
+                // 2. Apply low-pass filter (~200Hz) to isolate bass/kick
+                val cutoff = 200.0
+                val dt = 1.0 / currentSampleRate
+                val alpha = (2.0 * kotlin.math.PI * dt * cutoff) / (1.0 + 2.0 * kotlin.math.PI * dt * cutoff)
+                var lastVal = 0f
+                for (i in floatBuffer.indices) {
+                    val filtered = lastVal + (alpha.toFloat() * (floatBuffer[i] - lastVal))
+                    floatBuffer[i] = filtered
+                    lastVal = filtered
+                }
+
+                // 3. Compute onset strength signal (RMS energy frames + positive derivative)
+                val frameSize = (currentSampleRate * 0.01).toInt() // ~10ms
+                val onsetSignals = FloatArray(frameCount / frameSize)
+                var lastRms = 0f
+                
+                for (i in onsetSignals.indices) {
+                    val start = i * frameSize
+                    val end = start + frameSize
+                    var sumSq = 0f
+                    for (j in start until end) {
+                        sumSq += floatBuffer[j] * floatBuffer[j]
+                    }
+                    val rms = sqrt(sumSq / frameSize)
+                    onsetSignals[i] = max(0f, rms - lastRms)
+                    lastRms = rms
                 }
                 
-                val dispatcher = AudioDispatcherFactory.fromFloatArray(floatBuffer, currentSampleRate, bufferSize, 0)
-                dispatcher.addAudioProcessor(detector)
-                dispatcher.run()
+                if (onsetSignals.size < 10) {
+                    Timber.tag("AutomixBpm").w("Not enough onset data")
+                    return@launch
+                }
+
+                // 4. Autocorrelation over 60–180 BPM
+                val onsetSampleRate = currentSampleRate.toFloat() / frameSize
+                val minLag = (onsetSampleRate * 60f / 180f).toInt() // 180 BPM
+                val maxLag = (onsetSampleRate * 60f / 60f).toInt() // 60 BPM
                 
-                val agents = Induction.beatInduction(onsetList)
-                val best = agents?.bestAgent()
-                val detectedBpm = if (best != null && best.beatInterval > 0) (60.0 / best.beatInterval).toFloat() else 0f
+                var bestLag = -1
+                var maxCorr = 0f
                 
-                if (detectedBpm > 0) {
-                    Timber.tag("AutomixBpm").i("AutomixBpm: detected = %.1f BPM", detectedBpm)
+                // Normalize onset signal to improve autocorrelation
+                val avgOnset = onsetSignals.average().toFloat()
+                val normalizedOnsets = FloatArray(onsetSignals.size) { onsetSignals[it] - avgOnset }
+
+                for (lag in minLag..maxLag) {
+                    if (lag >= normalizedOnsets.size) break
+                    
+                    var corr = 0f
+                    var energy = 0f
+                    for (i in lag until normalizedOnsets.size) {
+                        corr += normalizedOnsets[i] * normalizedOnsets[i - lag]
+                        energy += normalizedOnsets[i] * normalizedOnsets[i]
+                    }
+                    
+                    val normalizedCorr = if (energy > 0) corr / energy else 0f
+                    if (normalizedCorr > maxCorr) {
+                        maxCorr = normalizedCorr
+                        bestLag = lag
+                    }
+                }
+
+                // 5. Confidence check and Callback
+                if (bestLag != -1 && maxCorr >= 0.2f) {
+                    val detectedBpm = 60f * onsetSampleRate / bestLag
+                    Timber.tag("AutomixBpm").i("AutomixBpm: detected = %.1f BPM (confidence=%.2f)", detectedBpm, maxCorr)
                     onBpmDetected?.invoke(detectedBpm)
                 } else {
-                    Timber.tag("AutomixBpm").w("AutomixBpm: could not detect BPM")
+                    Timber.tag("AutomixBpm").w("AutomixBpm: unreliable detection (confidence=%.2f)", maxCorr)
                 }
             } catch (e: Exception) {
                 Timber.tag("AutomixBpm").e(e, "Error during BPM analysis")

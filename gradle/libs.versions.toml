@@ -30,7 +30,6 @@ brotli = "0.1.2"
 desugaring = "2.1.5"
 junit = "4.13.2"
 timber = "5.0.1"
-tarsosdsp = "2.5"
 materialKolor = "4.1.1"
 kuromojiIpadic = "0.9.0"
 newpipeextractor = "v0.26.0"
@@ -107,8 +106,6 @@ desugaring = { module = "com.android.tools:desugar_jdk_libs_nio", version.ref = 
 junit = { module = "junit:junit", version.ref = "junit" }
 
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
-tarsosdsp-core = { module = "be.tarsos.dsp:core", version.ref = "tarsosdsp" }
-tarsosdsp-jvm = { module = "be.tarsos.dsp:jvm", version.ref = "tarsosdsp" }
 
 newpipeextractor = { module = "com.github.TeamNewPipe:NewPipeExtractor", version.ref = "newpipeextractor" }
 

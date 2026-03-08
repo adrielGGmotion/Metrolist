@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.PI
 import kotlin.math.sin
 
 /**
@@ -39,7 +40,7 @@ object AutomixTestHelper {
             val isClick = (time % intervalSeconds) < 0.01 // 10ms click
             val sampleValue = if (isClick) {
                 // 1kHz tone for the click
-                (sin(2.0 * Math.PI * 1000.0 * time) * 32767.0).toInt().toShort()
+                (sin(2.0 * PI * 1000.0 * time) * 32767.0).toInt().toShort()
             } else {
                 0.toShort()
             }

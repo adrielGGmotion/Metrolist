@@ -237,7 +237,5 @@ dependencies {
 
     coreLibraryDesugaring(libs.desugaring)
 
-    implementation(libs.tarsosdsp.core)
-    implementation(libs.tarsosdsp.jvm)
     implementation(libs.timber)
 }
