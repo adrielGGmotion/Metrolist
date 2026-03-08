@@ -657,10 +657,22 @@ fun Lyrics(
             val newMax = newActiveIndices.maxOrNull() ?: -1
             val prevMax = previousActiveLineIndices.maxOrNull() ?: -1
 
-            // Scroll whenever a new highest line becomes active (new singer started or next line began).
-            // Lines finishing do not trigger scroll — only new lines starting do.
-            if (newMax > prevMax) {
-                scrollTargetIndex = newMax
+            val aLineJustEnded = newActiveIndices.size < previousActiveLineIndices.size ||
+                previousActiveLineIndices.any { it !in newActiveIndices }
+
+            when {
+                // A line finished singing — scroll to whatever is still active (max = newest line)
+                aLineJustEnded && newActiveIndices.isNotEmpty() && newMax != scrollTargetIndex -> {
+                    scrollTargetIndex = newMax
+                }
+                // Normal case: no overlap, single active line advanced to a new index
+                previousActiveLineIndices.size <= 1 && newActiveIndices.size <= 1 && newMax > prevMax -> {
+                    scrollTargetIndex = newMax
+                }
+                // Very first line becoming active
+                previousActiveLineIndices.isEmpty() && newActiveIndices.isNotEmpty() -> {
+                    scrollTargetIndex = newMax
+                }
             }
             previousActiveLineIndices = newActiveIndices
             activeLineIndices = newActiveIndices
