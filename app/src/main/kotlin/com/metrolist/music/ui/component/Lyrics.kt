@@ -441,6 +441,18 @@ fun Lyrics(
             }
         }
     }
+
+    // Average ms between line starts → determines how early we pre-scroll during gaps
+    val lyricsBpmLeadMs: Long = remember(lines) {
+        if (lines.size < 2) return@remember 500L
+        val gaps = (1 until lines.size).map { i ->
+            (lines[i].time - lines[i - 1].time).coerceAtLeast(0L)
+        }
+        val avgGap = gaps.average()
+        // Scale: 35% of avg gap, clamped between 150ms and 800ms
+        (avgGap * 0.35).toLong().coerceIn(150L, 800L)
+    }
+
     val isSynced =
         remember(lyrics) {
             !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
@@ -657,21 +669,45 @@ fun Lyrics(
             val newMax = newActiveIndices.maxOrNull() ?: -1
             val prevMax = previousActiveLineIndices.maxOrNull() ?: -1
 
-            val aLineJustEnded = newActiveIndices.size < previousActiveLineIndices.size ||
+            val aLineJustEnded = previousActiveLineIndices.isNotEmpty() &&
                 previousActiveLineIndices.any { it !in newActiveIndices }
 
             when {
-                // A line finished singing — scroll to whatever is still active (max = newest line)
+                // A line finished — scroll to whatever is now the highest active line
                 aLineJustEnded && newActiveIndices.isNotEmpty() && newMax != scrollTargetIndex -> {
                     scrollTargetIndex = newMax
                 }
-                // Normal case: no overlap, single active line advanced to a new index
+                // Normal advance: single active line moved forward (no overlap)
                 previousActiveLineIndices.size <= 1 && newActiveIndices.size <= 1 && newMax > prevMax -> {
                     scrollTargetIndex = newMax
                 }
-                // Very first line becoming active
+                // First line becoming active
                 previousActiveLineIndices.isEmpty() && newActiveIndices.isNotEmpty() -> {
                     scrollTargetIndex = newMax
+                }
+                // Pre-scroll: gap to next line is > 1000ms and we are within leadTime of it starting
+                else -> {
+                    val nextLineIndex = if (newMax >= 0) newMax + 1 else 0
+                    if (nextLineIndex < lines.size && newActiveIndices.isNotEmpty()) {
+                        val nextLineStartMs = lines[nextLineIndex].time
+                        val msUntilNextLine = nextLineStartMs - (position + lyricsOffset)
+                        // Only pre-scroll if gap is meaningfully long (> 1 second)
+                        val currentLineEndMs: Long = run {
+                            val currentLine = lines[newMax]
+                            if (!currentLine.words.isNullOrEmpty()) {
+                                (currentLine.words.last().endTime * 1000).toLong()
+                            } else if (newMax + 1 < lines.size) {
+                                lines[newMax + 1].time
+                            } else Long.MAX_VALUE
+                        }
+                        val gapMs = nextLineStartMs - currentLineEndMs
+                        if (gapMs > 1000L &&
+                            msUntilNextLine in 0..lyricsBpmLeadMs &&
+                            scrollTargetIndex != nextLineIndex
+                        ) {
+                            scrollTargetIndex = nextLineIndex
+                        }
+                    }
                 }
             }
             previousActiveLineIndices = newActiveIndices
