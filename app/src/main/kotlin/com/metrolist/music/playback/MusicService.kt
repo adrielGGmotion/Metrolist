@@ -159,6 +159,9 @@ import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
 import com.metrolist.music.models.toMediaMetadata
+import com.metrolist.music.playback.audio.BpmDetectorAudioProcessor
+import com.metrolist.music.playback.audio.AutomixAnalyzer
+import com.metrolist.music.playback.audio.AutomixTestHelper
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.Queue
@@ -512,6 +515,14 @@ class MusicService :
         // Mark player as initialized after successful creation
         playerInitialized.value = true
         Timber.tag(TAG).d("Player successfully initialized")
+
+        scope.launch(Dispatchers.Default) {
+            try {
+                AutomixTestHelper.runBpmSelfTest()
+            } catch (e: Exception) {
+                Timber.tag("AutomixTest").e(e, "Self-test failed")
+            }
+        }
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         setupAudioFocusRequest()
@@ -980,6 +991,8 @@ class MusicService :
         equalizerService.addAudioProcessor(eqProcessor)
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
+        val bpmProcessor = BpmDetectorAudioProcessor()
+        AutomixAnalyzer.setProcessor(bpmProcessor)
 
         // Set initial state
         runBlocking {
@@ -990,7 +1003,7 @@ class MusicService :
 
         val player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
-            .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor))
+            .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor, bpmProcessor))
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setAudioAttributes(
@@ -1940,6 +1953,7 @@ class MusicService :
         mediaItem: MediaItem?,
         reason: Int,
     ) {
+        AutomixAnalyzer.startListening()
         // Save previous episode position if it was an episode
         previousEpisodeId?.let { episodeId ->
             if (previousEpisodePosition > 0) {
@@ -2946,7 +2960,8 @@ class MusicService :
 
     private fun createRenderersFactory(
         eqProcessor: CustomEqualizerAudioProcessor,
-        silenceProcessor: SilenceDetectorAudioProcessor
+        silenceProcessor: SilenceDetectorAudioProcessor,
+        bpmProcessor: BpmDetectorAudioProcessor
     ) =
         object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
@@ -2963,6 +2978,7 @@ class MusicService :
                         arrayOf(
                             eqProcessor,
                             silenceProcessor,
+                            bpmProcessor,
                         ),
                         SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
                         SonicAudioProcessor(),
