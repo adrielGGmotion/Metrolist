@@ -48,17 +48,15 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideInternalDatabase(
+    fun provideDatabase(
         @ApplicationContext context: Context,
-    ): InternalDatabase = Room
-        .databaseBuilder(context, InternalDatabase::class.java, InternalDatabase.DB_NAME)
-        .build()
+    ): MusicDatabase = InternalDatabase.newInstance(context)
 
     @Singleton
     @Provides
-    fun provideDatabase(
-        internalDatabase: InternalDatabase,
-    ): MusicDatabase = MusicDatabase(internalDatabase)
+    fun provideInternalDatabase(
+        database: MusicDatabase,
+    ): InternalDatabase = database.delegate
 
     @Singleton
     @Provides
