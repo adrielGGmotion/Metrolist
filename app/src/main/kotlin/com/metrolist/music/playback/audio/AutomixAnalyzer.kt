@@ -8,6 +8,8 @@ package com.metrolist.music.playback.audio
 import com.metrolist.music.db.MusicDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -19,6 +21,7 @@ object AutomixAnalyzer {
     private var bpmProcessor: BpmDetectorAudioProcessor? = null
     private var scope = CoroutineScope(Dispatchers.IO)
     private var currentSongId: String? = null
+    private var analysisJob: Job? = null
 
     var lastDetectedBpm: Float = 0f
         private set
@@ -38,6 +41,7 @@ object AutomixAnalyzer {
 
     fun startListening(mediaId: String?, database: MusicDatabase) {
         Timber.tag("AutomixAnalyzer").d("startListening(mediaId=$mediaId)")
+        analysisJob?.cancel()
         currentSongId = mediaId
         if (mediaId == null) {
             bpmProcessor?.isAnalysisEnabled = false
@@ -53,11 +57,16 @@ object AutomixAnalyzer {
                 bpmProcessor?.onBpmDetected?.invoke(cachedBpm)
             } else {
                 bpmProcessor?.isAnalysisEnabled = true
+                analysisJob = scope.launch {
+                    delay(30000L)
+                    bpmProcessor?.triggerAnalysis()
+                }
             }
         }
     }
 
     fun stopListening() {
+        analysisJob?.cancel()
         Timber.tag("AutomixAnalyzer").d("stopListening()")
         bpmProcessor?.isAnalysisEnabled = false
     }
