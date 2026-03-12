@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Test APK (${{ inputs.variant }})
+    name: Build Canary APK (${{ inputs.variant }})
     runs-on: ubuntu-latest
 
     steps:
@@ -47,12 +47,16 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Change Package Name for Test Build
+      - name: Change Package Name and App Label for Canary Build
         run: |
-          sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.test"/' app/build.gradle.kts
+          sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.canary"/' app/build.gradle.kts
+          sed -i 's|<string name="app_name">Metrolist</string>|<string name="app_name">Metrolist Canary</string>|' app/src/main/res/values/strings.xml
 
       - name: Build Release APK
+        id: build
         run: |
+          BUILD_START=$(date +%s)
+          echo "build_start=$BUILD_START" >> $GITHUB_OUTPUT
           VARIANT_NAME=$(echo "${{ inputs.variant }}" | sed 's/./\u&/')
           ./gradlew --console=plain assemble${VARIANT_NAME}Release --warning-mode summary -x lint -x lint${VARIANT_NAME}Release
         env:
@@ -75,70 +79,81 @@ jobs:
         run: |
           OUTPUT_DIR="app/build/outputs/apk/${{ inputs.variant }}/release"
           mkdir -p "$OUTPUT_DIR/out"
-          find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/metrolist-test-${{ inputs.variant }}.apk"
+          find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/metrolist-canary-${{ inputs.variant }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: metrolist-test-${{ inputs.variant }}
+          name: metrolist-canary-${{ inputs.variant }}
           path: app/build/outputs/apk/${{ inputs.variant }}/release/out/*.apk
           retention-days: 14
+
+      - name: Collect build metadata
+        id: meta
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/${{ inputs.variant }}/release/out -name "*.apk" | head -1)
+          APK_BYTES=$(stat -c%s "$APK_PATH")
+          APK_MB=$(echo "scale=1; $APK_BYTES / 1048576" | bc)
+          echo "apk_size=${APK_MB} MB" >> $GITHUB_OUTPUT
+
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | head -1 | sed 's/.*versionName = "\(.*\)".*/\1/')
+          VERSION_CODE=$(grep 'versionCode' app/build.gradle.kts | head -1 | grep -o '[0-9]*')
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+          BUILD_END=$(date +%s)
+          BUILD_START=${{ steps.build.outputs.build_start }}
+          DURATION=$(( (BUILD_END - BUILD_START) / 60 ))
+          echo "duration=${DURATION}m" >> $GITHUB_OUTPUT
+
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
 
       - name: Send Discord notification
         run: |
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          SHORT_SHA="${{ github.sha }}"
-          SHORT_SHA="${SHORT_SHA:0:7}"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           BRANCH="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
           VARIANT="${{ inputs.variant }}"
           DESCRIPTION="${{ inputs.description }}"
+          APK_SIZE="${{ steps.meta.outputs.apk_size }}"
+          VERSION_NAME="${{ steps.meta.outputs.version_name }}"
+          VERSION_CODE="${{ steps.meta.outputs.version_code }}"
+          DURATION="${{ steps.meta.outputs.duration }}"
+          COMMIT_MSG="${{ steps.meta.outputs.commit_msg }}"
 
-          PAYLOAD=$(cat <<EOF
-          {
-            "embeds": [
-              {
-                "title": "Test Build Ready",
-                "color": 5793266,
-                "fields": [
-                  {
-                    "name": "Branch",
-                    "value": "\`$BRANCH\`",
-                    "inline": true
-                  },
-                  {
-                    "name": "Commit",
-                    "value": "\`$SHORT_SHA\`",
-                    "inline": true
-                  },
-                  {
-                    "name": "Variant",
-                    "value": "\`$VARIANT\`",
-                    "inline": true
-                  },
-                  {
-                    "name": "Triggered by",
-                    "value": "$ACTOR",
-                    "inline": true
-                  },
-                  {
-                    "name": "What to test",
-                    "value": "$DESCRIPTION"
-                  },
-                  {
-                    "name": "APK",
-                    "value": "[Download from GitHub Actions]($RUN_URL) — available for 14 days"
-                  }
+          PAYLOAD=$(jq -n \
+            --arg content "<@&1441099959662284901>" \
+            --arg title "Metrolist Canary — Build Ready" \
+            --arg description "**$DESCRIPTION**" \
+            --arg branch "$BRANCH" \
+            --arg commit "\`$SHORT_SHA\` $COMMIT_MSG" \
+            --arg version "\`$VERSION_NAME ($VERSION_CODE)\`" \
+            --arg variant "\`$VARIANT\`" \
+            --arg size "\`$APK_SIZE\`" \
+            --arg download "[GitHub Actions — expires in 14 days]($RUN_URL)" \
+            --arg footer "Triggered by $ACTOR · Built in ${DURATION} · Metrolist Canary" \
+            --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              content: $content,
+              embeds: [{
+                title: $title,
+                description: $description,
+                color: 0,
+                fields: [
+                  { name: "Branch", value: $branch, inline: true },
+                  { name: "Commit", value: $commit, inline: true },
+                  { name: "\u200b", value: "\u200b", inline: true },
+                  { name: "Version", value: $version, inline: true },
+                  { name: "Variant", value: $variant, inline: true },
+                  { name: "APK Size", value: $size, inline: true },
+                  { name: "Download", value: $download }
                 ],
-                "footer": {
-                  "text": "Metrolist · Test Dispatch"
-                },
-                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-              }
-            ]
-          }
-          EOF
-          )
+                footer: { text: $footer },
+                timestamp: $timestamp
+              }]
+            }')
 
           curl -s -X POST "${{ secrets.DISCORD_TESTING_WEBHOOK }}" \
             -H "Content-Type: application/json" \
