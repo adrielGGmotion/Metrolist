@@ -24,7 +24,6 @@ include(":lrclib")
 include(":kizzy")
 include(":lastfm")
 include(":betterlyrics")
-include(":simpmusic")
 include(":shazamkit")
 include(":paxsenix")
 

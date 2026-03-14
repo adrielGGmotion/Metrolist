@@ -62,7 +62,6 @@ import com.metrolist.music.constants.CountryCodeToName
 import com.metrolist.music.constants.EnableBetterLyricsKey
 import com.metrolist.music.constants.EnableKugouKey
 import com.metrolist.music.constants.EnableLrcLibKey
-import com.metrolist.music.constants.EnableSimpMusicKey
 import com.metrolist.music.constants.EnablePaxsenixKey
 import com.metrolist.music.constants.EnableLyricsPlus
 import com.metrolist.music.constants.HideExplicitKey
@@ -122,7 +121,6 @@ fun ContentSettings(
     val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (enableBetterLyrics, onEnableBetterLyricsChange) = rememberPreference(key = EnableBetterLyricsKey, defaultValue = true)
-    val (enableSimpMusic, onEnableSimpMusicChange) = rememberPreference(key = EnableSimpMusicKey, defaultValue = true)
     val (enablePaxsenix, onEnablePaxsenixChange) = rememberPreference(key = EnablePaxsenixKey, defaultValue = true)
     val (enableLyricsPlus, onEnableLyricsPlusChange) = rememberPreference(key = EnableLyricsPlus, defaultValue = false)
     val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(
@@ -140,7 +138,6 @@ fun ContentSettings(
     val providerDisplayNames =
         mapOf(
             "BetterLyrics" to "Better Lyrics",
-            "SimpMusic" to "SimpMusic",
             "Paxsenix" to "Paxsenix",
             "LrcLib" to "LrcLib",
             "KuGou" to "KuGou",
@@ -442,35 +439,6 @@ fun ContentSettings(
                         Column(
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(stringResource(R.string.enable_simpmusic))
-                            Text(
-                                text = stringResource(R.string.enable_simpmusic_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = enableSimpMusic,
-                            onCheckedChange = onEnableSimpMusicChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (enableSimpMusic) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
                             Text(stringResource(R.string.enable_paxsenix))
                             Text(
                                 text = stringResource(R.string.enable_paxsenix_desc),
@@ -611,14 +579,13 @@ fun ContentSettings(
             "LrcLib".takeIf { enableLrclib },
             "KuGou".takeIf { enableKugou },
             "BetterLyrics".takeIf { enableBetterLyrics },
-            "SimpMusic".takeIf { enableSimpMusic },
             "Paxsenix".takeIf { enablePaxsenix },
             "LyricsPlus".takeIf { enableLyricsPlus },
         ).filterNotNull().toSet()
         val lyricsIcon = painterResource(R.drawable.lyrics)
         val draggableItems = remember { mutableStateListOf<DraggableLyricsProviderItem>() }
 
-        LaunchedEffect(currentOrder, enableLrclib, enableKugou, enableBetterLyrics, enableSimpMusic, enablePaxsenix, enableLyricsPlus) {
+        LaunchedEffect(currentOrder, enableLrclib, enableKugou, enableBetterLyrics, enablePaxsenix, enableLyricsPlus) {
             val orderedEnabledProviders = currentOrder.filter { it in enabledProviders }
             draggableItems.clear()
             draggableItems.addAll(

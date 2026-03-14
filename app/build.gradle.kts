@@ -235,7 +235,6 @@ dependencies {
     implementation(project(":kizzy"))
     implementation(project(":lastfm"))
     implementation(project(":betterlyrics"))
-    implementation(project(":simpmusic"))
     implementation(project(":shazamkit"))
     implementation(project(":paxsenix"))
 

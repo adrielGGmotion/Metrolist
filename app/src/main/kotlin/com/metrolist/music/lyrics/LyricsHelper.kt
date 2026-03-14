@@ -37,7 +37,6 @@ constructor(
     private var lyricsProviders =
         listOf(
             BetterLyricsProvider,
-            SimpMusicLyricsProvider,
             PaxsenixLyricsProvider,
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
@@ -61,7 +60,6 @@ constructor(
                         PreferredLyricsProvider.LRCLIB -> listOf(
                             LrcLibLyricsProvider,
                             BetterLyricsProvider,
-                            SimpMusicLyricsProvider,
                             PaxsenixLyricsProvider,
                             KuGouLyricsProvider,
                             LyricsPlusProvider,
@@ -71,7 +69,6 @@ constructor(
                         PreferredLyricsProvider.KUGOU -> listOf(
                             KuGouLyricsProvider,
                             BetterLyricsProvider,
-                            SimpMusicLyricsProvider,
                             PaxsenixLyricsProvider,
                             LrcLibLyricsProvider,
                             LyricsPlusProvider,
@@ -79,17 +76,6 @@ constructor(
                             YouTubeLyricsProvider
                         )
                         PreferredLyricsProvider.BETTER_LYRICS -> listOf(
-                            BetterLyricsProvider,
-                            SimpMusicLyricsProvider,
-                            PaxsenixLyricsProvider,
-                            LrcLibLyricsProvider,
-                            KuGouLyricsProvider,
-                            LyricsPlusProvider,
-                            YouTubeSubtitleLyricsProvider,
-                            YouTubeLyricsProvider
-                        )
-                        PreferredLyricsProvider.SIMPMUSIC -> listOf(
-                            SimpMusicLyricsProvider,
                             BetterLyricsProvider,
                             PaxsenixLyricsProvider,
                             LrcLibLyricsProvider,
@@ -101,7 +87,6 @@ constructor(
                         PreferredLyricsProvider.PAXSENIX -> listOf(
                             PaxsenixLyricsProvider,
                             BetterLyricsProvider,
-                            SimpMusicLyricsProvider,
                             LrcLibLyricsProvider,
                             KuGouLyricsProvider,
                             LyricsPlusProvider,
@@ -158,7 +143,8 @@ constructor(
                         )
                         result.onSuccess { lyrics ->
                             Timber.tag("LyricsHelper").i("Successfully got lyrics from ${provider.name}")
-                            return@async LyricsWithProvider(lyrics, provider.name)
+                            val filteredLyrics = LyricsUtils.filterLyricsCreditLines(lyrics)
+                            return@async LyricsWithProvider(filteredLyrics, provider.name)
                         }.onFailure { e ->
                             Timber.tag("LyricsHelper").w("${provider.name} failed: ${e.message}")
                             reportException(e)
@@ -220,7 +206,8 @@ constructor(
                 if (provider.isEnabled(context)) {
                     try {
                         provider.getAllLyrics(context, mediaId, cleanedTitle, songArtists, duration, album) { lyrics ->
-                            val result = LyricsResult(provider.name, lyrics)
+                            val filteredLyrics = LyricsUtils.filterLyricsCreditLines(lyrics)
+                            val result = LyricsResult(provider.name, filteredLyrics)
                             allResult += result
                             callback(result)
                         }
