@@ -6,6 +6,7 @@
 package com.metrolist.music.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.height
@@ -23,7 +24,6 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -82,13 +82,13 @@ import com.metrolist.music.constants.SleepTimerStartTimeKey
 import com.metrolist.music.constants.SleepTimerDayTimesKey
 import com.metrolist.music.ui.component.decodeDayTimes
 import com.metrolist.music.ui.component.encodeDayTimes
-
+import com.metrolist.music.constants.SleepTimerFadeOutKey
+import com.metrolist.music.constants.SleepTimerStopAfterCurrentSongKey
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSettings(
-    navController: NavController,
-    scrollBehavior: TopAppBarScrollBehavior,
+    navController: NavController
 ) {
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
@@ -518,7 +518,7 @@ fun PlayerSettings(
         )
         val (sleepTimerEndTime, onSleepTimerEndTimeChange) = rememberPreference(
             SleepTimerEndTimeKey,
-            defaultValue = "6:00"
+            defaultValue = "06:00"
         )
         val (sleepTimerCustomDays, onSleepTimerCustomDaysChange) = rememberPreference(
             SleepTimerCustomDaysKey,
@@ -528,6 +528,14 @@ fun PlayerSettings(
         val (sleepTimerDayTimes, onSleepTimerDayTimesChange) = rememberPreference(
             SleepTimerDayTimesKey,
             defaultValue = ""
+        )
+
+        val (sleepTimerStopAfterCurrentSong, onSleepTimerStopAfterCurrentSongChange) = rememberPreference (
+        SleepTimerStopAfterCurrentSongKey,
+        defaultValue = false)
+        val (sleepTimerFadeOut, onSleepTimerFadeOutChange) = rememberPreference(
+            SleepTimerFadeOutKey,
+            false
         )
 
         if (showSleepTimerDialog) {
@@ -558,7 +566,7 @@ fun PlayerSettings(
             items = buildList {
                 add(
                     Material3SettingsItem(
-                        icon = painterResource(R.drawable.timer),
+                        icon = painterResource(R.drawable.time_auto),
                         title = { Text(stringResource(R.string.enable_automatic_sleeptimer)) },
                         description = { Text(stringResource(R.string.sleeptimer_description)) },
                         trailingContent = {
@@ -580,7 +588,6 @@ fun PlayerSettings(
                     )
                 )
 
-                if (sleepTimerEnabled) {
                     add(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.baseline_event_repeat_24),
@@ -590,10 +597,74 @@ fun PlayerSettings(
                                     stringResource(R.string.sleep_timer_repeat_description)
                                 )
                             },
+                            trailingContent = {
+                                Switch(
+                                    checked = sleepTimerEnabled,
+                                    onCheckedChange = {showSleepTimerDialog = true},
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (sleepTimerEnabled) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    }
+                                )
+                            },
                             onClick = { showSleepTimerDialog = true }
                         )
                     )
-                }
+
+
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.more_time),
+                        title = { Text(stringResource(R.string.sleep_timer_stop_after_current_song_title)) },
+                        description = { Text(stringResource(R.string.sleep_timer_stop_after_current_song_description)) },
+                        trailingContent = {
+                            Switch(
+                                checked = sleepTimerStopAfterCurrentSong,
+                                onCheckedChange = onSleepTimerStopAfterCurrentSongChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (sleepTimerStopAfterCurrentSong) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onSleepTimerStopAfterCurrentSongChange(!sleepTimerStopAfterCurrentSong) }
+                    )
+                )
+
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.timer_arrow_down),
+                        title = { Text(stringResource(R.string.sleep_timer_fade_out_title)) },
+                        description = { Text(stringResource(R.string.sleep_timer_fade_out_description)) },
+                        trailingContent = {
+                            Switch(
+                                checked = sleepTimerFadeOut,
+                                onCheckedChange = onSleepTimerFadeOutChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (sleepTimerFadeOut) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onSleepTimerFadeOutChange(!sleepTimerFadeOut) }
+                    )
+                )
+
             }
         )
 

@@ -17,6 +17,8 @@
     <string name="liked">Liked</string>
     <string name="offline">Downloaded</string>
     <string name="my_top">My top</string>
+    <string name="weekly_most_playlist_name">Weekly Most</string>
+    <string name="monthly_most_playlist_name">Monthly Most</string>
     <string name="cached_playlist">Cached</string>
     <string name="uploaded_playlist">Uploaded</string>
     <string name="filter_uploaded">Uploaded</string>
@@ -127,6 +129,8 @@
     <string name="show_downloaded_playlist">Show \"Downloaded\" playlist</string>
     <string name="show_top_playlist">Show \"Top\" playlist</string>
     <string name="show_cached_playlist">Show \"Cached\" playlist</string>
+    <string name="enable_song_cache">Enable song cache</string>
+    <string name="enable_song_cache_desc">Automatically cache songs for future playback</string>
     <string name="show_uploaded_playlist">Show \"Uploaded\" playlist</string>
     <string name="shuffle_playlist_first">Shuffle playlist/album first</string>
     <string name="shuffle_playlist_first_desc">When shuffling, play all songs from the original playlist/album first, then similar content</string>
@@ -260,8 +264,10 @@
     <string name="sleep_timer_friday">Friday</string>
     <string name="sleep_timer_saturday">Saturday</string>
     <string name="sleep_timer_sunday">Sunday</string>
-    <string name="sleep_timer_stop_after_current_song">Stop at end of current song when timer ends</string>
-    <string name="sleep_timer_fade_out">Fade out in final minute</string>
+    <string name="sleep_timer_stop_after_current_song_title">Stop at end of current song</string>
+    <string name="sleep_timer_stop_after_current_song_description">Stops the sleep timer at the end of the current playing song</string>
+    <string name="sleep_timer_fade_out_title">Fade out</string>
+    <string name="sleep_timer_fade_out_description">Fades out the volume in the final minute</string>
 
     <!-- Player Settings -->
     <string name="disable_load_more_when_repeat_all">Disable load more when repeat all</string>
@@ -293,7 +299,7 @@
     <string name="lyrics_romanize_kyrgyz">Romanize Kyrgyz lyrics</string>
     <string name="lyrics_romanize_serbian">Romanize Serbian lyrics</string>
     <string name="lyrics_romanize_bulgarian">Romanize Bulgarian lyrics</string>
-    <string name="line_by_line_option_title">EXPERIMENTAL: Detect language line by line</string>
+    <string name="line_by_line_option_title">Detect language line by line</string>
     <string name="line_by_line_option_desc">The Cyrillic language will be detected line by line instead of the entire song.</string>
     <string name="line_by_line_dialog_title">Are you sure?</string>
     <string name="line_by_line_dialog_desc">This is a hit or miss experimental feature. \n\nBy default, language is determined from the whole song, but with this option on, it will be determined line by line instead. This will allow multi-language songs to work BUT the language might not always be correct (for example if there is a Ukrainian lyric that doesn\'t contain any Ukrainian-specific letters, it might be romanized as Russian instead). \n\nIf you do not have issues, it is recommended to keep this option off.</string>
