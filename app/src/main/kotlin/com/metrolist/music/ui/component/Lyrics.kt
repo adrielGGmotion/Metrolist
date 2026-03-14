@@ -1213,7 +1213,7 @@ fun Lyrics(
                                                         activeAlpha
                                                     } else if (isAutoScrollEnabled && displayedCurrentLineIndex >= 0) {
                                                         when (abs(index - displayedCurrentLineIndex)) {
-                                                            1 -> 0.2f; 2 -> 0.2f; 3 -> 0.15f; 4 -> 0.07f; else -> 0.05f
+                                                            1 -> 0.2f; 2 -> 0.2f; 3 -> 0.15f; 4 -> 0.1f; else -> 0.08f
                                                         }
                                                     } else baseAlpha
                                                     val animatedAlpha by animateFloatAsState(targetAlpha, tween(250), label = "lyricsLineAlpha")
