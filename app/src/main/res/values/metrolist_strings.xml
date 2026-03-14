@@ -115,6 +115,8 @@
     <string name="enable_better_lyrics_desc">Syllable-synced lyrics for any song, for karaoke</string>
     <string name="enable_simpmusic">Enable SimpMusic Lyrics</string>
     <string name="enable_simpmusic_desc">Automatically sourced lyrics from Musixmatch and YouTube Transcript</string>
+    <string name="enable_paxsenix">Enable Paxsenix</string>
+    <string name="enable_paxsenix_desc">High-quality word-synced lyrics with rich visual treatment</string>
     <string name="enable_lyricsplus">Enable LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Synchronized lyrics from multiple sources</string>
     <string name="lyrics_provider_selection">Provider selection</string>
