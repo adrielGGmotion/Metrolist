@@ -380,7 +380,7 @@ fun AccountSettings(
                 icon = {
                     BadgedBox(
                         badge = {
-                            if (latestVersionName != BuildConfig.VERSION_NAME) {
+                            if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.VERSION_NAME) {
                                 Badge()
                             }
                         }
@@ -399,7 +399,7 @@ fun AccountSettings(
 
             Spacer(Modifier.height(4.dp))
 
-            if (latestVersionName != BuildConfig.VERSION_NAME) {
+            if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.VERSION_NAME) {
                 val releaseInfo = Updater.getCachedLatestRelease()
                 val downloadUrl = releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) }
                 
