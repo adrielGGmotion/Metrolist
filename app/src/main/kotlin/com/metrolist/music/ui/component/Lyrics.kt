@@ -61,6 +61,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -1340,7 +1341,7 @@ fun Lyrics(
             LazyColumn(
                 state = lazyListState,
                 verticalArrangement = Arrangement.Top,
-                contentPadding = WindowInsets(top = 0.dp, bottom = maxHeight / 2).asPaddingValues(),
+                contentPadding = PaddingValues(top = maxHeight / 2, bottom = maxHeight / 2),
                 modifier = Modifier.fadingEdge(top = 130.dp, bottom = 160.dp).nestedScroll(remember {
                     object : NestedScrollConnection {
                         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
