@@ -232,6 +232,7 @@ class MainActivity : ComponentActivity() {
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
 
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
+    private var isServiceBound = false
 
     private val serviceConnection =
         object : ServiceConnection {
@@ -269,6 +270,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    private fun safeUnbindService(source: String) {
+        if (!isServiceBound) return
+        try {
+            unbindService(serviceConnection)
+        } catch (e: IllegalArgumentException) {
+            Timber.tag("MainActivity").w(e, "Service was not bound when attempting to unbind in $source")
+        } finally {
+            isServiceBound = false
+            listenTogetherManager.setPlayerConnection(null)
+            playerConnection?.dispose()
+            playerConnection = null
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         // Request notification permission on Android 13+
@@ -286,10 +301,11 @@ class MainActivity : ComponentActivity() {
             serviceConnection,
             BIND_AUTO_CREATE,
         )
+        isServiceBound = true
     }
 
     override fun onStop() {
-        unbindService(serviceConnection)
+        safeUnbindService("onStop()")
         super.onStop()
     }
 
@@ -300,9 +316,8 @@ class MainActivity : ComponentActivity() {
             isFinishing
         ) {
             stopService(Intent(this, MusicService::class.java))
-            unbindService(serviceConnection)
-            playerConnection = null
         }
+        safeUnbindService("onDestroy()")
     }
 
     override fun onNewIntent(intent: Intent) {
