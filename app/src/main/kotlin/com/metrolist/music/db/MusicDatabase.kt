@@ -115,7 +115,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 35,
+    version = 36,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -151,6 +151,7 @@ class MusicDatabase(
         AutoMigration(from = 32, to = 33),
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
+        AutoMigration(from = 35, to = 36),
     ],
 )
 @TypeConverters(Converters::class)
@@ -171,6 +172,7 @@ abstract class InternalDatabase : RoomDatabase() {
                         MIGRATION_21_24,
                         MIGRATION_22_24,
                         MIGRATION_24_25,
+                        MIGRATION_35_36,
                     )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
@@ -717,3 +719,23 @@ class Migration29To30 : AutoMigrationSpec {
         }
     }
 }
+
+val MIGRATION_35_36 =
+    object : Migration(35, 36) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            var columnExists = false
+            db.query("PRAGMA table_info(format)").use { cursor ->
+                val nameIndex = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIndex) == "watchtimeUrl") {
+                        columnExists = true
+                        break
+                    }
+                }
+            }
+
+            if (!columnExists) {
+                db.execSQL("ALTER TABLE format ADD COLUMN watchtimeUrl TEXT DEFAULT NULL")
+            }
+        }
+    }

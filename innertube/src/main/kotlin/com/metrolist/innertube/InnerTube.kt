@@ -270,6 +270,37 @@ class InnerTube {
         }
     }
 
+    /**
+     * Sends a watchtime segment ping to YouTube Music.
+     * Must be called periodically during playback with the same [cpn] for the entire song session.
+     * [st] and [et] are cumulative comma-separated segment start/end times in seconds.
+     */
+    suspend fun reportWatchtime(
+        url: String,
+        cpn: String,
+        videoId: String,
+        lengthSeconds: Long,
+        st: String,
+        et: String,
+        cmt: Float,
+        client: YouTubeClient = YouTubeClient.WEB_REMIX,
+    ) = withRetry {
+        httpClient.get(url) {
+            ytClient(client, true)
+            parameter("ns", "yt")
+            parameter("el", "detailpage")
+            parameter("cpn", cpn)
+            parameter("ver", "2")
+            parameter("c", client.clientName)
+            parameter("docid", videoId)
+            parameter("len", lengthSeconds.toString())
+            parameter("st", st)
+            parameter("et", et)
+            parameter("cmt", "%.3f".format(cmt))
+            parameter("state", "playing")
+        }
+    }
+
     suspend fun browse(
         client: YouTubeClient,
         browseId: String? = null,

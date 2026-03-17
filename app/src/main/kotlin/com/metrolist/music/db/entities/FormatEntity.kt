@@ -20,5 +20,6 @@ data class FormatEntity(
     val loudnessDb: Double?,
     val perceptualLoudnessDb: Double? = null,
     @Deprecated("playbackTrackingUrl should be retrieved from a fresh player request")
-    val playbackUrl: String?
+    val playbackUrl: String?,
+    val watchtimeUrl: String? = null,
 )

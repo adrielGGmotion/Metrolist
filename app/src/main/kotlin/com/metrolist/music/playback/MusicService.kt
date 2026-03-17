@@ -266,6 +266,15 @@ class MusicService :
     }
 
     private var scope = CoroutineScope(Dispatchers.Main) + Job()
+    // Watchtime tracking state — reset on each new song
+    private var watchtimeJob: Job? = null
+    private var watchtimeCpn: String? = null
+    private var watchtimeVideoId: String? = null
+    private var watchtimeUrl: String? = null
+    private var watchtimeLengthSeconds: Long = 0L
+    private var watchtimeSegmentStartSec: Float = 0f
+    private var watchtimeCumulativeSt: MutableList<Float> = mutableListOf()
+    private var watchtimeCumulativeEt: MutableList<Float> = mutableListOf()
 
     private val binder = MusicBinder()
 
@@ -1980,8 +1989,19 @@ class MusicService :
         discordUpdateJob?.cancel()
 
         scrobbleManager?.onSongStop()
+        stopWatchtimeTracking()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
             scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
+            val mediaId = mediaItem?.mediaId
+            if (mediaId != null) {
+                scope.launch(Dispatchers.IO) {
+                    val url = database.format(mediaId).first()?.watchtimeUrl
+                    if (url != null) {
+                        val lengthSec = (player.duration / 1000L).coerceAtLeast(0L)
+                        startWatchtimeTracking(mediaId, url, lengthSec)
+                    }
+                }
+            }
         }
 
         // Sync Cast when media changes and Cast is connected
@@ -2096,6 +2116,42 @@ class MusicService :
 
         if (playWhenReady) {
             setupLoudnessEnhancer()
+            // Resume watchtime tracking if we have a URL for the current track
+            if (watchtimeUrl == null) {
+                val mediaId = player.currentMediaItem?.mediaId
+                if (mediaId != null) {
+                    scope.launch(Dispatchers.IO) {
+                        val url = database.format(mediaId).first()?.watchtimeUrl
+                        if (url != null) {
+                            val lengthSec = (player.duration / 1000L).coerceAtLeast(0L)
+                            startWatchtimeTracking(mediaId, url, lengthSec)
+                        }
+                    }
+                }
+            } else {
+                // Already have URL, just restart the ping loop from current position
+                val videoId = watchtimeVideoId
+                val url = watchtimeUrl
+                val lengthSec = watchtimeLengthSeconds
+                if (videoId != null && url != null) {
+                    stopWatchtimeTracking()
+                    watchtimeCpn = watchtimeCpn ?: generateCpn()
+                    watchtimeVideoId = videoId
+                    watchtimeUrl = url
+                    watchtimeLengthSeconds = lengthSec
+                    watchtimeSegmentStartSec = (player.currentPosition / 1000f).coerceAtLeast(0f)
+                    watchtimeJob = scope.launch(Dispatchers.IO) {
+                        while (true) {
+                            delay(20_000L)
+                            sendWatchimePing()
+                        }
+                    }
+                }
+            }
+        } else {
+            // Paused: stop ping loop but preserve accumulated state
+            watchtimeJob?.cancel()
+            watchtimeJob = null
         }
     }
 
@@ -2916,7 +2972,8 @@ class MusicService :
                             contentLength = format.contentLength!!,
                             loudnessDb = loudnessDb,
                             perceptualLoudnessDb = perceptualLoudnessDb,
-                            playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl
+                            playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
+                            watchtimeUrl = nonNullPlayback.playbackTracking?.videostatsWatchtimeUrl?.baseUrl,
                         )
                     )
                 }
@@ -2969,6 +3026,71 @@ class MusicService :
                     ),
                 ).build()
         }
+
+    /**
+     * Generates a random 16-character client playback nonce (cpn).
+     */
+    private fun generateCpn(): String =
+        (1..16).map {
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"[kotlin.random.Random.nextInt(64)]
+        }.joinToString("")
+
+    /**
+     * Starts periodic watchtime pings for the current song.
+     * Cancels any existing ping loop first.
+     * Only runs for YouTube tracks (watchtimeUrl is null for local files).
+     */
+    private fun startWatchtimeTracking(videoId: String, url: String, lengthSeconds: Long) {
+        stopWatchtimeTracking()
+        watchtimeCpn = generateCpn()
+        watchtimeVideoId = videoId
+        watchtimeUrl = url
+        watchtimeLengthSeconds = lengthSeconds
+        watchtimeSegmentStartSec = (player.currentPosition / 1000f).coerceAtLeast(0f)
+        watchtimeCumulativeSt = mutableListOf()
+        watchtimeCumulativeEt = mutableListOf()
+
+        watchtimeJob = scope.launch(Dispatchers.IO) {
+            while (true) {
+                delay(20_000L)
+                sendWatchimePing()
+            }
+        }
+    }
+
+    private fun stopWatchtimeTracking() {
+        watchtimeJob?.cancel()
+        watchtimeJob = null
+    }
+
+    private suspend fun sendWatchimePing() {
+        val url = watchtimeUrl ?: return
+        val videoId = watchtimeVideoId ?: return
+        val cpn = watchtimeCpn ?: return
+
+        val segmentEnd = (player.currentPosition / 1000f).coerceAtLeast(0f)
+        val segmentStart = watchtimeSegmentStartSec
+
+        // Only send if meaningful time has passed
+        if (segmentEnd - segmentStart < 1f) return
+
+        watchtimeCumulativeSt.add(segmentStart)
+        watchtimeCumulativeEt.add(segmentEnd)
+        watchtimeSegmentStartSec = segmentEnd
+
+        val st = watchtimeCumulativeSt.joinToString(",") { "%.3f".format(it) }
+        val et = watchtimeCumulativeEt.joinToString(",") { "%.3f".format(it) }
+
+        YouTube.reportWatchtime(
+            watchtimeUrl = url,
+            cpn = cpn,
+            videoId = videoId,
+            lengthSeconds = watchtimeLengthSeconds,
+            cumulativeSt = st,
+            cumulativeEt = et,
+            currentPositionSec = segmentEnd,
+        ).onFailure { Timber.tag(TAG).w(it, "Watchtime ping failed for $videoId") }
+    }
 
     override fun onPlaybackStatsReady(
         eventTime: AnalyticsListener.EventTime,

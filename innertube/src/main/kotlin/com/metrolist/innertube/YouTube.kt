@@ -1623,6 +1623,36 @@ object YouTube {
         )
     }
 
+    /**
+     * Sends a periodic watchtime ping for a playing YouTube Music track.
+     * [cpn] must be the same value for all pings within a single song session.
+     * [segmentStartSec] and [segmentEndSec] are the start and end of the segment just played, in seconds.
+     * [cumulativeSt] and [cumulativeEt] accumulate all segments as comma-separated strings.
+     */
+    suspend fun reportWatchtime(
+        watchtimeUrl: String,
+        cpn: String,
+        videoId: String,
+        lengthSeconds: Long,
+        cumulativeSt: String,
+        cumulativeEt: String,
+        currentPositionSec: Float,
+    ) = runCatching {
+        val url = watchtimeUrl.replace(
+            "https://s.youtube.com",
+            "https://music.youtube.com",
+        )
+        innerTube.reportWatchtime(
+            url = url,
+            cpn = cpn,
+            videoId = videoId,
+            lengthSeconds = lengthSeconds,
+            st = cumulativeSt,
+            et = cumulativeEt,
+            cmt = currentPositionSec,
+        )
+    }
+
     suspend fun next(endpoint: WatchEndpoint, continuation: String? = null): Result<NextResult> = runCatching {
         val response = innerTube.next(
             WEB_REMIX,
