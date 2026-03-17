@@ -1992,17 +1992,9 @@ class MusicService :
         stopWatchtimeTracking()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
             scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
-            val mediaId = mediaItem?.mediaId
-            if (mediaId != null) {
-                scope.launch(Dispatchers.IO) {
-                    val url = database.format(mediaId).first()?.watchtimeUrl
-                    if (url != null) {
-                        val lengthSec = (player.duration / 1000L).coerceAtLeast(0L)
-                        startWatchtimeTracking(mediaId, url, lengthSec)
-                    }
-                }
-            }
         }
+        // Watchtime tracking will start via onActiveWatchtimeUrlAvailable once the
+        // player response is resolved and the URL is available.
 
         // Sync Cast when media changes and Cast is connected
         // Skip if this change was triggered by Cast sync (to prevent loops)
@@ -2116,38 +2108,23 @@ class MusicService :
 
         if (playWhenReady) {
             setupLoudnessEnhancer()
-            // Resume watchtime tracking if we have a URL for the current track
-            if (watchtimeUrl == null) {
-                val mediaId = player.currentMediaItem?.mediaId
-                if (mediaId != null) {
-                    scope.launch(Dispatchers.IO) {
-                        val url = database.format(mediaId).first()?.watchtimeUrl
-                        if (url != null) {
-                            val lengthSec = (player.duration / 1000L).coerceAtLeast(0L)
-                            startWatchtimeTracking(mediaId, url, lengthSec)
-                        }
-                    }
-                }
-            } else {
-                // Already have URL, just restart the ping loop from current position
-                val videoId = watchtimeVideoId
-                val url = watchtimeUrl
-                val lengthSec = watchtimeLengthSeconds
-                if (videoId != null && url != null) {
-                    stopWatchtimeTracking()
-                    watchtimeCpn = watchtimeCpn ?: generateCpn()
-                    watchtimeVideoId = videoId
-                    watchtimeUrl = url
-                    watchtimeLengthSeconds = lengthSec
-                    watchtimeSegmentStartSec = (player.currentPosition / 1000f).coerceAtLeast(0f)
-                    watchtimeJob = scope.launch(Dispatchers.IO) {
-                        while (true) {
-                            delay(20_000L)
-                            sendWatchimePing()
-                        }
+            // Resume watchtime tracking — all player access happens here on main thread
+            val url = watchtimeUrl
+            if (url != null && watchtimeVideoId != null) {
+                // Already have state from this song session, just restart the loop
+                val currentPosSec = (player.currentPosition / 1000f).coerceAtLeast(0f)
+                stopWatchtimeTracking()
+                watchtimeCpn = watchtimeCpn ?: generateCpn()
+                watchtimeSegmentStartSec = currentPosSec
+                watchtimeJob = scope.launch(Dispatchers.IO) {
+                    while (true) {
+                        delay(20_000L)
+                        sendWatchimePing()
                     }
                 }
             }
+            // If watchtimeUrl is null here, tracking will start via onActiveWatchtimeUrlAvailable
+            // when the player response arrives (see Bug 2 fix below)
         } else {
             // Paused: stop ping loop but preserve accumulated state
             watchtimeJob?.cancel()
@@ -2960,6 +2937,8 @@ class MusicService :
                     Timber.tag(TAG).w("No loudness data available from YouTube for video: $mediaId")
                 }
 
+                val freshWatchtimeUrl = nonNullPlayback.playbackTracking?.videostatsWatchtimeUrl?.baseUrl
+
                 database.query {
                     upsert(
                         FormatEntity(
@@ -2973,9 +2952,17 @@ class MusicService :
                             loudnessDb = loudnessDb,
                             perceptualLoudnessDb = perceptualLoudnessDb,
                             playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
-                            watchtimeUrl = nonNullPlayback.playbackTracking?.videostatsWatchtimeUrl?.baseUrl,
+                            watchtimeUrl = freshWatchtimeUrl,
                         )
                     )
+                }
+
+                // Start watchtime tracking immediately using the fresh URL from this player response.
+                // Must be dispatched to main thread since onActiveWatchtimeUrlAvailable accesses player.
+                if (freshWatchtimeUrl != null) {
+                    scope.launch(Dispatchers.Main) {
+                        onActiveWatchtimeUrlAvailable(mediaId, freshWatchtimeUrl, player.duration)
+                    }
                 }
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId, nonNullPlayback) }
 
@@ -3028,6 +3015,19 @@ class MusicService :
         }
 
     /**
+     * Called on the main thread when a fresh watchtimeUrl is available for the current media item.
+     * Starts watchtime tracking immediately without a DB lookup.
+     */
+    private fun onActiveWatchtimeUrlAvailable(videoId: String, url: String, lengthMs: Long) {
+        if (player.currentMediaItem?.mediaId != videoId) return
+        // Do not guard on player.isPlaying here — this is called during stream resolution,
+        // before STATE_READY. The 20s ping delay means playback will be active before first ping.
+        val startPosSec = (player.currentPosition / 1000f).coerceAtLeast(0f)
+        val lengthSec = (lengthMs / 1000L).coerceAtLeast(0L)
+        startWatchtimeTracking(videoId, url, lengthSec, startPosSec)
+    }
+
+    /**
      * Generates a random 16-character client playback nonce (cpn).
      */
     private fun generateCpn(): String =
@@ -3040,13 +3040,13 @@ class MusicService :
      * Cancels any existing ping loop first.
      * Only runs for YouTube tracks (watchtimeUrl is null for local files).
      */
-    private fun startWatchtimeTracking(videoId: String, url: String, lengthSeconds: Long) {
+    private fun startWatchtimeTracking(videoId: String, url: String, lengthSeconds: Long, startPositionSec: Float = 0f) {
         stopWatchtimeTracking()
         watchtimeCpn = generateCpn()
         watchtimeVideoId = videoId
         watchtimeUrl = url
         watchtimeLengthSeconds = lengthSeconds
-        watchtimeSegmentStartSec = (player.currentPosition / 1000f).coerceAtLeast(0f)
+        watchtimeSegmentStartSec = startPositionSec
         watchtimeCumulativeSt = mutableListOf()
         watchtimeCumulativeEt = mutableListOf()
 
@@ -3068,7 +3068,10 @@ class MusicService :
         val videoId = watchtimeVideoId ?: return
         val cpn = watchtimeCpn ?: return
 
-        val segmentEnd = (player.currentPosition / 1000f).coerceAtLeast(0f)
+        // player.currentPosition must be read on the main thread
+        val segmentEnd = withContext(Dispatchers.Main) {
+            (player.currentPosition / 1000f).coerceAtLeast(0f)
+        }
         val segmentStart = watchtimeSegmentStartSec
 
         // Only send if meaningful time has passed
