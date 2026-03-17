@@ -60,7 +60,7 @@ class InnerTube {
     
     var proxyAuth: String? = null
 
-    var useLoginForBrowse: Boolean = false
+    var useLoginForBrowse: Boolean = true
 
     @OptIn(ExperimentalSerializationApi::class)
     private fun createClient() = HttpClient(OkHttp) {
@@ -195,15 +195,16 @@ class InnerTube {
         query: String? = null,
         params: String? = null,
         continuation: String? = null,
+        setLogin: Boolean = false,
     ) = withRetry {
         httpClient.post("search") {
-            ytClient(client, setLogin = useLoginForBrowse)
+            ytClient(client, setLogin = setLogin || useLoginForBrowse)
             setBody(
                 SearchBody(
                     context = client.toContext(
                         locale,
                         visitorData,
-                        if (useLoginForBrowse) dataSyncId else null
+                        if (setLogin || useLoginForBrowse) dataSyncId else null
                     ),
                     query = query,
                     params = params
@@ -368,12 +369,17 @@ class InnerTube {
     suspend fun getSearchSuggestions(
         client: YouTubeClient,
         input: String,
+        setLogin: Boolean = false,
     ) = withRetry {
         httpClient.post("music/get_search_suggestions") {
-            ytClient(client)
+            ytClient(client, setLogin = setLogin || useLoginForBrowse)
             setBody(
                 GetSearchSuggestionsBody(
-                    context = client.toContext(locale, visitorData, null),
+                    context = client.toContext(
+                        locale,
+                        visitorData,
+                        if (setLogin || useLoginForBrowse) dataSyncId else null
+                    ),
                     input = input
                 )
             )

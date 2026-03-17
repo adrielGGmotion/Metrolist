@@ -60,11 +60,6 @@ data class HomePage(
                     return null
                 }
 
-                val twoRowCount = renderer.contents.count { it.musicTwoRowItemRenderer != null }
-                val multiRowCount = renderer.contents.count { it.musicMultiRowListItemRenderer != null }
-                val responsiveCount = renderer.contents.count { it.musicResponsiveListItemRenderer != null }
-                Timber.d("HomePage section '$title': twoRow=$twoRowCount, multiRow=$multiRowCount, responsive=$responsiveCount")
-
                 val items = mutableListOf<YTItem>()
 
                 // Parse musicTwoRowItemRenderer items (songs, albums, playlists, artists, podcasts)
@@ -82,11 +77,6 @@ data class HomePage(
                     .mapNotNull { fromMusicResponsiveListItemRenderer(it) }
                     .let { items.addAll(it) }
 
-                val podcastCount = items.count { it is PodcastItem }
-                val episodeCount = items.count { it is EpisodeItem }
-                val songCount = items.count { it is SongItem }
-                Timber.d("HomePage section '$title': parsed ${items.size} items (podcasts=$podcastCount, episodes=$episodeCount, songs=$songCount)")
-
                 if (items.isEmpty()) {
                     Timber.d("HomePage section '$title' skipped: no items")
                     return null
@@ -97,6 +87,40 @@ data class HomePage(
                     label = renderer.header.musicCarouselShelfBasicHeaderRenderer.strapline?.runs?.firstOrNull()?.text,
                     thumbnail = renderer.header.musicCarouselShelfBasicHeaderRenderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl(),
                     endpoint = renderer.header.musicCarouselShelfBasicHeaderRenderer.moreContentButton?.buttonRenderer?.navigationEndpoint?.browseEndpoint,
+                    items = items
+                )
+            }
+
+            fun fromMusicShelfRenderer(renderer: com.metrolist.innertube.models.MusicShelfRenderer): Section? {
+                val title = renderer.title?.runs?.firstOrNull()?.text
+                if (title == null) return null
+
+                val items = mutableListOf<YTItem>()
+
+                renderer.contents?.mapNotNull { it.musicResponsiveListItemRenderer }
+                    ?.mapNotNull { fromMusicResponsiveListItemRenderer(it) }
+                    ?.let { items.addAll(it) }
+
+                if (items.isEmpty()) return null
+
+                return Section(
+                    title = title,
+                    label = null,
+                    thumbnail = null,
+                    endpoint = renderer.bottomEndpoint?.browseEndpoint ?: renderer.moreContentButton?.buttonRenderer?.navigationEndpoint?.browseEndpoint,
+                    items = items
+                )
+            }
+
+            fun fromGridRenderer(renderer: com.metrolist.innertube.models.GridRenderer): Section? {
+                val title = renderer.header?.gridHeaderRenderer?.title?.runs?.firstOrNull()?.text ?: return null
+                val items = renderer.items.mapNotNull { it.musicTwoRowItemRenderer }.mapNotNull { fromMusicTwoRowItemRenderer(it) }
+                if (items.isEmpty()) return null
+                return Section(
+                    title = title,
+                    label = null,
+                    thumbnail = null,
+                    endpoint = null,
                     items = items
                 )
             }
