@@ -1156,19 +1156,21 @@ fun Lyrics(
                                                         }
                                                     }
                                                     val isActiveLine = isActiveByIndex
-                                                    val baseAlpha = if (item.isBackground) 0.08f else 0.2f
-                                                    val activeAlpha = if (item.isBackground) 1f else 1f
+                                                    val inactiveAlpha = if (item.isBackground) 0.08f else 0.2f
+                                                    val activeAlpha = 1f
+                                                    val focusedAlpha = if (item.isBackground) 0.5f else 0.3f
                                                     val targetAlpha = if (item.isBackground) {
                                                         activeAlpha
                                                     } else if (isActiveLine) {
                                                         activeAlpha
                                                     } else if (isAutoScrollEnabled && displayedCurrentLineIndex >= 0) {
                                                         when (abs(index - displayedCurrentLineIndex)) {
+                                                            0 -> focusedAlpha
                                                             1 -> 0.2f; 2 -> 0.2f; 3 -> 0.15f; 4 -> 0.1f; else -> 0.08f
                                                         }
-                                                    } else baseAlpha
+                                                    } else inactiveAlpha
                                                     val animatedAlpha by animateFloatAsState(targetAlpha, tween(250), label = "lyricsLineAlpha")
-                                                    val lineColor = expressiveAccent.copy(alpha = if (item.isBackground) 0.5f else animatedAlpha)
+                                                    val lineColor = expressiveAccent.copy(alpha = if (item.isBackground) focusedAlpha else animatedAlpha)
                                                     val alignment = agentTextAlign
                                                     val romanizedTextState by item.romanizedTextFlow.collectAsState()
                                                     val isRomanizedAvailable = romanizedTextState != null
@@ -1367,8 +1369,8 @@ fun Lyrics(
                                                                             } else 0f
 
                                                                             // 1. Draw base layer
-                                                                            val baseAlpha = if (isWordSung || charLp > 0.99f) 1f else (0.25f + (1f - 0.25f) * sungFactor)
-                                                                            drawText(letterLayouts[i], color = expressiveAccent.copy(alpha = if (wordIdx == -1) 0.25f else baseAlpha))
+                                                                            val baseAlpha = if (isWordSung || charLp > 0.99f) 1f else (focusedAlpha + (1f - focusedAlpha) * sungFactor)
+                                                                            drawText(letterLayouts[i], color = expressiveAccent.copy(alpha = if (wordIdx == -1) focusedAlpha else baseAlpha))
                                                                             
                                                                             // 2. Draw highlight layer
                                                                             if (!isWordSung && charLp > 0f && charLp < 1f) {
