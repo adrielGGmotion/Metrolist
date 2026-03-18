@@ -133,6 +133,7 @@ object LyricsPlusProvider : LyricsProvider {
     }
 
     override suspend fun getLyrics(
+        context: Context,
         id: String,
         title: String,
         artist: String,
@@ -150,6 +151,7 @@ object LyricsPlusProvider : LyricsProvider {
     }
 
     override suspend fun getAllLyrics(
+        context: Context,
         id: String,
         title: String,
         artist: String,
@@ -157,7 +159,7 @@ object LyricsPlusProvider : LyricsProvider {
         album: String?,
         callback: (String) -> Unit,
     ) {
-        getLyrics(id, title, artist, duration, album)
+        getLyrics(context, id, title, artist, duration, album)
             .onSuccess { lrcString ->
                 callback(lrcString)
             }

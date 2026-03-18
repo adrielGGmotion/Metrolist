@@ -37,7 +37,7 @@ constructor(
     private var lyricsProviders =
         listOf(
             BetterLyricsProvider,
-            SimpMusicLyricsProvider,
+            PaxsenixLyricsProvider,
             LrcLibLyricsProvider,
             KuGouLyricsProvider,
             LyricsPlusProvider,
@@ -60,7 +60,7 @@ constructor(
                         PreferredLyricsProvider.LRCLIB -> listOf(
                             LrcLibLyricsProvider,
                             BetterLyricsProvider,
-                            SimpMusicLyricsProvider,
+                            PaxsenixLyricsProvider,
                             KuGouLyricsProvider,
                             LyricsPlusProvider,
                             YouTubeSubtitleLyricsProvider,
@@ -69,7 +69,7 @@ constructor(
                         PreferredLyricsProvider.KUGOU -> listOf(
                             KuGouLyricsProvider,
                             BetterLyricsProvider,
-                            SimpMusicLyricsProvider,
+                            PaxsenixLyricsProvider,
                             LrcLibLyricsProvider,
                             LyricsPlusProvider,
                             YouTubeSubtitleLyricsProvider,
@@ -77,15 +77,15 @@ constructor(
                         )
                         PreferredLyricsProvider.BETTER_LYRICS -> listOf(
                             BetterLyricsProvider,
-                            SimpMusicLyricsProvider,
+                            PaxsenixLyricsProvider,
                             LrcLibLyricsProvider,
                             KuGouLyricsProvider,
                             LyricsPlusProvider,
                             YouTubeSubtitleLyricsProvider,
                             YouTubeLyricsProvider
                         )
-                        PreferredLyricsProvider.SIMPMUSIC -> listOf(
-                            SimpMusicLyricsProvider,
+                        PreferredLyricsProvider.PAXSENIX -> listOf(
+                            PaxsenixLyricsProvider,
                             BetterLyricsProvider,
                             LrcLibLyricsProvider,
                             KuGouLyricsProvider,
@@ -134,6 +134,7 @@ constructor(
                         Timber.tag("LyricsHelper")
                             .d("Trying provider: ${provider.name} for $cleanedTitle")
                         val result = provider.getLyrics(
+                            context,
                             mediaMetadata.id,
                             cleanedTitle,
                             mediaMetadata.artists.joinToString { it.name },
@@ -142,7 +143,8 @@ constructor(
                         )
                         result.onSuccess { lyrics ->
                             Timber.tag("LyricsHelper").i("Successfully got lyrics from ${provider.name}")
-                            return@async LyricsWithProvider(lyrics, provider.name)
+                            val filteredLyrics = LyricsUtils.filterLyricsCreditLines(lyrics)
+                            return@async LyricsWithProvider(filteredLyrics, provider.name)
                         }.onFailure { e ->
                             Timber.tag("LyricsHelper").w("${provider.name} failed: ${e.message}")
                             reportException(e)
@@ -203,8 +205,9 @@ constructor(
             lyricsProviders.forEach { provider ->
                 if (provider.isEnabled(context)) {
                     try {
-                        provider.getAllLyrics(mediaId, cleanedTitle, songArtists, duration, album) { lyrics ->
-                            val result = LyricsResult(provider.name, lyrics)
+                        provider.getAllLyrics(context, mediaId, cleanedTitle, songArtists, duration, album) { lyrics ->
+                            val filteredLyrics = LyricsUtils.filterLyricsCreditLines(lyrics)
+                            val result = LyricsResult(provider.name, filteredLyrics)
                             allResult += result
                             callback(result)
                         }
