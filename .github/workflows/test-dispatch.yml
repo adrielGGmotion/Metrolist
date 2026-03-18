@@ -1,0 +1,145 @@
+name: Test Build Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: "What should testers focus on?"
+        required: true
+        type: string
+      variant:
+        description: "APK variant to build"
+        required: true
+        default: "foss"
+        type: choice
+        options:
+          - foss
+          - gms
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Test APK (${{ inputs.variant }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_KEY }}
+          cache-cleanup: on-success
+
+      - name: Setup and Generate Protobuf
+        uses: ./.github/actions/setup-protobuf
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Change Package Name for Test Build
+        run: |
+          sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.test"/' app/build.gradle.kts
+
+      - name: Build Release APK
+        run: |
+          VARIANT_NAME=$(echo "${{ inputs.variant }}" | sed 's/./\u&/')
+          ./gradlew --console=plain assemble${VARIANT_NAME}Release --warning-mode summary -x lint -x lint${VARIANT_NAME}Release
+        env:
+          PULL_REQUEST: "false"
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+
+      - name: Sign APK
+        uses: ilharp/sign-android-release@v2.0.0
+        with:
+          releaseDir: app/build/outputs/apk/${{ inputs.variant }}/release/
+          signingKey: ${{ secrets.KEYSTORE }}
+          keyAlias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          buildToolsVersion: 35.0.0
+
+      - name: Move signed APK
+        run: |
+          OUTPUT_DIR="app/build/outputs/apk/${{ inputs.variant }}/release"
+          mkdir -p "$OUTPUT_DIR/out"
+          find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/metrolist-test-${{ inputs.variant }}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrolist-test-${{ inputs.variant }}
+          path: app/build/outputs/apk/${{ inputs.variant }}/release/out/*.apk
+          retention-days: 14
+
+      - name: Send Discord notification
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          BRANCH="${{ github.ref_name }}"
+          ACTOR="${{ github.actor }}"
+          VARIANT="${{ inputs.variant }}"
+          DESCRIPTION="${{ inputs.description }}"
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "embeds": [
+              {
+                "title": "Test Build Ready",
+                "color": 5793266,
+                "fields": [
+                  {
+                    "name": "Branch",
+                    "value": "\`$BRANCH\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Commit",
+                    "value": "\`$SHORT_SHA\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Variant",
+                    "value": "\`$VARIANT\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Triggered by",
+                    "value": "$ACTOR",
+                    "inline": true
+                  },
+                  {
+                    "name": "What to test",
+                    "value": "$DESCRIPTION"
+                  },
+                  {
+                    "name": "APK",
+                    "value": "[Download from GitHub Actions]($RUN_URL) — available for 14 days"
+                  }
+                ],
+                "footer": {
+                  "text": "Metrolist · Test Dispatch"
+                },
+                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              }
+            ]
+          }
+          EOF
+          )
+
+          curl -s -X POST "${{ secrets.DISCORD_TESTING_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
