@@ -183,10 +183,11 @@ object Paxsenix {
         val firstResult = allResults.first().first
         Log.d(TAG, "Returning: ${firstResult.displayName}")
         val (lrc, hasWordTimings) = fetchLyricsForTrackWithType(firstResult.id)
-        if (lrc.isNotEmpty()) {
+        if (lrc.isNotEmpty() && hasWordTimings) {
             return Result.success(lrc)
         }
-        return Result.failure(IllegalStateException("No lyrics available"))
+        Log.w(TAG, "No word-by-word lyrics found from Paxsenix, letting other providers handle it")
+        return Result.failure(IllegalStateException("No word-by-word lyrics available from Paxsenix"))
     }
     
     private fun scoreAndFilterResults(
@@ -291,29 +292,36 @@ object Paxsenix {
         
         val hasWordLevel = lyricsType == "Syllable"
         Log.d(TAG, "Using content array as primary source, hasWordLevel=$hasWordLevel")
-        
+
+        if (!hasWordLevel) {
+            // Non-synced: return as plain text with no timestamps
+            val plain = response.content
+                .map { line -> line.text.joinToString(" ") { it.text } }
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
+            Log.d(TAG, "Generated plain (non-synced) lyrics: ${response.content.size} lines")
+            return@runCatching plain
+        }
+
         val lrc = buildString {
             response.content.forEach { line ->
                 val timeMs = line.timestamp
                 val minutes = timeMs / 1000 / 60
                 val seconds = (timeMs / 1000) % 60
                 val centiseconds = (timeMs % 1000) / 10
-                
-                // Determine agent
-                val agent = if (hasWordLevel) {
-                    when {
-                        line.background -> "{bg}"
-                        line.oppositeTurn -> "{agent:v2}"
-                        else -> "{agent:v1}"
-                    }
-                } else ""
-                
+
+                val agent = when {
+                    line.background -> "{bg}"
+                    line.oppositeTurn -> "{agent:v2}"
+                    else -> "{agent:v1}"
+                }
+
                 val lineText = line.text.joinToString(" ") { it.text }
-                
+
                 if (lineText.isNotBlank()) {
                     appendLine(String.format("[%02d:%02d.%02d]%s%s", minutes, seconds, centiseconds, agent, lineText))
-                    
-                    if (hasWordLevel && line.text.isNotEmpty()) {
+
+                    if (line.text.isNotEmpty()) {
                         val wordsData = line.text.joinToString("|") { word ->
                             "${word.text}:${word.timestamp.toDouble() / 1000}:${word.endtime.toDouble() / 1000}"
                         }
@@ -324,7 +332,7 @@ object Paxsenix {
                 }
             }
         }
-        
+
         Log.d(TAG, "Generated ${response.content.size} lines from content array")
         return@runCatching lrc
     }
@@ -409,28 +417,41 @@ object Paxsenix {
     ) {
         val cleanedTitle = cleanTitle(title)
         val cleanedArtist = cleanArtist(artist)
-        
-        // Prioritize "Title Artist" query
+
         val searchQueries = listOf(
             "$cleanedTitle $cleanedArtist",
             cleanedTitle
         )
-        
+
+        var plainFallback: String? = null
+
         for (query in searchQueries) {
             val results = search(query)
             if (results.isEmpty()) continue
-            
+
             val scoredResults = scoreAndFilterResults(results, title, artist, duration)
             if (scoredResults.isEmpty()) continue
-            
+
             for ((result, _) in scoredResults.take(3)) {
                 Log.d(TAG, "Trying lyrics for: ${result.displayName}")
-                fetchLyricsForTrack(result.id).onSuccess { lyrics ->
-                    callback(lyrics)
-                    return
+                val (lrc, hasWordTimings) = fetchLyricsForTrackWithType(result.id)
+                if (lrc.isNotEmpty()) {
+                    if (hasWordTimings) {
+                        callback(lrc)
+                        return
+                    } else if (plainFallback == null) {
+                        Log.d(TAG, "Storing plain lyrics as fallback from: ${result.displayName}")
+                        plainFallback = lrc
+                    }
                 }
             }
-            break // Stop if we found results for a query level
+            break
+        }
+
+        // No word-by-word found — offer plain lyrics as fallback option, like other providers do
+        plainFallback?.let {
+            Log.d(TAG, "Offering plain/non-synced lyrics as fallback")
+            callback(it)
         }
     }
     
