@@ -318,7 +318,25 @@ fun Lyrics(
     val scope = rememberCoroutineScope()
 
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+    val translationStatus by LyricsTranslationHelper.status.collectAsState()
+    val currentLyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+    var lastValidLyricsEntity by remember { mutableStateOf<com.metrolist.music.db.entities.LyricsEntity?>(null) }
+    
+    LaunchedEffect(currentLyricsEntity) {
+        if (currentLyricsEntity != null) {
+            lastValidLyricsEntity = currentLyricsEntity
+        }
+    }
+    
+    val lyricsEntity = remember(currentLyricsEntity, translationStatus) {
+        if (currentLyricsEntity != null) {
+            currentLyricsEntity
+        } else if (translationStatus is LyricsTranslationHelper.TranslationStatus.Translating || translationStatus is LyricsTranslationHelper.TranslationStatus.Success) {
+            lastValidLyricsEntity
+        } else {
+            null
+        }
+    }
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val lyrics = remember(lyricsEntity) { lyricsEntity?.lyrics?.trim() }
 
@@ -469,7 +487,6 @@ fun Lyrics(
         result
     }
 
-    val translationStatus by LyricsTranslationHelper.status.collectAsState()
     
     DisposableEffect(Unit) {
         LyricsTranslationHelper.setCompositionActive(true)
@@ -578,7 +595,7 @@ fun Lyrics(
     val selectedIndices = remember { mutableStateListOf<Int>() }
     var showMaxSelectionToast by remember { mutableStateOf(false) }
 
-    val isLyricsProviderShown = lyricsEntity?.provider != null && lyricsEntity?.provider != "Unknown" && !isSelectionModeActive
+    val isLyricsProviderShown = lyricsEntity != null && lyricsEntity.provider != null && lyricsEntity.provider != "Unknown" && !isSelectionModeActive
 
     val lazyListState = rememberLazyListState()
     
@@ -950,7 +967,7 @@ fun Lyrics(
                     if (isLyricsProviderShown) {
                         val providerBase = anchorY + ((0 - activeListIndex) * lineHeightPx) - with(density) { 32.dp.toPx() }
                         Text(
-                            text = "Lyrics from ${lyricsEntity?.provider}",
+                            text = "Lyrics from ${lyricsEntity.provider}",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Medium,
@@ -1281,7 +1298,7 @@ fun Lyrics(
                     }
                 })
             ) {
-                if (lyrics == null) {
+                if (lyrics == null && (translationStatus is LyricsTranslationHelper.TranslationStatus.Idle || translationStatus is LyricsTranslationHelper.TranslationStatus.Error)) {
                     item { ShimmerHost { repeat(10) { Box(contentAlignment = when (lyricsTextPosition) {
                         LyricsPosition.LEFT -> Alignment.CenterStart; LyricsPosition.CENTER -> Alignment.Center; else -> Alignment.CenterEnd
                     }, modifier = Modifier.fillMaxWidth().padding(horizontal = when (lyricsTextPosition) {
