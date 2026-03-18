@@ -15,6 +15,14 @@ on:
         options:
           - foss
           - gms
+      status:
+        description: "Build status"
+        required: true
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - wip
 
 permissions:
   contents: read
@@ -122,32 +130,35 @@ jobs:
           VERSION_CODE="${{ steps.meta.outputs.version_code }}"
           DURATION="${{ steps.meta.outputs.duration }}"
           COMMIT_MSG="${{ steps.meta.outputs.commit_msg }}"
+          STATUS="${{ inputs.status }}"
+
+          if [ "$STATUS" = "wip" ]; then
+            STATUS_LABEL="Work in Progress"
+            EMBED_COLOR=15105570
+          else
+            STATUS_LABEL="Ready for Testing"
+            EMBED_COLOR=0
+          fi
+
+          BODY=$(printf '`%s` **%s** `%s · %s` `%s` · `%s`\n\n%s' \
+            "$SHORT_SHA" "$BRANCH" "$VERSION_NAME" "$VERSION_CODE" "$VARIANT" "$APK_SIZE" \
+            "$DESCRIPTION")
 
           PAYLOAD=$(jq -n \
             --arg content "<@&1441099959662284901>" \
-            --arg title "Metrolist Canary — Build Ready" \
-            --arg description "**$DESCRIPTION**" \
-            --arg branch "$BRANCH" \
-            --arg commit "\`$SHORT_SHA\` $COMMIT_MSG" \
-            --arg version "\`$VERSION_NAME ($VERSION_CODE)\`" \
-            --arg variant "\`$VARIANT\`" \
-            --arg size "\`$APK_SIZE\`" \
-            --arg download "[GitHub Actions — expires in 14 days]($RUN_URL)" \
-            --arg footer "Triggered by $ACTOR · Built in ${DURATION} · Metrolist Canary" \
+            --arg title "Metrolist Canary — $STATUS_LABEL" \
+            --arg body "$BODY" \
+            --arg download "[Download from GitHub Actions — expires in 14 days]($RUN_URL)" \
+            --arg footer "Triggered by $ACTOR · Built in ${DURATION}m · Metrolist Canary" \
             --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson color "$EMBED_COLOR" \
             '{
               content: $content,
               embeds: [{
                 title: $title,
-                description: $description,
-                color: 0,
+                description: $body,
+                color: $color,
                 fields: [
-                  { name: "Branch", value: $branch, inline: true },
-                  { name: "Commit", value: $commit, inline: true },
-                  { name: "\u200b", value: "\u200b", inline: true },
-                  { name: "Version", value: $version, inline: true },
-                  { name: "Variant", value: $variant, inline: true },
-                  { name: "APK Size", value: $size, inline: true },
                   { name: "Download", value: $download }
                 ],
                 footer: { text: $footer },
