@@ -31,5 +31,7 @@ dependencies {
     implementation(libs.ktor.client.encoding)
     testImplementation(libs.junit)
 
+    implementation(project(":betterlyrics"))
+
     coreLibraryDesugaring(libs.desugaring)
 }

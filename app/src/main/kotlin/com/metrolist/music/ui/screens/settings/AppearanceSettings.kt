@@ -1642,3 +1642,10 @@ enum class PlayerTextAlignment {
     SIDED,
     CENTER,
 }
+
+enum class LyricsAnimationStyle {
+    APPLE,
+    MUSIC,
+    LEGACY,
+    NONE
+}

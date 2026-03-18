@@ -3,10 +3,11 @@ package com.metrolist.music.lyrics
 import android.content.Context
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.LyricsEntity
-import com.metrolist.music.utils.ai.DeepLService
-import com.metrolist.music.utils.ai.MistralService
-import com.metrolist.music.utils.ai.OpenRouterService
-import com.metrolist.music.utils.ai.OpenRouterStreamingService
+import com.metrolist.music.db.entities.SongEntity
+import com.metrolist.music.api.DeepLService
+import com.metrolist.music.api.MistralService
+import com.metrolist.music.api.OpenRouterService
+import com.metrolist.music.api.OpenRouterStreamingService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -77,13 +78,21 @@ object LyricsTranslationHelper {
         isCompositionActive = active
     }
 
-    fun triggerTranslation() {
+    fun triggerManualTranslation() {
         _manualTrigger.tryEmit(Unit)
     }
 
-    fun clearTranslations() {
+    fun triggerClearTranslations() {
         _clearTranslationsTrigger.tryEmit(Unit)
         _hasActiveTranslations.value = false
+    }
+
+    fun clearTranslations(lyrics: LyricsEntity): LyricsEntity {
+        return lyrics.copy(
+            translatedLyrics = "",
+            translationLanguage = "",
+            translationMode = ""
+        )
     }
 
     fun cancelTranslation() {
