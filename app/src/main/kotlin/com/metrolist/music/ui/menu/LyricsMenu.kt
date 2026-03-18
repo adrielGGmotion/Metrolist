@@ -38,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -512,7 +513,21 @@ fun LyricsMenu(
                                                     LyricsTranslationHelper.triggerClearTranslations()
                                                 }
                                             }
-                                        }
+                                        },
+                                        thumbContent = {
+                                            Icon(
+                                                painter = painterResource(
+                                                    id = if (hasTranslations) R.drawable.check else R.drawable.close
+                                                ),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                            )
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            uncheckedThumbColor = MaterialTheme.colorScheme.primaryContainer,
+                                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                            checkedTrackColor = MaterialTheme.colorScheme.primary
+                                        )
                                     )
                                 }
                             )
@@ -569,7 +584,21 @@ fun LyricsMenu(
                                                 upsert(song.copy(romanizeLyrics = newCheckedState))
                                             }
                                         }
-                                    }
+                                    },
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (isChecked) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        uncheckedThumbColor = MaterialTheme.colorScheme.primaryContainer,
+                                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                                    )
                                 )
                             }
                         )
@@ -619,7 +648,21 @@ fun LyricsMenu(
                                 upsert(song.copy(romanizeLyrics = newCheckedState))
                             }
                         }
-                    }
+                    },
+                    thumbContent = {
+                        Icon(
+                            painter = painterResource(
+                                id = if (isChecked) R.drawable.check else R.drawable.close
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                        )
+                    },
+                    colors = SwitchDefaults.colors(
+                        uncheckedThumbColor = MaterialTheme.colorScheme.primaryContainer,
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             }
         }
