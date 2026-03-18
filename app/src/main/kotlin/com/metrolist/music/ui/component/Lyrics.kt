@@ -553,6 +553,7 @@ fun Lyrics(
     var lastPreviewTime by rememberSaveable {
         mutableLongStateOf(0L)
     }
+    var seekVersion by remember { mutableIntStateOf(0) }
     var isSeeking by remember {
         mutableStateOf(false)
     }
@@ -1053,6 +1054,7 @@ fun Lyrics(
                                                         playerConnection.seekTo((item.time - lyricsOffset).coerceAtLeast(0))
                                                         isAutoScrollEnabled = true
                                                         lastPreviewTime = 0L
+                                                        seekVersion++
                                                     }
                                                 },
                                                 onLongClick = {
@@ -1164,7 +1166,7 @@ fun Lyrics(
                                                                 val wEndMs = (word.endTime * 1000).toLong()
 
                                                                 val progress = remember { Animatable(0f) }
-                                                                LaunchedEffect(isActiveLine) {
+                                                                LaunchedEffect(isActiveLine, seekVersion) {
                                                                     if (isActiveLine) {
                                                                         val offset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
                                                                         var pos = playerConnection.player.currentPosition + offset
