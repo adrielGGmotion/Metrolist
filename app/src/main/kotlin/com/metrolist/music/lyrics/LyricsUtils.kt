@@ -21,6 +21,27 @@ object LyricsUtils {
         return title.replace(Regex("\\s*[(\\[].*?[)\\]]"), "").trim()
     }
 
+    fun filterLyricsCreditLines(lyrics: String): String {
+        return lyrics.lines().filter { line ->
+            // Strip LRC timestamp prefix if present (e.g. [00:00.00])
+            val textContent = if (line.trim().startsWith("[")) {
+                line.replaceFirst(Regex("^\\[\\d\\d:\\d\\d\\.\\d{2,3}\\]"), "").trim()
+            } else {
+                line.trim()
+            }
+
+            val lowerText = textContent.lowercase(Locale.getDefault())
+            
+            val isCredit = lowerText.startsWith("synced by") ||
+                    lowerText.startsWith("lyrics by") ||
+                    lowerText.startsWith("music by") ||
+                    lowerText.startsWith("arranged by") ||
+                    (lowerText.startsWith("[") && lowerText.endsWith("]") && lowerText.length < 40 && lowerText.contains("synced by"))
+            
+            !isCredit
+        }.joinToString("\n")
+    }
+
     // Regex for rich sync format: [MM:SS.mm]<MM:SS.mm> word <MM:SS.mm> word ...
     private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.+)".toRegex()
     private val RICH_SYNC_WORD_REGEX = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>([^<]+)".toRegex()
