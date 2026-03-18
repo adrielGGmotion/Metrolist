@@ -37,13 +37,12 @@ jobs:
             variantName: Foss
           - variant: gms
             variantName: Gms
-    if: |
-      (github.event.inputs.variant == 'both') ||
-      (github.event.inputs.variant == matrix.variant)
+        exclude:
+          - variant: ${{ github.event.inputs.variant == 'foss' && 'gms' || (github.event.inputs.variant == 'gms' && 'foss' || 'none') }}
     
     outputs:
-      foss_size: ${{ steps.save_outputs.outputs.foss_size }}
-      gms_size: ${{ steps.save_outputs.outputs.gms_size }}
+      foss_size: ${{ steps.set_foss_size.outputs.size }}
+      gms_size: ${{ steps.set_gms_size.outputs.size }}
 
     steps:
       - uses: actions/checkout@v6
@@ -112,14 +111,15 @@ jobs:
           echo "apk_path=$APK_NAME" >> $GITHUB_OUTPUT
           echo "apk_size=${SIZE_MB} MB" >> $GITHUB_OUTPUT
 
-      - name: Save Outputs
-        id: save_outputs
-        run: |
-          if [ "${{ matrix.variant }}" == "foss" ]; then
-            echo "foss_size=${{ steps.prepare_artifact.outputs.apk_size }}" >> $GITHUB_OUTPUT
-          else
-            echo "gms_size=${{ steps.prepare_artifact.outputs.apk_size }}" >> $GITHUB_OUTPUT
-          fi
+      - name: Set FOSS Size
+        id: set_foss_size
+        if: matrix.variant == 'foss'
+        run: echo "size=${{ steps.prepare_artifact.outputs.apk_size }}" >> $GITHUB_OUTPUT
+
+      - name: Set GMS Size
+        id: set_gms_size
+        if: matrix.variant == 'gms'
+        run: echo "size=${{ steps.prepare_artifact.outputs.apk_size }}" >> $GITHUB_OUTPUT
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
@@ -133,59 +133,60 @@ jobs:
     if: always() && !cancelled() && (needs.build.result == 'success')
     steps:
       - name: Send Discord Notification
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CANARY_CHANNEL_ID }}
+          TEST_FOCUS: ${{ github.event.inputs.test_focus }}
+          STATUS: ${{ github.event.inputs.status }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          BUILD_OUTPUTS: ${{ toJSON(needs.build.outputs) }}
         run: |
-          # Construction of Variants string
-          FOSS_SIZE=$(echo '${{ toJSON(needs.build.outputs) }}' | jq -r '.foss_size // empty')
-          GMS_SIZE=$(echo '${{ toJSON(needs.build.outputs) }}' | jq -r '.gms_size // empty')
+          if [ -z "$DISCORD_BOT_TOKEN" ]; then
+            echo "::error::DISCORD_BOT_TOKEN is missing. Check your repository secrets."
+            exit 1
+          fi
+
+          # Safely get sizes from build outputs
+          FOSS_SIZE=$(echo "$BUILD_OUTPUTS" | jq -r '.foss_size // empty')
+          GMS_SIZE=$(echo "$BUILD_OUTPUTS" | jq -r '.gms_size // empty')
           
           VARIANTS_MD=""
-          if [[ -n "$FOSS_SIZE" ]]; then
-            VARIANTS_MD="${VARIANTS_MD}- **FOSS:** __${FOSS_SIZE}__\n"
-          fi
-          if [[ -n "$GMS_SIZE" ]]; then
-            VARIANTS_MD="${VARIANTS_MD}- **GMS:** __${GMS_SIZE}__\n"
-          fi
+          [ -n "$FOSS_SIZE" ] && VARIANTS_MD="${VARIANTS_MD}- **FOSS:** __${FOSS_SIZE}__\n"
+          [ -n "$GMS_SIZE" ] && VARIANTS_MD="${VARIANTS_MD}- **GMS:** __${GMS_SIZE}__\n"
 
-          # V2 Payload
-          PAYLOAD=$(cat <<EOF
-          {
-            "flags": 32768,
-            "components": [
-              { "type": 10, "content": "<@1441099959662284901>" },
-              {
-                "type": 17,
-                "components": [
-                  {
-                    "type": 10,
-                    "content": "__**METROLIST CANARY BUILD**__\n**Status:** *${{ github.event.inputs.status }}*"
-                  },
-                  {
-                    "type": 10,
-                    "content": "**WHAT TO TEST**\n> ${{ github.event.inputs.test_focus }}"
-                  },
-                  {
-                    "type": 10,
-                    "content": "**BUILD DETAILS**\n- **User:** @${{ github.actor }}\n- **Package Name:** \`com.metrolist.music.canary\`"
-                  },
-                  {
-                    "type": 10,
-                    "content": "**VARIANTS BUILDED**\n$VARIANTS_MD"
-                  },
-                  {
-                    "type": 1,
-                    "components": [
-                      { "type": 2, "style": 5, "label": "Open Workflow Run", "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-          EOF
-          )
+          # Build JSON payload safely with jq
+          PAYLOAD=$(jq -n \
+            --arg status "$STATUS" \
+            --arg test_focus "$TEST_FOCUS" \
+            --arg actor "$ACTOR" \
+            --arg variants "$VARIANTS_MD" \
+            --arg url "$SERVER_URL/$REPO/actions/runs/$RUN_ID" \
+            '{
+              flags: 32768,
+              components: [
+                { type: 10, content: "<@1441099959662284901>" },
+                {
+                  type: 17,
+                  components: [
+                    { type: 10, content: ("__**METROLIST CANARY BUILD**__\n**Status:** *" + $status + "*") },
+                    { type: 10, content: ("**WHAT TO TEST**\n> " + $test_focus) },
+                    { type: 10, content: ("**BUILD DETAILS**\n- **User:** @" + $actor + "\n- **Package Name:** `com.metrolist.music.canary`") },
+                    { type: 10, content: ("**VARIANTS BUILDED**\n" + $variants) },
+                    {
+                      type: 1,
+                      components: [
+                        { type: 2, style: 5, label: "Open Workflow Run", url: $url }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }')
 
-          curl -H "Authorization: Bot ${{ secrets.DISCORD_BOT_TOKEN }}" \
+          curl -X POST "https://discord.com/api/v10/channels/$DISCORD_CHANNEL_ID/messages" \
+               -H "Authorization: Bot $DISCORD_BOT_TOKEN" \
                -H "Content-Type: application/json" \
-               -X POST \
-               -d "$PAYLOAD" \
-               https://discord.com/api/v10/channels/${{ secrets.DISCORD_CANARY_CHANNEL_ID }}/messages
+               -d "$PAYLOAD"
