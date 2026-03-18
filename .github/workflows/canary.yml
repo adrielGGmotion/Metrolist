@@ -1,0 +1,191 @@
+name: Canary Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_focus:
+        description: 'What to test'
+        required: true
+        type: string
+      variant:
+        description: 'Variant to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - foss
+          - gms
+          - both
+      status:
+        description: 'Build Status'
+        required: true
+        default: 'Work in progress'
+        type: choice
+        options:
+          - 'Work in progress'
+          - 'Ready for production'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [foss, gms]
+        include:
+          - variant: foss
+            variantName: Foss
+          - variant: gms
+            variantName: Gms
+    if: |
+      (github.event.inputs.variant == 'both') ||
+      (github.event.inputs.variant == matrix.variant)
+    
+    outputs:
+      foss_size: ${{ steps.save_outputs.outputs.foss_size }}
+      gms_size: ${{ steps.save_outputs.outputs.gms_size }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-cleanup: on-success
+
+      - name: Setup and Generate Protobuf
+        uses: ./.github/actions/setup-protobuf
+
+      - name: Prepare Canary Identity
+        run: |
+          # Change Package Name
+          sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.canary"/g' app/build.gradle.kts
+          
+          # Change App Name
+          sed -i 's/<string name="app_name">Metrolist<\/string>/<string name="app_name">Metrolist Canary<\/string>/g' app/src/main/res/values/app_name.xml
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Release APK
+        run: ./gradlew --console=plain assemble${{ matrix.variantName }}Release
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+
+      - name: Sign APK
+        uses: ilharp/sign-android-release@v2.0.0
+        with:
+          releaseDir: app/build/outputs/apk/${{ matrix.variant }}/release/
+          signingKey: ${{ secrets.KEYSTORE }}
+          keyAlias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          buildToolsVersion: 35.0.0
+
+      - name: Prepare Artifact
+        id: prepare_artifact
+        run: |
+          OUTPUT_DIR="app/build/outputs/apk/${{ matrix.variant }}/release"
+          SIGNED_APK=$(find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | head -n 1)
+          
+          if [ -z "$SIGNED_APK" ]; then
+            echo "::error::No signed APK found!"
+            exit 1
+          fi
+          
+          APK_NAME="Metrolist-Canary-${{ matrix.variant }}.apk"
+          cp "$SIGNED_APK" "$APK_NAME"
+          
+          # Calculate Size in MB
+          SIZE_BYTES=$(stat -c%s "$APK_NAME")
+          SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
+          
+          echo "apk_path=$APK_NAME" >> $GITHUB_OUTPUT
+          echo "apk_size=${SIZE_MB} MB" >> $GITHUB_OUTPUT
+
+      - name: Save Outputs
+        id: save_outputs
+        run: |
+          if [ "${{ matrix.variant }}" == "foss" ]; then
+            echo "foss_size=${{ steps.prepare_artifact.outputs.apk_size }}" >> $GITHUB_OUTPUT
+          else
+            echo "gms_size=${{ steps.prepare_artifact.outputs.apk_size }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Metrolist-Canary-${{ matrix.variant }}
+          path: ${{ steps.prepare_artifact.outputs.apk_path }}
+
+  notify:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && !cancelled() && (needs.build.result == 'success')
+    steps:
+      - name: Send Discord Notification
+        run: |
+          # Construction of Variants string
+          FOSS_SIZE=$(echo '${{ toJSON(needs.build.outputs) }}' | jq -r '.foss_size // empty')
+          GMS_SIZE=$(echo '${{ toJSON(needs.build.outputs) }}' | jq -r '.gms_size // empty')
+          
+          VARIANTS_MD=""
+          if [[ -n "$FOSS_SIZE" ]]; then
+            VARIANTS_MD="${VARIANTS_MD}- **FOSS:** __${FOSS_SIZE}__\n"
+          fi
+          if [[ -n "$GMS_SIZE" ]]; then
+            VARIANTS_MD="${VARIANTS_MD}- **GMS:** __${GMS_SIZE}__\n"
+          fi
+
+          # V2 Payload
+          PAYLOAD=$(cat <<EOF
+          {
+            "flags": 32768,
+            "components": [
+              { "type": 10, "content": "<@1441099959662284901>" },
+              {
+                "type": 17,
+                "components": [
+                  {
+                    "type": 10,
+                    "content": "__**METROLIST CANARY BUILD**__\n**Status:** *${{ github.event.inputs.status }}*"
+                  },
+                  {
+                    "type": 10,
+                    "content": "**WHAT TO TEST**\n> ${{ github.event.inputs.test_focus }}"
+                  },
+                  {
+                    "type": 10,
+                    "content": "**BUILD DETAILS**\n- **User:** @${{ github.actor }}\n- **Package Name:** \`com.metrolist.music.canary\`"
+                  },
+                  {
+                    "type": 10,
+                    "content": "**VARIANTS BUILDED**\n$VARIANTS_MD"
+                  },
+                  {
+                    "type": 1,
+                    "components": [
+                      { "type": 2, "style": 5, "label": "Open Workflow Run", "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+
+          curl -H "Authorization: Bot ${{ secrets.DISCORD_BOT_TOKEN }}" \
+               -H "Content-Type: application/json" \
+               -X POST \
+               -d "$PAYLOAD" \
+               https://discord.com/api/v10/channels/${{ secrets.DISCORD_CANARY_CHANNEL_ID }}/messages
