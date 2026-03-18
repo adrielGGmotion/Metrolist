@@ -95,12 +95,37 @@ object SimpMusicLyrics {
         }
 
         // Prioritize richSyncLyrics for word-by-word sync, then syncedLyrics, then plainLyrics
-        val lyrics = bestMatch?.richSyncLyrics?.takeIf { it.isNotBlank() }
+        val rawLyrics = bestMatch?.richSyncLyrics?.takeIf { it.isNotBlank() }
             ?: bestMatch?.syncedLyrics?.takeIf { it.isNotBlank() }
             ?: bestMatch?.plainLyrics?.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Lyrics unavailable")
         
-        lyrics
+        cleanLyrics(rawLyrics)
+    }
+    
+    /**
+     * Clean lyrics - remove credits and normalize format
+     */
+    private fun cleanLyrics(lyrics: String): String {
+        val lines = lyrics.lines()
+        
+        // Filter out credit lines - these are usually short lines at the end with specific patterns
+        // Pattern: [00:00.00] Synced by Noob.exe or similar credit lines
+        val cleaned = lines.filter { line ->
+            val lower = line.lowercase().trim()
+            
+            // Skip lines that are clearly credits (short lines with credit patterns)
+            val isCreditLine = lower.startsWith("synced by") ||
+                lower.startsWith("lyrics by") ||
+                lower.startsWith("noob.exe") ||
+                lower.startsWith("lyrics powered by") ||
+                (lower.startsWith("[") && lower.contains("noob.exe")) ||
+                (lower.startsWith("[") && lower.contains("synced by") && line.length < 40)
+            
+            !isCreditLine
+        }
+        
+        return cleaned.joinToString("\n").trim()
     }
 
     suspend fun getAllLyrics(
@@ -126,15 +151,15 @@ object SimpMusicLyrics {
                 // Prioritize richSyncLyrics for word-by-word sync
                 if (track.richSyncLyrics != null && track.richSyncLyrics.isNotBlank() && durationMatch) {
                     count++
-                    callback(track.richSyncLyrics)
+                    callback(cleanLyrics(track.richSyncLyrics))
                 } else if (track.syncedLyrics != null && track.syncedLyrics.isNotBlank() && durationMatch) {
                     count++
-                    callback(track.syncedLyrics)
+                    callback(cleanLyrics(track.syncedLyrics))
                 }
                 if (track.plainLyrics != null && track.plainLyrics.isNotBlank() && durationMatch && plain == 0) {
                     count++
                     plain++
-                    callback(track.plainLyrics)
+                    callback(cleanLyrics(track.plainLyrics))
                 }
             }
         }
