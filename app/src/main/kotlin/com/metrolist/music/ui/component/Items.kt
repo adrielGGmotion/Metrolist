@@ -1159,8 +1159,21 @@ fun LocalSongsGrid(
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
 ) = GridItem(
-    title = title,
-    subtitle = subtitle,
+    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    subtitle = {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.basicMarquee(
+                iterations = 3,
+                initialDelayMillis = 1000,
+                velocity = 30.dp
+            )
+        )
+    },
     badges = badges,
     thumbnailContent = {
         LocalThumbnail(
@@ -1188,8 +1201,21 @@ fun LocalArtistsGrid(
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
 ) = GridItem(
-    title = title,
-    subtitle = subtitle,
+    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    subtitle = {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.basicMarquee(
+                iterations = 3,
+                initialDelayMillis = 1000,
+                velocity = 30.dp
+            )
+        )
+    },
     badges = badges,
     thumbnailContent = {
         LocalThumbnail(
@@ -1217,8 +1243,21 @@ fun LocalAlbumsGrid(
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
 ) = GridItem(
-    title = title,
-    subtitle = subtitle,
+    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    subtitle = {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.basicMarquee(
+                iterations = 3,
+                initialDelayMillis = 1000,
+                velocity = 30.dp
+            )
+        )
+    },
     badges = badges,
     thumbnailContent = {
         LocalThumbnail(
