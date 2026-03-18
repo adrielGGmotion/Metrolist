@@ -50,7 +50,7 @@ jobs:
       - name: Change Package Name and App Label for Canary Build
         run: |
           sed -i 's/applicationId = "com.metrolist.music"/applicationId = "com.metrolist.music.canary"/' app/build.gradle.kts
-          sed -i 's|<string name="app_name">Metrolist</string>|<string name="app_name">Metrolist Canary</string>|' app/src/main/res/values/strings.xml
+          sed -i 's|<string name="app_name">Metrolist</string>|<string name="app_name">Metrolist Canary</string>|' app/src/main/res/values/app_name.xml
 
       - name: Build Release APK
         id: build
