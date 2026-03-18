@@ -84,7 +84,6 @@ import com.metrolist.music.constants.TranslateModeKey
 import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.constants.DeeplFormalityKey
-import com.metrolist.music.lyrics.LyricsTranslationHelper
 import com.metrolist.music.utils.rememberPreference
 
 @OptIn(ExperimentalMaterial3Api::class)

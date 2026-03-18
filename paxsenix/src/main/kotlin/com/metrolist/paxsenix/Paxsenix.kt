@@ -2,6 +2,7 @@ package com.metrolist.paxsenix
 
 import android.content.Context
 import android.util.Log
+import com.metrolist.music.betterlyrics.TTMLParser
 import com.metrolist.paxsenix.models.LyricsResponse
 import com.metrolist.paxsenix.models.SearchResponse
 import com.metrolist.paxsenix.models.SearchResult
@@ -183,10 +184,11 @@ object Paxsenix {
         val firstResult = allResults.first().first
         Log.d(TAG, "Returning: ${firstResult.displayName}")
         val (lrc, hasWordTimings) = fetchLyricsForTrackWithType(firstResult.id)
-        if (lrc.isNotEmpty()) {
+        if (lrc.isNotEmpty() && hasWordTimings) {
             return Result.success(lrc)
         }
-        return Result.failure(IllegalStateException("No lyrics available"))
+        Log.w(TAG, "No word-by-word lyrics found from Paxsenix, letting other providers handle it")
+        return Result.failure(IllegalStateException("No word-by-word lyrics available from Paxsenix"))
     }
     
     private fun scoreAndFilterResults(
@@ -278,42 +280,61 @@ object Paxsenix {
         val lyricsType = response.type
         Log.d(TAG, "Lyrics response: type=$lyricsType")
         
+        // Prioritize ttmlContent using the robust TTMLParser
+        if (!response.ttmlContent.isNullOrBlank()) {
+            val lrc = convertTTMLToAppFormat(response.ttmlContent)
+            if (lrc.isNotEmpty()) {
+                Log.d(TAG, "Generated LRC from ttmlContent using TTMLParser")
+                return@runCatching lrc
+            }
+        }
+
+        // Fallback to ELRC formats if TTML failed or is missing
+        if (!response.elrcMultiPerson.isNullOrBlank()) {
+            Log.d(TAG, "Using elrcMultiPerson as fallback")
+            return@runCatching response.elrcMultiPerson
+        }
+        if (!response.elrc.isNullOrBlank()) {
+            Log.d(TAG, "Using elrc as fallback")
+            return@runCatching response.elrc
+        }
+        
         if (response.content.isEmpty()) {
-            // Check if there are other fields we can use
-            if (!response.elrcMultiPerson.isNullOrBlank()) {
-                return@runCatching response.elrcMultiPerson
-            }
-            if (!response.elrc.isNullOrBlank()) {
-                return@runCatching response.elrc
-            }
             throw IllegalStateException("No lyrics found")
         }
         
         val hasWordLevel = lyricsType == "Syllable"
-        Log.d(TAG, "Using content array as primary source, hasWordLevel=$hasWordLevel")
-        
+        Log.d(TAG, "Using content array as source, hasWordLevel=$hasWordLevel")
+
+        if (!hasWordLevel) {
+            // Non-synced: return as plain text with no timestamps
+            val plain = response.content
+                .map { line -> line.text.joinToString(" ") { it.text } }
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
+            Log.d(TAG, "Generated plain (non-synced) lyrics: ${response.content.size} lines")
+            return@runCatching plain
+        }
+
         val lrc = buildString {
             response.content.forEach { line ->
                 val timeMs = line.timestamp
                 val minutes = timeMs / 1000 / 60
                 val seconds = (timeMs / 1000) % 60
                 val centiseconds = (timeMs % 1000) / 10
-                
-                // Determine agent
-                val agent = if (hasWordLevel) {
-                    when {
-                        line.background -> "{bg}"
-                        line.oppositeTurn -> "{agent:v2}"
-                        else -> "{agent:v1}"
-                    }
-                } else ""
-                
+
+                val agent = when {
+                    line.background -> "{bg}"
+                    line.oppositeTurn -> "{agent:v2}"
+                    else -> "{agent:v1}"
+                }
+
                 val lineText = line.text.joinToString(" ") { it.text }
-                
+
                 if (lineText.isNotBlank()) {
                     appendLine(String.format("[%02d:%02d.%02d]%s%s", minutes, seconds, centiseconds, agent, lineText))
-                    
-                    if (hasWordLevel && line.text.isNotEmpty()) {
+
+                    if (line.text.isNotEmpty()) {
                         val wordsData = line.text.joinToString("|") { word ->
                             "${word.text}:${word.timestamp.toDouble() / 1000}:${word.endtime.toDouble() / 1000}"
                         }
@@ -324,7 +345,7 @@ object Paxsenix {
                 }
             }
         }
-        
+
         Log.d(TAG, "Generated ${response.content.size} lines from content array")
         return@runCatching lrc
     }
@@ -409,28 +430,41 @@ object Paxsenix {
     ) {
         val cleanedTitle = cleanTitle(title)
         val cleanedArtist = cleanArtist(artist)
-        
-        // Prioritize "Title Artist" query
+
         val searchQueries = listOf(
             "$cleanedTitle $cleanedArtist",
             cleanedTitle
         )
-        
+
+        var plainFallback: String? = null
+
         for (query in searchQueries) {
             val results = search(query)
             if (results.isEmpty()) continue
-            
+
             val scoredResults = scoreAndFilterResults(results, title, artist, duration)
             if (scoredResults.isEmpty()) continue
-            
+
             for ((result, _) in scoredResults.take(3)) {
                 Log.d(TAG, "Trying lyrics for: ${result.displayName}")
-                fetchLyricsForTrack(result.id).onSuccess { lyrics ->
-                    callback(lyrics)
-                    return
+                val (lrc, hasWordTimings) = fetchLyricsForTrackWithType(result.id)
+                if (lrc.isNotEmpty()) {
+                    if (hasWordTimings) {
+                        callback(lrc)
+                        return
+                    } else if (plainFallback == null) {
+                        Log.d(TAG, "Storing plain lyrics as fallback from: ${result.displayName}")
+                        plainFallback = lrc
+                    }
                 }
             }
-            break // Stop if we found results for a query level
+            break
+        }
+
+        // No word-by-word found — offer plain lyrics as fallback option, like other providers do
+        plainFallback?.let {
+            Log.d(TAG, "Offering plain/non-synced lyrics as fallback")
+            callback(it)
         }
     }
     
@@ -440,87 +474,8 @@ object Paxsenix {
      */
     private fun convertTTMLToAppFormat(ttml: String): String {
         return try {
-            val lines = mutableListOf<String>()
-            
-            // Parse <p> elements which contain the lyrics
-            val pPattern = Regex("""<p[^>]*begin="(\d+(?:\.\d+)?)"[^>]*end="(\d+(?:\.\d+)?)"[^>]*>(.*?)</p>""", RegexOption.DOT_MATCHES_ALL)
-            val spanPattern = Regex("""<span[^>]*begin="(\d+(?:\.\d+)?)"[^>]*end="(\d+(?:\.\d+)?)"[^>]*ttm:agent="([^"]+)"[^>]*>([^<]*)</span>""")
-            val spanNoAgentPattern = Regex("""<span[^>]*begin="(\d+(?:\.\d+)?)"[^>]*end="(\d+(?:\.\d+)?)"[^>]*>([^<]*)</span>""")
-            
-            val matches = pPattern.findAll(ttml).toList()
-            
-            for (pMatch in matches) {
-                val lineStart = pMatch.groupValues[1].toDouble()
-                val lineEnd = pMatch.groupValues[2].toDouble()
-                val content = pMatch.groupValues[3]
-                
-                // Get agent from p tag
-                val pAgentMatch = Regex("""ttm:agent="([^"]+)"""").find(pMatch.value)
-                val defaultAgent = pAgentMatch?.groupValues?.get(1) ?: "v1"
-                
-                // Find all spans with their agents
-                val spansWithAgents = mutableListOf<Triple<String, Double, Double>>()
-                
-                // First get spans with explicit agents
-                spanPattern.findAll(content).forEach { spanMatch ->
-                    val start = spanMatch.groupValues[1].toDouble()
-                    val end = spanMatch.groupValues[2].toDouble()
-                    val agent = spanMatch.groupValues[3]
-                    val text = spanMatch.groupValues[4]
-                    if (text.isNotBlank()) {
-                        spansWithAgents.add(Triple("$agent:$text", start, end))
-                    }
-                }
-                
-                // Get spans without agents and assign default
-                spanNoAgentPattern.findAll(content).forEach { spanMatch ->
-                    val start = spanMatch.groupValues[1].toDouble()
-                    val end = spanMatch.groupValues[2].toDouble()
-                    val text = spanMatch.groupValues[3]
-                    if (text.isNotBlank() && !spansWithAgents.any { it.second == start }) {
-                        spansWithAgents.add(Triple("$defaultAgent:$text", start, end))
-                    }
-                }
-                
-                if (spansWithAgents.isEmpty()) continue
-                
-                // Sort by start time
-                spansWithAgents.sortBy { it.second }
-                
-                // Group by speaker
-                val bySpeaker = spansWithAgents.groupBy { 
-                    it.first.substringBefore(":")
-                }
-                
-                val startMin = (lineStart / 60).toInt()
-                val startSec = (lineStart % 60).toInt()
-                val startCs = ((lineStart % 1) * 100).toInt()
-                
-                // Build output for each speaker on this line
-                for ((speaker, spans) in bySpeaker) {
-                    val speakerTag = when (speaker.lowercase()) {
-                        "v1" -> "{agent:v1}"
-                        "v2" -> "{agent:v2}"
-                        "v1000" -> "{bg}"
-                        else -> "{agent:$speaker}"
-                    }
-                    
-                    val wordsData = spans.joinToString("|") { (textWithAgent, start, end) ->
-                        val text = textWithAgent.substringAfter(":")
-                        "$text:$start:$end"
-                    }
-                    
-                    val plainText = spans.joinToString(" ") { it.first.substringAfter(":") }
-                    
-                    val lineTime = String.format("%02d:%02d.%02d", startMin, startSec, startCs)
-                    lines.add("[$lineTime]$speakerTag$plainText")
-                    if (wordsData.isNotEmpty()) {
-                        lines.add("<$wordsData>")
-                    }
-                }
-            }
-            
-            lines.joinToString("\n")
+            val parsedLines = TTMLParser.parseTTML(ttml)
+            TTMLParser.toLRC(parsedLines)
         } catch (e: Exception) {
             Log.e(TAG, "TTML conversion failed: ${e.message}")
             ""
@@ -567,12 +522,11 @@ object Paxsenix {
             var lyrics: String? = null
             
             try {
-                val response = httpClient.get("/apple-music/lyrics") {
-                    parameter("id", result.id)
-                }.body<LyricsResponse>()
-                
-                hasWordSync = response.elrcMultiPerson != null
-                lyrics = response.elrcMultiPerson ?: response.elrc
+                val (fetchedLyrics, wordSync) = fetchLyricsForTrackWithType(result.id)
+                if (fetchedLyrics.isNotEmpty()) {
+                    lyrics = fetchedLyrics
+                    hasWordSync = wordSync
+                }
             } catch (e: Exception) {
                 // Keep default values
             }
