@@ -1064,6 +1064,11 @@ interface DatabaseDao {
         songIds: List<String>,
     ): List<String>
 
+    @Query("UPDATE playlist SET lastUpdateTime = :now WHERE id = :playlistId")
+    fun updatePlaylistLastUpdated(
+        playlistId: String,
+        now: LocalDateTime = LocalDateTime.now(),
+    )
     @Transaction
     fun addSongToPlaylist(playlist: Playlist, songIds: List<String>) {
         var position = playlist.songCount
@@ -1076,6 +1081,7 @@ interface DatabaseDao {
                 )
             )
         }
+        updatePlaylistLastUpdated(playlist.id)
     }
 
     fun downloadedSongs(
