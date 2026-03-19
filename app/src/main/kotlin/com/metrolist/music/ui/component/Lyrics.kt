@@ -1232,14 +1232,14 @@ fun Lyrics(
                                                         )
                                                     )
 
-                                                    if (item.words?.isNotEmpty() == true && abs(index - displayedCurrentLineIndex) <= 3 && mainText != null) {
+                                                    if (item.words?.isNotEmpty() == true && (isActiveLine || abs(index - currentLineIndex) <= 3) && mainText != null) {
                                                         val textMeasurer = rememberTextMeasurer()
                                                         
                                                         // Smoothed player position interpolation to eliminate ExoPlayer jitter
-                                                        var smoothPosition by remember { mutableLongStateOf(0L) }
+                                                        val lyricsOffset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
+                                                        var smoothPosition by remember { mutableLongStateOf(currentPositionState + lyricsOffset) }
                                                         LaunchedEffect(isActiveLine) {
                                                             if (isActiveLine) {
-                                                                val offset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
                                                                 var lastPlayerPos = playerConnection.player.currentPosition
                                                                 var lastUpdateTime = System.currentTimeMillis()
                                                                 while (isActive) {
@@ -1251,9 +1251,14 @@ fun Lyrics(
                                                                             lastUpdateTime = now
                                                                         }
                                                                         val elapsed = now - lastUpdateTime
-                                                                        smoothPosition = lastPlayerPos + offset + (if (playerConnection.player.isPlaying) elapsed else 0)
+                                                                        smoothPosition = lastPlayerPos + lyricsOffset + (if (playerConnection.player.isPlaying) elapsed else 0)
                                                                     }
                                                                 }
+                                                            }
+                                                        }
+                                                        LaunchedEffect(isActiveLine, currentPositionState) {
+                                                            if (!isActiveLine) {
+                                                                smoothPosition = currentPositionState + lyricsOffset
                                                             }
                                                         }
 
