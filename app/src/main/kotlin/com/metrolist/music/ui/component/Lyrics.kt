@@ -320,8 +320,10 @@ fun Lyrics(
 
     val enabledLanguages = decodedList.filter { (_, checked) -> checked }.map { (lang, _) -> lang }
 
-    val lines =
-        remember(lyrics, scope) {
+    var lines by remember { mutableStateOf<List<com.metrolist.music.lyrics.LyricsEntry>>(emptyList()) }
+
+    LaunchedEffect(lyrics, scope) {
+        val processedLines = withContext(Dispatchers.Default) {
             if (lyrics == null || lyrics == LYRICS_NOT_FOUND) {
                 emptyList()
             } else if (lyrics.startsWith("[")) {
@@ -330,62 +332,64 @@ fun Lyrics(
                 parsedLines
                     .map { entry ->
                         val newEntry =
-                            LyricsEntry(entry.time, entry.text, entry.words, agent = entry.agent, isBackground = entry.isBackground)
+                            LyricsEntry(
+                                entry.time,
+                                entry.text,
+                                entry.words,
+                                agent = entry.agent,
+                                isBackground = entry.isBackground
+                            )
 
-                        scope.launch {
-                            val text = if (romanizeCyrillicByLine) entry.text else lyrics
-                            var value: String? = ""
+                        val text = if (romanizeCyrillicByLine) entry.text else lyrics
+                        var value: String? = ""
 
-                            when {
-                                "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> {
-                                    value =
-                                        romanizeJapanese(entry.text)
-                                }
-
-                                "Korean" in enabledLanguages && isKorean(text) -> {
-                                    value = romanizeKorean(entry.text)
-                                }
-
-                                "Chinese" in enabledLanguages && isChinese(text) -> {
-                                    value = romanizeChinese(entry.text)
-                                }
-
-                                "Hindi" in enabledLanguages && isHindi(text) -> {
-                                    value = romanizeHindi(entry.text)
-                                }
-
-                                "Ukrainian" in enabledLanguages && isUkrainian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Russian" in enabledLanguages && isRussian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Serbian" in enabledLanguages && isSerbian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Bulgarian" in enabledLanguages && isBulgarian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Belarusian" in enabledLanguages && isBelarusian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Macedonian" in enabledLanguages && isMacedonian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
+                        when {
+                            "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> {
+                                value = romanizeJapanese(entry.text)
                             }
 
-                            newEntry.romanizedTextFlow.value = value
+                            "Korean" in enabledLanguages && isKorean(text) -> {
+                                value = romanizeKorean(entry.text)
+                            }
+
+                            "Chinese" in enabledLanguages && isChinese(text) -> {
+                                value = romanizeChinese(entry.text)
+                            }
+
+                            "Hindi" in enabledLanguages && isHindi(text) -> {
+                                value = romanizeHindi(entry.text)
+                            }
+
+                            "Ukrainian" in enabledLanguages && isUkrainian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Russian" in enabledLanguages && isRussian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Serbian" in enabledLanguages && isSerbian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Bulgarian" in enabledLanguages && isBulgarian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Belarusian" in enabledLanguages && isBelarusian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Macedonian" in enabledLanguages && isMacedonian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
                         }
 
+                        newEntry.romanizedTextFlow.value = value
                         newEntry
                     }.let {
                         listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
@@ -394,31 +398,39 @@ fun Lyrics(
                 lyrics.lines().mapIndexed { index, line ->
                     val newEntry = LyricsEntry(index * 100L, line)
 
-                    scope.launch {
-                        val text = if (romanizeCyrillicByLine) line else lyrics
-                        var value: String? = ""
+                    val text = if (romanizeCyrillicByLine) line else lyrics
+                    var value: String? = ""
 
-                        when {
-                            "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> value = romanizeJapanese(line)
-                            "Korean" in enabledLanguages && isKorean(text) -> value = romanizeKorean(line)
-                            "Chinese" in enabledLanguages && isChinese(text) -> value = romanizeChinese(line)
-                            "Hindi" in enabledLanguages && isHindi(text) -> value = romanizeHindi(line)
-                            "Ukrainian" in enabledLanguages && isUkrainian(text) -> value = romanizeCyrillic(line)
-                            "Russian" in enabledLanguages && isRussian(text) -> value = romanizeCyrillic(line)
-                            "Serbian" in enabledLanguages && isSerbian(text) -> value = romanizeCyrillic(line)
-                            "Bulgarian" in enabledLanguages && isBulgarian(text) -> value = romanizeCyrillic(line)
-                            "Belarusian" in enabledLanguages && isBelarusian(text) -> value = romanizeCyrillic(line)
-                            "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> value = romanizeCyrillic(line)
-                            "Macedonian" in enabledLanguages && isMacedonian(text) -> value = romanizeCyrillic(line)
-                        }
+                    when {
+                        "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> value =
+                            romanizeJapanese(line)
 
-                        newEntry.romanizedTextFlow.value = value
+                        "Korean" in enabledLanguages && isKorean(text) -> value = romanizeKorean(line)
+                        "Chinese" in enabledLanguages && isChinese(text) -> value = romanizeChinese(line)
+                        "Hindi" in enabledLanguages && isHindi(text) -> value = romanizeHindi(line)
+                        "Ukrainian" in enabledLanguages && isUkrainian(text) -> value =
+                            romanizeCyrillic(line)
+
+                        "Russian" in enabledLanguages && isRussian(text) -> value = romanizeCyrillic(line)
+                        "Serbian" in enabledLanguages && isSerbian(text) -> value = romanizeCyrillic(line)
+                        "Bulgarian" in enabledLanguages && isBulgarian(text) -> value =
+                            romanizeCyrillic(line)
+
+                        "Belarusian" in enabledLanguages && isBelarusian(text) -> value =
+                            romanizeCyrillic(line)
+
+                        "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> value = romanizeCyrillic(line)
+                        "Macedonian" in enabledLanguages && isMacedonian(text) -> value =
+                            romanizeCyrillic(line)
                     }
 
+                    newEntry.romanizedTextFlow.value = value
                     newEntry
                 }
             }
         }
+        lines = processedLines
+    }
 
     val isSynced =
         remember(lyrics) {
