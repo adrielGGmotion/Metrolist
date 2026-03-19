@@ -870,23 +870,25 @@ fun Lyrics(
         } else if (isSynced) {
             val displayedCurrentLineIndex = deferredCurrentLineIndex
 
+            val velocityTracker = remember { VelocityTracker() }
+            val decayAnimSpec = remember { exponentialDecay<Float>(frictionMultiplier = 1.8f) }
+            val itemHeights = remember { mutableStateMapOf<Int, Int>() }
+            var isInitialLayout by remember { mutableStateOf(true) }
+
             LaunchedEffect(isAutoScrollEnabled) {
                 if (isAutoScrollEnabled) {
                     val start = userManualOffset
                     val dist = kotlin.math.abs(start)
                     if (dist < 1f) { userManualOffset = 0f; return@LaunchedEffect }
+                    isInitialLayout = true
                     val duration = (dist / 4f).toInt().coerceIn(200, 600)
                     val anim = Animatable(start)
                     anim.animateTo(0f, tween(duration, easing = FastOutSlowInEasing)) {
                         userManualOffset = value
                     }
+                    isInitialLayout = false
                 }
             }
-
-            val velocityTracker = remember { VelocityTracker() }
-            val decayAnimSpec = remember { exponentialDecay<Float>(frictionMultiplier = 1.8f) }
-            val itemHeights = remember { mutableStateMapOf<Int, Int>() }
-            var isInitialLayout by remember { mutableStateOf(true) }
 
             LaunchedEffect(showLyrics) {
                 if (showLyrics) {
@@ -949,6 +951,10 @@ fun Lyrics(
                 (maxHeightPx - paddingBottom - anchorY - firstPos)
             }
 
+            // Safety clamp: ensure scroll bounds are never inverted or collapsed
+            val safeMinOffset = minOf(minOffset, maxOffset - maxHeightPx)
+            val safeMaxOffset = maxOf(maxOffset, 0f)
+
             var lastPositions by remember { mutableStateOf<Map<Int, Float>>(emptyMap()) }
             LaunchedEffect(activeListIndex) {
                 if (!isAutoScrollEnabled && lastPositions.isNotEmpty()) {
@@ -982,6 +988,10 @@ fun Lyrics(
                         awaitPointerEventScope {
                             while (true) {
                                 val down = awaitFirstDown(requireUnconsumed = false)
+                                if (isInitialLayout) {
+                                    // Discard input while layout is settling
+                                    continue
+                                }
                                 flingJob?.cancel()
                                 velocityTracker.resetTracking()
                                 isAutoScrollEnabled = false
@@ -990,7 +1000,7 @@ fun Lyrics(
 
                                 verticalDrag(down.id) { change ->
                                     val dragAmount = change.positionChange().y
-                                    userManualOffset = (userManualOffset + dragAmount).coerceIn(minOffset, maxOffset)
+                                    userManualOffset = (userManualOffset + dragAmount).coerceIn(safeMinOffset, safeMaxOffset)
                                     velocityTracker.addPosition(change.uptimeMillis, change.position)
                                     change.consume()
                                 }
@@ -1001,7 +1011,7 @@ fun Lyrics(
                                         initialValue = userManualOffset,
                                         initialVelocity = velocity
                                     ).animateDecay(decayAnimSpec) {
-                                        val clamped = value.coerceIn(minOffset, maxOffset)
+                                        val clamped = value.coerceIn(safeMinOffset, safeMaxOffset)
                                         userManualOffset = clamped
                                         if (value != clamped) cancelAnimation()
                                     }
