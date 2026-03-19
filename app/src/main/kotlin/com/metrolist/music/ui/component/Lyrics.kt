@@ -8,6 +8,8 @@ package com.metrolist.music.ui.component
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
+import android.graphics.BlurMaskFilter
+import android.graphics.Paint as NativePaint
 import android.text.Layout
 import android.view.WindowManager
 import android.widget.Toast
@@ -100,7 +102,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.scale
@@ -224,6 +229,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
@@ -311,7 +319,6 @@ fun Lyrics(
     val romanizeLyricsList = rememberPreference(LyricsRomanizeList, "")
     val romanizeAsMain by rememberPreference(LyricsRomanizeAsMainKey, false)
     val romanizeCyrillicByLine by rememberPreference(LyricsRomanizeCyrillicByLineKey, false)
-    val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, false)
     val lyricsAnimationStyle by rememberEnumPreference(LyricsAnimationStyleKey, LyricsAnimationStyle.APPLE)
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
@@ -1223,11 +1230,10 @@ fun Lyrics(
                                                             val wStartMs = (word.startTime * 1000).toLong()
                                                             val wEndMs = (word.endTime * 1000).toLong()
                                                             val isWordSung = smoothPosition > wEndMs
-                                                            val sungFactor by animateFloatAsState(
-                                                                targetValue = if (isWordSung) 1f else 0f,
-                                                                animationSpec = tween(330),
-                                                                label = "wordAlpha"
-                                                            )
+                                                            val isWordActive = smoothPosition in wStartMs..wEndMs
+                                                            val sungFactor = if (isWordSung) 1f 
+                                                                            else if (isWordActive) ((smoothPosition - wStartMs).toFloat() / (wEndMs - wStartMs).coerceAtLeast(1)).coerceIn(0f, 1f)
+                                                                            else 0f
                                                             Triple(sungFactor, word, isWordSung)
                                                         }
 
@@ -1297,6 +1303,7 @@ fun Lyrics(
                                                             Canvas(modifier = Modifier
                                                                 .fillMaxWidth()
                                                                 .height(with(density) { layoutResult.size.height.toDp() })
+                                                                .graphicsLayer(clip = false)
                                                             ) {
                                                                 if (mainText.isEmpty()) return@Canvas
                                                                 if (!isActiveLine) {
@@ -1354,6 +1361,9 @@ fun Lyrics(
                                                                         val wobble = if (wordIdx != -1) wordWobbles[wordIdx] else 0f
                                                                         val (sungFactor, wordItem, isWordSung) = if (wordIdx != -1) wordFactors[wordIdx] else Triple(0f, null, false)
                                                                         
+                                                                        // A word should glow if it's currently being sung (sungFactor > 0 and not fully sung)
+                                                                        val shouldGlow = wordItem != null && !isWordSung && sungFactor > 0.001f
+
                                                                         withTransform({
                                                                             translate(left = alignShift + lineCurrentPushes[lineIdx] + wordPush / 2f + charBounds.left, top = charBounds.top)
                                                                             if (wordIdx != -1) {
@@ -1368,6 +1378,47 @@ fun Lyrics(
                                                                                 val wLen = wordLenMap[i].toDouble()
                                                                                 ((wProg - cInW / wLen) * wLen).coerceIn(0.0, 1.0).toFloat()
                                                                             } else 0f
+
+                                                                            if (shouldGlow && wordItem != null) {
+                                                                                val sMs = wordItem.startTime * 1000
+                                                                                val eMs = wordItem.endTime * 1000
+                                                                                val dur = eMs - sMs
+                                                                                val wordLenText = wordItem.text.length.coerceAtLeast(1)
+                                                                                val impactRatio = dur.toFloat() / wordLenText
+                                                                                
+                                                                                // Smooth fade-in: words fade in over the first 150ms of being sung
+                                                                                // and fade out at the end
+                                                                                val fadeFactor = (sungFactor * 5f).coerceIn(0f, 1f) * 
+                                                                                               ((1f - sungFactor) * 8f).coerceIn(0f, 1f)
+
+                                                                                // Impact calculation - more aggressive for visibility
+                                                                                val impactFactor = (
+                                                                                    ((impactRatio - 100f) / 250f).coerceIn(0f, 1f) * 0.6f +
+                                                                                    ((dur.toFloat() - 300f) / 1500f).coerceIn(0f, 1f) * 0.4f
+                                                                                ).coerceIn(0f, 1f) * fadeFactor
+
+                                                                                if (impactFactor > 0.01f) {
+                                                                                    // Slightly adjusted alpha and reduced radius to prevent cropping
+                                                                                    val glowAlpha = (0.9f * impactFactor).coerceIn(0f, 0.98f)
+                                                                                    val baseGlowRadius = 20.dp.toPx() * impactFactor
+                                                                                    
+                                                                                    drawIntoCanvas { canvas ->
+                                                                                        val paint = Paint().asFrameworkPaint()
+                                                                                        paint.maskFilter = BlurMaskFilter(baseGlowRadius, BlurMaskFilter.Blur.NORMAL)
+                                                                                        paint.color = expressiveAccent.copy(alpha = glowAlpha).toArgb()
+                                                                                        paint.textSize = lyricStyle.fontSize.toPx()
+                                                                                        paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                                                                                        
+                                                                                        canvas.nativeCanvas.drawText(
+                                                                                            letterLayouts[i].layoutInput.text.text,
+                                                                                            0f,
+                                                                                            letterLayouts[i].firstBaseline,
+                                                                                            paint
+                                                                                        )
+                                                                                        paint.maskFilter = null
+                                                                                    }
+                                                                                }
+                                                                            }
 
                                                                             // 1. Draw base layer
                                                                             val baseAlpha = if (isWordSung || charLp > 0.99f) 1f else (focusedAlpha + (1f - focusedAlpha) * sungFactor)
@@ -1412,7 +1463,7 @@ fun Lyrics(
                                                                 trim = LineHeightStyle.Trim.None
                                                             )
                                                         )
-                                                        Text(mainText ?: "", style = lyricStyleSingle.copy(color = if (isActiveLine && !lyricsGlowEffect) expressiveAccent else lineColor),
+                                                        Text(mainText ?: "", style = lyricStyleSingle.copy(color = if (isActiveLine) expressiveAccent else lineColor),
                                                             modifier = Modifier.fillMaxWidth().graphicsLayer(transformOrigin = when (alignment) {
                                                                 TextAlign.Left -> TransformOrigin(0f, 0.5f); TextAlign.Right -> TransformOrigin(1f, 0.5f); else -> TransformOrigin.Center
                                                             }, scaleX = 1f, scaleY = 1f, clip = false))
