@@ -1078,10 +1078,16 @@ fun Lyrics(
                                             }
                                         }
 
-                                        Box(modifier = itemModifier, contentAlignment = when (lyricsTextPosition) {
-                                            LyricsPosition.LEFT -> Alignment.CenterStart
-                                            LyricsPosition.RIGHT -> Alignment.CenterEnd
-                                            else -> Alignment.Center
+                                        Box(modifier = itemModifier, contentAlignment = when {
+                                            item.agent == "v1" -> Alignment.CenterStart
+                                            item.agent == "v2" -> Alignment.CenterEnd
+                                            item.isBackground -> Alignment.Center
+                                            item.agent == "v1000" -> Alignment.Center
+                                            else -> when (lyricsTextPosition) {
+                                                LyricsPosition.LEFT -> Alignment.CenterStart
+                                                LyricsPosition.RIGHT -> Alignment.CenterEnd
+                                                else -> Alignment.Center
+                                            }
                                         }) {
                                             @Composable
                                             fun LyricContent() {
