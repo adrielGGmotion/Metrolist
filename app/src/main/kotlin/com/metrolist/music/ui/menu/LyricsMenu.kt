@@ -81,6 +81,7 @@ import com.metrolist.music.constants.DeeplApiKey
 import com.metrolist.music.constants.AiProviderKey
 import com.metrolist.music.constants.TranslateLanguageKey
 import com.metrolist.music.constants.TranslateModeKey
+import com.metrolist.music.constants.RespectAgentPositioningKey
 import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.constants.DeeplFormalityKey
@@ -107,6 +108,7 @@ fun LyricsMenu(
     val openRouterBaseUrl by rememberPreference(OpenRouterBaseUrlKey, "https://openrouter.ai/api/v1/chat/completions")
     val openRouterModel by rememberPreference(OpenRouterModelKey, "google/gemini-2.5-flash-lite")
     val deeplFormality by rememberPreference(DeeplFormalityKey, "default")
+    var respectAgentPositioning by rememberPreference(RespectAgentPositioningKey, true)
 
     val hasApiKey = if (aiProvider == "DeepL") deeplApiKey.isNotBlank() else openRouterApiKey.isNotBlank()
     
@@ -532,6 +534,44 @@ fun LyricsMenu(
                             )
                         )
                     }
+                    
+                    add(
+                        Material3MenuItemData(
+                            title = { Text(stringResource(R.string.respect_agent_positioning)) },
+                            description = { Text(stringResource(R.string.respect_agent_positioning_desc)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.lyrics),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                respectAgentPositioning = !respectAgentPositioning
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = respectAgentPositioning,
+                                    onCheckedChange = { newCheckedState ->
+                                        respectAgentPositioning = newCheckedState
+                                    },
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (respectAgentPositioning) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        uncheckedThumbColor = MaterialTheme.colorScheme.primaryContainer,
+                                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                            }
+                        )
+                    )
                     
                     add(
                         Material3MenuItemData(

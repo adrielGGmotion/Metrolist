@@ -183,6 +183,7 @@ import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
+import com.metrolist.music.constants.RespectAgentPositioningKey
 import com.metrolist.music.constants.TranslateLanguageKey
 import com.metrolist.music.constants.TranslateModeKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
@@ -263,6 +264,7 @@ fun Lyrics(
     val lyricsAnimationStyle by rememberEnumPreference(LyricsAnimationStyleKey, LyricsAnimationStyle.APPLE)
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
+    val respectAgentPositioning by rememberPreference(RespectAgentPositioningKey, true)
     val openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     val deeplApiKey by rememberPreference(DeeplApiKey, "")
     val aiProvider by rememberPreference(AiProviderKey, "OpenRouter")
@@ -1070,9 +1072,9 @@ fun Lyrics(
                                         val pairedAgent = if (item.isBackground && pairedMainLineIndex != -1) lines[pairedMainLineIndex].agent else null
                                         
                                         val agentAlignment = when {
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1" -> Alignment.Start
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v2" -> Alignment.End
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> Alignment.CenterHorizontally
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1" -> Alignment.Start
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v2" -> Alignment.End
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> Alignment.CenterHorizontally
                                             else -> when (lyricsTextPosition) {
                                                 LyricsPosition.LEFT -> Alignment.Start
                                                 LyricsPosition.CENTER -> Alignment.CenterHorizontally
@@ -1080,9 +1082,9 @@ fun Lyrics(
                                             }
                                         }
                                         val agentTextAlign = when {
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1" -> TextAlign.Left
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v2" -> TextAlign.Right
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> TextAlign.Center
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1" -> TextAlign.Left
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v2" -> TextAlign.Right
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> TextAlign.Center
                                             else -> when (lyricsTextPosition) {
                                                 LyricsPosition.LEFT -> TextAlign.Left
                                                 LyricsPosition.CENTER -> TextAlign.Center
@@ -1091,10 +1093,10 @@ fun Lyrics(
                                         }
 
                                         Box(modifier = itemModifier, contentAlignment = when {
-                                            item.agent == "v1" -> Alignment.CenterStart
-                                            item.agent == "v2" -> Alignment.CenterEnd
+                                            respectAgentPositioning && item.agent == "v1" -> Alignment.CenterStart
+                                            respectAgentPositioning && item.agent == "v2" -> Alignment.CenterEnd
                                             item.isBackground -> Alignment.Center
-                                            item.agent == "v1000" -> Alignment.Center
+                                            respectAgentPositioning && item.agent == "v1000" -> Alignment.Center
                                             else -> when (lyricsTextPosition) {
                                                 LyricsPosition.LEFT -> Alignment.CenterStart
                                                 LyricsPosition.RIGHT -> Alignment.CenterEnd
