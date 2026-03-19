@@ -1117,11 +1117,11 @@ fun Lyrics(
                                                     val subText = if (item.isBackground) subTextRaw?.removePrefix("(")?.removeSuffix(")") else subTextRaw
 
                                                     val lyricStyle = TextStyle(
-                                                        fontSize = if (item.isBackground) 22.sp else 32.sp,
-                                                        fontWeight = FontWeight.Normal,
+                                                        fontSize = if (item.isBackground) (lyricsTextSize * 0.7f).sp else lyricsTextSize.sp,
+                                                        fontWeight = FontWeight.Bold,
                                                         fontStyle = if (item.isBackground) FontStyle.Italic else FontStyle.Normal,
-                                                        lineHeight = if (item.isBackground) 26.4.sp else 38.4.sp,
-                                                        letterSpacing = 0.sp,
+                                                        lineHeight = if (item.isBackground) (lyricsTextSize * 0.7f * lyricsLineSpacing).sp else (lyricsTextSize * lyricsLineSpacing).sp,
+                                                        letterSpacing = (-0.5).sp,
                                                         textAlign = alignment,
                                                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                                                         lineHeightStyle = LineHeightStyle(
@@ -1130,8 +1130,8 @@ fun Lyrics(
                                                         )
                                                     )
 
+                                                    val textMeasurer = rememberTextMeasurer()
                                                     if (item.words?.isNotEmpty() == true && (isActiveLine || abs(index - currentLineIndex) <= 3) && mainText != null) {
-                                                        val textMeasurer = rememberTextMeasurer()
                                                         
                                                         // Smoothed player position interpolation to eliminate ExoPlayer jitter
                                                         val lyricsOffset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
@@ -1221,16 +1221,16 @@ fun Lyrics(
 
                                                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                                             val maxWidthPx = constraints.maxWidth
-                                                            val layoutResult = remember(mainText, lyricStyle, maxWidthPx) {
+                                                            val layoutResult = remember(mainText, maxWidthPx) {
                                                                 textMeasurer.measure(
                                                                     text = mainText,
                                                                     style = lyricStyle,
-                                                                    constraints = Constraints(maxWidth = maxWidthPx),
+                                                                    constraints = Constraints(minWidth = maxWidthPx, maxWidth = maxWidthPx),
                                                                     softWrap = true
                                                                 )
                                                             }
                                                             
-                                                            val letterLayouts = remember(mainText, lyricStyle) {
+                                                            val letterLayouts = remember(mainText) {
                                                                 mainText.map { textMeasurer.measure(it.toString(), lyricStyle) }
                                                             }
                                                             
@@ -1385,17 +1385,29 @@ fun Lyrics(
                                                         }
                                                     } else {
                                                         val lyricStyleSingle = TextStyle(
+
                                                             fontSize = if (item.isBackground) (lyricsTextSize * 0.7f).sp else lyricsTextSize.sp,
+
                                                             fontWeight = FontWeight.Bold,
+
                                                             fontStyle = if (item.isBackground) FontStyle.Italic else FontStyle.Normal,
-                                                            lineHeight = (lyricsTextSize * lyricsLineSpacing).sp,
-                                                            letterSpacing = 0.sp,
+
+                                                            lineHeight = if (item.isBackground) (lyricsTextSize * 0.7f * lyricsLineSpacing).sp else (lyricsTextSize * lyricsLineSpacing).sp,
+
+                                                            letterSpacing = (-0.5).sp,
+
                                                             textAlign = alignment,
+
                                                             platformStyle = PlatformTextStyle(includeFontPadding = false),
+
                                                             lineHeightStyle = LineHeightStyle(
+
                                                                 alignment = LineHeightStyle.Alignment.Center,
+
                                                                 trim = LineHeightStyle.Trim.None
+
                                                             )
+
                                                         )
                                                         Text(mainText ?: "", style = lyricStyleSingle.copy(color = if (isActiveLine) expressiveAccent else lineColor),
                                                             modifier = Modifier.fillMaxWidth().graphicsLayer(transformOrigin = when (alignment) {
