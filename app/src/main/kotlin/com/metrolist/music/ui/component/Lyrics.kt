@@ -183,6 +183,7 @@ import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
+import com.metrolist.music.constants.RespectAgentPositioningKey
 import com.metrolist.music.constants.TranslateLanguageKey
 import com.metrolist.music.constants.TranslateModeKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
@@ -263,6 +264,7 @@ fun Lyrics(
     val lyricsAnimationStyle by rememberEnumPreference(LyricsAnimationStyleKey, LyricsAnimationStyle.APPLE)
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
+    val respectAgentPositioning by rememberPreference(RespectAgentPositioningKey, true)
     val openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     val deeplApiKey by rememberPreference(DeeplApiKey, "")
     val aiProvider by rememberPreference(AiProviderKey, "OpenRouter")
@@ -320,8 +322,10 @@ fun Lyrics(
 
     val enabledLanguages = decodedList.filter { (_, checked) -> checked }.map { (lang, _) -> lang }
 
-    val lines =
-        remember(lyrics, scope) {
+    var lines by remember { mutableStateOf<List<com.metrolist.music.lyrics.LyricsEntry>>(emptyList()) }
+
+    LaunchedEffect(lyrics, scope) {
+        val processedLines = withContext(Dispatchers.Default) {
             if (lyrics == null || lyrics == LYRICS_NOT_FOUND) {
                 emptyList()
             } else if (lyrics.startsWith("[")) {
@@ -330,62 +334,64 @@ fun Lyrics(
                 parsedLines
                     .map { entry ->
                         val newEntry =
-                            LyricsEntry(entry.time, entry.text, entry.words, agent = entry.agent, isBackground = entry.isBackground)
+                            LyricsEntry(
+                                entry.time,
+                                entry.text,
+                                entry.words,
+                                agent = entry.agent,
+                                isBackground = entry.isBackground
+                            )
 
-                        scope.launch {
-                            val text = if (romanizeCyrillicByLine) entry.text else lyrics
-                            var value: String? = ""
+                        val text = if (romanizeCyrillicByLine) entry.text else lyrics
+                        var value: String? = ""
 
-                            when {
-                                "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> {
-                                    value =
-                                        romanizeJapanese(entry.text)
-                                }
-
-                                "Korean" in enabledLanguages && isKorean(text) -> {
-                                    value = romanizeKorean(entry.text)
-                                }
-
-                                "Chinese" in enabledLanguages && isChinese(text) -> {
-                                    value = romanizeChinese(entry.text)
-                                }
-
-                                "Hindi" in enabledLanguages && isHindi(text) -> {
-                                    value = romanizeHindi(entry.text)
-                                }
-
-                                "Ukrainian" in enabledLanguages && isUkrainian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Russian" in enabledLanguages && isRussian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Serbian" in enabledLanguages && isSerbian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Bulgarian" in enabledLanguages && isBulgarian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Belarusian" in enabledLanguages && isBelarusian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
-
-                                "Macedonian" in enabledLanguages && isMacedonian(text) -> {
-                                    value = romanizeCyrillic(entry.text)
-                                }
+                        when {
+                            "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> {
+                                value = romanizeJapanese(entry.text)
                             }
 
-                            newEntry.romanizedTextFlow.value = value
+                            "Korean" in enabledLanguages && isKorean(text) -> {
+                                value = romanizeKorean(entry.text)
+                            }
+
+                            "Chinese" in enabledLanguages && isChinese(text) -> {
+                                value = romanizeChinese(entry.text)
+                            }
+
+                            "Hindi" in enabledLanguages && isHindi(text) -> {
+                                value = romanizeHindi(entry.text)
+                            }
+
+                            "Ukrainian" in enabledLanguages && isUkrainian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Russian" in enabledLanguages && isRussian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Serbian" in enabledLanguages && isSerbian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Bulgarian" in enabledLanguages && isBulgarian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Belarusian" in enabledLanguages && isBelarusian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
+
+                            "Macedonian" in enabledLanguages && isMacedonian(text) -> {
+                                value = romanizeCyrillic(entry.text)
+                            }
                         }
 
+                        newEntry.romanizedTextFlow.value = value
                         newEntry
                     }.let {
                         listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
@@ -394,31 +400,39 @@ fun Lyrics(
                 lyrics.lines().mapIndexed { index, line ->
                     val newEntry = LyricsEntry(index * 100L, line)
 
-                    scope.launch {
-                        val text = if (romanizeCyrillicByLine) line else lyrics
-                        var value: String? = ""
+                    val text = if (romanizeCyrillicByLine) line else lyrics
+                    var value: String? = ""
 
-                        when {
-                            "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> value = romanizeJapanese(line)
-                            "Korean" in enabledLanguages && isKorean(text) -> value = romanizeKorean(line)
-                            "Chinese" in enabledLanguages && isChinese(text) -> value = romanizeChinese(line)
-                            "Hindi" in enabledLanguages && isHindi(text) -> value = romanizeHindi(line)
-                            "Ukrainian" in enabledLanguages && isUkrainian(text) -> value = romanizeCyrillic(line)
-                            "Russian" in enabledLanguages && isRussian(text) -> value = romanizeCyrillic(line)
-                            "Serbian" in enabledLanguages && isSerbian(text) -> value = romanizeCyrillic(line)
-                            "Bulgarian" in enabledLanguages && isBulgarian(text) -> value = romanizeCyrillic(line)
-                            "Belarusian" in enabledLanguages && isBelarusian(text) -> value = romanizeCyrillic(line)
-                            "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> value = romanizeCyrillic(line)
-                            "Macedonian" in enabledLanguages && isMacedonian(text) -> value = romanizeCyrillic(line)
-                        }
+                    when {
+                        "Japanese" in enabledLanguages && isJapanese(text) && !isChinese(text) -> value =
+                            romanizeJapanese(line)
 
-                        newEntry.romanizedTextFlow.value = value
+                        "Korean" in enabledLanguages && isKorean(text) -> value = romanizeKorean(line)
+                        "Chinese" in enabledLanguages && isChinese(text) -> value = romanizeChinese(line)
+                        "Hindi" in enabledLanguages && isHindi(text) -> value = romanizeHindi(line)
+                        "Ukrainian" in enabledLanguages && isUkrainian(text) -> value =
+                            romanizeCyrillic(line)
+
+                        "Russian" in enabledLanguages && isRussian(text) -> value = romanizeCyrillic(line)
+                        "Serbian" in enabledLanguages && isSerbian(text) -> value = romanizeCyrillic(line)
+                        "Bulgarian" in enabledLanguages && isBulgarian(text) -> value =
+                            romanizeCyrillic(line)
+
+                        "Belarusian" in enabledLanguages && isBelarusian(text) -> value =
+                            romanizeCyrillic(line)
+
+                        "Kyrgyz" in enabledLanguages && isKyrgyz(text) -> value = romanizeCyrillic(line)
+                        "Macedonian" in enabledLanguages && isMacedonian(text) -> value =
+                            romanizeCyrillic(line)
                     }
 
+                    newEntry.romanizedTextFlow.value = value
                     newEntry
                 }
             }
         }
+        lines = processedLines
+    }
 
     val isSynced =
         remember(lyrics) {
@@ -1058,9 +1072,9 @@ fun Lyrics(
                                         val pairedAgent = if (item.isBackground && pairedMainLineIndex != -1) lines[pairedMainLineIndex].agent else null
                                         
                                         val agentAlignment = when {
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1" -> Alignment.Start
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v2" -> Alignment.End
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> Alignment.CenterHorizontally
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1" -> Alignment.Start
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v2" -> Alignment.End
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> Alignment.CenterHorizontally
                                             else -> when (lyricsTextPosition) {
                                                 LyricsPosition.LEFT -> Alignment.Start
                                                 LyricsPosition.CENTER -> Alignment.CenterHorizontally
@@ -1068,9 +1082,9 @@ fun Lyrics(
                                             }
                                         }
                                         val agentTextAlign = when {
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1" -> TextAlign.Left
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v2" -> TextAlign.Right
-                                            (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> TextAlign.Center
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1" -> TextAlign.Left
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v2" -> TextAlign.Right
+                                            respectAgentPositioning && (if (item.isBackground) pairedAgent else item.agent) == "v1000" -> TextAlign.Center
                                             else -> when (lyricsTextPosition) {
                                                 LyricsPosition.LEFT -> TextAlign.Left
                                                 LyricsPosition.CENTER -> TextAlign.Center
@@ -1078,10 +1092,16 @@ fun Lyrics(
                                             }
                                         }
 
-                                        Box(modifier = itemModifier, contentAlignment = when (lyricsTextPosition) {
-                                            LyricsPosition.LEFT -> Alignment.CenterStart
-                                            LyricsPosition.RIGHT -> Alignment.CenterEnd
-                                            else -> Alignment.Center
+                                        Box(modifier = itemModifier, contentAlignment = when {
+                                            respectAgentPositioning && item.agent == "v1" -> Alignment.CenterStart
+                                            respectAgentPositioning && item.agent == "v2" -> Alignment.CenterEnd
+                                            item.isBackground -> Alignment.Center
+                                            respectAgentPositioning && item.agent == "v1000" -> Alignment.Center
+                                            else -> when (lyricsTextPosition) {
+                                                LyricsPosition.LEFT -> Alignment.CenterStart
+                                                LyricsPosition.RIGHT -> Alignment.CenterEnd
+                                                else -> Alignment.Center
+                                            }
                                         }) {
                                             @Composable
                                             fun LyricContent() {
@@ -1111,11 +1131,11 @@ fun Lyrics(
                                                     val subText = if (item.isBackground) subTextRaw?.removePrefix("(")?.removeSuffix(")") else subTextRaw
 
                                                     val lyricStyle = TextStyle(
-                                                        fontSize = if (item.isBackground) 22.sp else 32.sp,
-                                                        fontWeight = FontWeight.Normal,
+                                                        fontSize = if (item.isBackground) (lyricsTextSize * 0.7f).sp else lyricsTextSize.sp,
+                                                        fontWeight = FontWeight.Bold,
                                                         fontStyle = if (item.isBackground) FontStyle.Italic else FontStyle.Normal,
-                                                        lineHeight = if (item.isBackground) 26.4.sp else 38.4.sp,
-                                                        letterSpacing = 0.sp,
+                                                        lineHeight = if (item.isBackground) (lyricsTextSize * 0.7f * lyricsLineSpacing).sp else (lyricsTextSize * lyricsLineSpacing).sp,
+                                                        letterSpacing = (-0.5).sp,
                                                         textAlign = alignment,
                                                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                                                         lineHeightStyle = LineHeightStyle(
@@ -1124,8 +1144,8 @@ fun Lyrics(
                                                         )
                                                     )
 
+                                                    val textMeasurer = rememberTextMeasurer()
                                                     if (item.words?.isNotEmpty() == true && (isActiveLine || abs(index - currentLineIndex) <= 3) && mainText != null) {
-                                                        val textMeasurer = rememberTextMeasurer()
                                                         
                                                         // Smoothed player position interpolation to eliminate ExoPlayer jitter
                                                         val lyricsOffset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
@@ -1215,16 +1235,16 @@ fun Lyrics(
 
                                                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                                             val maxWidthPx = constraints.maxWidth
-                                                            val layoutResult = remember(mainText, lyricStyle, maxWidthPx) {
+                                                            val layoutResult = remember(mainText, maxWidthPx) {
                                                                 textMeasurer.measure(
                                                                     text = mainText,
                                                                     style = lyricStyle,
-                                                                    constraints = Constraints(maxWidth = maxWidthPx),
+                                                                    constraints = Constraints(minWidth = maxWidthPx, maxWidth = maxWidthPx),
                                                                     softWrap = true
                                                                 )
                                                             }
                                                             
-                                                            val letterLayouts = remember(mainText, lyricStyle) {
+                                                            val letterLayouts = remember(mainText) {
                                                                 mainText.map { textMeasurer.measure(it.toString(), lyricStyle) }
                                                             }
                                                             
@@ -1307,7 +1327,7 @@ fun Lyrics(
                                                                                 ((wProg - cInW / wLen) * wLen).coerceIn(0.0, 1.0).toFloat()
                                                                             } else 0f
 
-                                                                            if (shouldGlow && wordItem != null) {
+                                                                            if (shouldGlow) {
                                                                                 val sMs = wordItem.startTime * 1000
                                                                                 val eMs = wordItem.endTime * 1000
                                                                                 val dur = eMs - sMs
@@ -1331,7 +1351,7 @@ fun Lyrics(
                                                                                     val baseGlowRadius = 20.dp.toPx() * impactFactor
                                                                                     
                                                                                     drawIntoCanvas { canvas ->
-                                                                                        val paint = Paint().asFrameworkPaint()
+                                                                                        val paint = android.graphics.Paint()
                                                                                         paint.maskFilter = BlurMaskFilter(baseGlowRadius, BlurMaskFilter.Blur.NORMAL)
                                                                                         paint.color = expressiveAccent.copy(alpha = glowAlpha).toArgb()
                                                                                         paint.textSize = lyricStyle.fontSize.toPx()
@@ -1379,17 +1399,29 @@ fun Lyrics(
                                                         }
                                                     } else {
                                                         val lyricStyleSingle = TextStyle(
+
                                                             fontSize = if (item.isBackground) (lyricsTextSize * 0.7f).sp else lyricsTextSize.sp,
+
                                                             fontWeight = FontWeight.Bold,
+
                                                             fontStyle = if (item.isBackground) FontStyle.Italic else FontStyle.Normal,
-                                                            lineHeight = (lyricsTextSize * lyricsLineSpacing).sp,
-                                                            letterSpacing = 0.sp,
+
+                                                            lineHeight = if (item.isBackground) (lyricsTextSize * 0.7f * lyricsLineSpacing).sp else (lyricsTextSize * lyricsLineSpacing).sp,
+
+                                                            letterSpacing = (-0.5).sp,
+
                                                             textAlign = alignment,
+
                                                             platformStyle = PlatformTextStyle(includeFontPadding = false),
+
                                                             lineHeightStyle = LineHeightStyle(
+
                                                                 alignment = LineHeightStyle.Alignment.Center,
+
                                                                 trim = LineHeightStyle.Trim.None
+
                                                             )
+
                                                         )
                                                         Text(mainText ?: "", style = lyricStyleSingle.copy(color = if (isActiveLine) expressiveAccent else lineColor),
                                                             modifier = Modifier.fillMaxWidth().graphicsLayer(transformOrigin = when (alignment) {

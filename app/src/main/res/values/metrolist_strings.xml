@@ -268,8 +268,10 @@
     <string name="sleep_timer_saturday">Saturday</string>
     <string name="sleep_timer_sunday">Sunday</string>
     <string name="sleep_timer_stop_after_current_song_title">Stop at end of current song</string>
+    <string name="sleep_timer_stop_after_current_song">Stop at end of current song</string>
     <string name="sleep_timer_stop_after_current_song_description">Stops the sleep timer at the end of the current playing song</string>
     <string name="sleep_timer_fade_out_title">Fade out</string>
+    <string name="sleep_timer_fade_out">Fade out</string>
     <string name="sleep_timer_fade_out_description">Fades out the volume in the final minute</string>
 
     <!-- Alarm -->
@@ -324,6 +326,8 @@
     <string name="lyrics_romanization_cyrillic">Cyrillic</string>
     <string name="lyrics_romanize_title">Romanization</string>
     <string name="lyrics_romanization">Lyrics romanization</string>
+    <string name="respect_agent_positioning">Respect agent positioning</string>
+    <string name="respect_agent_positioning_desc">Use agent-defined alignment (left/right) for lyrics if available</string>
     <string name="lyrics_romanize_japanese">Romanize Japanese lyrics</string>
     <string name="lyrics_romanize_korean">Romanize Korean lyrics</string>
     <string name="lyrics_romanize_chinese">Romanize Chinese lyrics</string>
