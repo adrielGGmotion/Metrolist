@@ -686,7 +686,7 @@ fun Lyrics(
         scrollTargetIndex = targetIndex
     }
 
-    LaunchedEffect(scrollTargetIndex) {
+    LaunchedEffect(scrollTargetIndex, isAutoScrollEnabled) {
         if (scrollTargetIndex != -1 && isAutoScrollEnabled) {
             deferredCurrentLineIndex = scrollTargetIndex
         }
@@ -695,12 +695,108 @@ fun Lyrics(
     var userManualOffset by remember { mutableFloatStateOf(0f) }
     var flingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
+    val velocityTracker = remember { VelocityTracker() }
+    val decayAnimSpec = remember { exponentialDecay<Float>(frictionMultiplier = 1.8f) }
+    val itemHeights = remember { mutableStateMapOf<Int, Int>() }
+    var isInitialLayout by remember { mutableStateOf(true) }
+
+    val displayedCurrentLineIndex = deferredCurrentLineIndex
+    val activeListIndex = remember(displayedCurrentLineIndex, mergedLyricsList) {
+        mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == displayedCurrentLineIndex }.coerceAtLeast(0)
+    }
+
     BoxWithConstraints(
         contentAlignment = Alignment.TopCenter,
         modifier = modifier
             .fillMaxSize()
             .padding(bottom = 12.dp)
     ) {
+        val maxHeightPx = with(density) { maxHeight.toPx() }
+        val anchorY = maxHeightPx * 0.35f
+        val lineHeightPx = with(density) { 68.dp.toPx() }
+
+        val positions = remember(itemHeights.toMap(), activeListIndex) {
+            val map = mutableMapOf<Int, Float>()
+            if (activeListIndex == -1) return@remember map
+            
+            val itemGapPx = with(density) { 16.dp.toPx() }
+            map[activeListIndex] = 0f
+            
+            // Items above
+            var currentY = 0f
+            for (i in activeListIndex - 1 downTo 0) {
+                val height = itemHeights[i]?.toFloat() ?: with(density) { 68.dp.toPx() }
+                currentY -= (height + itemGapPx)
+                map[i] = currentY
+            }
+            
+            // Items below
+            currentY = 0f
+            for (i in activeListIndex until mergedLyricsList.size - 1) {
+                val height = itemHeights[i]?.toFloat() ?: with(density) { 68.dp.toPx() }
+                currentY += (height + itemGapPx)
+                map[i + 1] = currentY
+            }
+            map
+        }
+
+        val minOffset = remember(positions, itemHeights.toMap(), maxHeightPx, anchorY) {
+            val lastIdx = mergedLyricsList.size - 1
+            if (lastIdx < 0) return@remember -maxHeightPx
+            val lastPos = positions[lastIdx] ?: ((lastIdx - activeListIndex) * lineHeightPx)
+            val lastHeight = itemHeights[lastIdx]?.toFloat() ?: lineHeightPx
+            val paddingTop = with(density) { 100.dp.toPx() }
+            (paddingTop - anchorY - lastPos - lastHeight)
+        }
+
+        val maxOffset = remember(positions, itemHeights.toMap(), maxHeightPx, anchorY) {
+            val firstPos = positions[0] ?: ((0 - activeListIndex) * lineHeightPx)
+            val paddingBottom = with(density) { 150.dp.toPx() }
+            (maxHeightPx - paddingBottom - anchorY - firstPos)
+        }
+
+        val safeMinOffset = minOf(minOffset, maxOffset - maxHeightPx)
+        val safeMaxOffset = maxOf(maxOffset, 0f)
+
+        LaunchedEffect(isAutoScrollEnabled) {
+            if (isAutoScrollEnabled) {
+                val start = userManualOffset
+                val dist = kotlin.math.abs(start)
+                if (dist < 1f) { userManualOffset = 0f; return@LaunchedEffect }
+                
+                isInitialLayout = true
+                withFrameMillis { }
+                
+                val duration = (dist / 4f).toInt().coerceIn(200, 600)
+                var lastValue = start
+                val anim = Animatable(start)
+                anim.animateTo(0f, tween(duration, easing = FastOutSlowInEasing)) {
+                    val delta = value - lastValue
+                    userManualOffset += delta
+                    lastValue = value
+                }
+                isInitialLayout = false
+            }
+        }
+
+        LaunchedEffect(showLyrics) {
+            if (showLyrics) {
+                isInitialLayout = true
+                snapshotFlow { itemHeights.size }
+                    .first { it >= minOf(mergedLyricsList.size, 5) }
+                isInitialLayout = false
+            }
+        }
+
+        var lastPositions by remember { mutableStateOf<Map<Int, Float>>(emptyMap()) }
+        LaunchedEffect(activeListIndex) {
+            if ((!isAutoScrollEnabled || isInitialLayout) && lastPositions.isNotEmpty()) {
+                val shift = lastPositions[activeListIndex] ?: 0f
+                userManualOffset += shift
+            }
+            lastPositions = positions
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -808,102 +904,6 @@ fun Lyrics(
                 )
             }
         } else if (isSynced) {
-            val displayedCurrentLineIndex = deferredCurrentLineIndex
-
-            val velocityTracker = remember { VelocityTracker() }
-            val decayAnimSpec = remember { exponentialDecay<Float>(frictionMultiplier = 1.8f) }
-            val itemHeights = remember { mutableStateMapOf<Int, Int>() }
-            var isInitialLayout by remember { mutableStateOf(true) }
-
-            LaunchedEffect(isAutoScrollEnabled) {
-                if (isAutoScrollEnabled) {
-                    val start = userManualOffset
-                    val dist = kotlin.math.abs(start)
-                    if (dist < 1f) { userManualOffset = 0f; return@LaunchedEffect }
-                    isInitialLayout = true
-                    val duration = (dist / 4f).toInt().coerceIn(200, 600)
-                    val anim = Animatable(start)
-                    anim.animateTo(0f, tween(duration, easing = FastOutSlowInEasing)) {
-                        userManualOffset = value
-                    }
-                    isInitialLayout = false
-                }
-            }
-
-            LaunchedEffect(showLyrics) {
-                if (showLyrics) {
-                    isInitialLayout = true
-                    snapshotFlow { itemHeights.size }
-                        .first { it >= minOf(mergedLyricsList.size, 5) }
-                    isInitialLayout = false
-                }
-            }
-            
-            val activeListIndex = remember(displayedCurrentLineIndex, mergedLyricsList) {
-                mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == displayedCurrentLineIndex }.coerceAtLeast(0)
-            }
-            
-            val positions = remember(itemHeights.toMap(), activeListIndex) {
-                val map = mutableMapOf<Int, Float>()
-                if (activeListIndex == -1) return@remember map
-                
-                val itemGapPx = with(density) { 16.dp.toPx() }
-                map[activeListIndex] = 0f
-                
-                // Items above
-                var currentY = 0f
-                for (i in activeListIndex - 1 downTo 0) {
-                    val height = itemHeights[i]?.toFloat() ?: with(density) { 68.dp.toPx() }
-                    currentY -= (height + itemGapPx)
-                    map[i] = currentY
-                }
-                
-                // Items below
-                currentY = 0f
-                for (i in activeListIndex until mergedLyricsList.size - 1) {
-                    val height = itemHeights[i]?.toFloat() ?: with(density) { 68.dp.toPx() }
-                    currentY += (height + itemGapPx)
-                    map[i + 1] = currentY
-                }
-                map
-            }
-
-            val maxHeightPx = with(density) { maxHeight.toPx() }
-            val anchorY = maxHeightPx * 0.35f
-            val lineHeightPx = with(density) { 68.dp.toPx() }
-
-            val minOffset = remember(positions, itemHeights.toMap(), maxHeightPx, anchorY) {
-                val lastIdx = mergedLyricsList.size - 1
-                if (lastIdx < 0) return@remember -maxHeightPx
-                val lastPos = positions[lastIdx] ?: ((lastIdx - activeListIndex) * lineHeightPx)
-                val lastHeight = itemHeights[lastIdx]?.toFloat() ?: lineHeightPx
-                // anchorY + lastPos + userManualOffset >= padding_top
-                // userManualOffset >= padding_top - anchorY - lastPos - lastHeight
-                val paddingTop = with(density) { 100.dp.toPx() }
-                (paddingTop - anchorY - lastPos - lastHeight)
-            }
-
-            val maxOffset = remember(positions, itemHeights.toMap(), maxHeightPx, anchorY) {
-                val firstPos = positions[0] ?: ((0 - activeListIndex) * lineHeightPx)
-                // anchorY + firstPos + userManualOffset <= maxHeight - padding_bottom
-                // userManualOffset <= maxHeight - padding_bottom - anchorY - firstPos
-                val paddingBottom = with(density) { 150.dp.toPx() }
-                (maxHeightPx - paddingBottom - anchorY - firstPos)
-            }
-
-            // Safety clamp: ensure scroll bounds are never inverted or collapsed
-            val safeMinOffset = minOf(minOffset, maxOffset - maxHeightPx)
-            val safeMaxOffset = maxOf(maxOffset, 0f)
-
-            var lastPositions by remember { mutableStateOf<Map<Int, Float>>(emptyMap()) }
-            LaunchedEffect(activeListIndex) {
-                if (!isAutoScrollEnabled && lastPositions.isNotEmpty()) {
-                    val shift = lastPositions[activeListIndex] ?: 0f
-                    userManualOffset += shift
-                }
-                lastPositions = positions
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1510,7 +1510,19 @@ fun Lyrics(
 
         Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)) {
             AnimatedVisibility(visible = !isAutoScrollEnabled && isSynced && !isSelectionModeActive, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
-                FilledTonalButton(onClick = { flingJob?.cancel(); flingJob = null; isAutoScrollEnabled = true }) {
+                FilledTonalButton(onClick = {
+                    flingJob?.cancel()
+                    flingJob = null
+                    if (scrollTargetIndex != -1) {
+                        val newActiveListIndex = mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == scrollTargetIndex }.coerceAtLeast(0)
+                        val itemGapPx = with(density) { 16.dp.toPx() }
+                        val lineHeightPx = with(density) { 68.dp.toPx() }
+                        val shift = positions[newActiveListIndex] ?: ((newActiveListIndex - activeListIndex) * (lineHeightPx + itemGapPx))
+                        userManualOffset += shift
+                        deferredCurrentLineIndex = scrollTargetIndex
+                    }
+                    isAutoScrollEnabled = true
+                }) {
                     Icon(painterResource(R.drawable.sync), stringResource(R.string.auto_scroll), Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.auto_scroll))
                 }
