@@ -18,7 +18,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
@@ -34,7 +33,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -70,9 +68,7 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -237,66 +233,11 @@ import kotlin.time.Duration.Companion.seconds
 
 private sealed class LyricsListItem {
     data class Line(val index: Int, val entry: com.metrolist.music.lyrics.LyricsEntry) : LyricsListItem()
-    data class Indicator(val afterLineIndex: Int, val gapMs: Long, val gapStartMs: Long, val gapEndMs: Long, val nextAgent: String?) : LyricsListItem()
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun IntervalIndicator(
-    gapStartMs: Long,
-    gapEndMs: Long,
-    currentPositionMs: Long,
-    visible: Boolean,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    val alpha = remember { Animatable(0f) }
-    val rowHeightPx = remember { Animatable(0f) }
-
-    LaunchedEffect(visible) {
-        if (visible) {
-            rowHeightPx.animateTo(1f, tween(200))
-            alpha.animateTo(1f, tween(200))
-        } else {
-            alpha.animateTo(0f, tween(200))
-            rowHeightPx.animateTo(0f, tween(200))
-        }
-    }
-
-    val density = LocalDensity.current
-    val targetHeightDp = with(density) { (rowHeightPx.value * 72).dp }
-
-    val progress = if (gapEndMs > gapStartMs) {
-        ((currentPositionMs - gapStartMs).toFloat() / (gapEndMs - gapStartMs).toFloat()).coerceIn(0f, 1f)
-    } else 0f
-
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 100, easing = LinearEasing),
-        label = "intervalProgress"
-    )
-
-    Box(
-        modifier = modifier
-            .height(targetHeightDp)
-            .padding(top = if (rowHeightPx.value > 0f) 16.dp else 0.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        androidx.compose.material3.CircularWavyProgressIndicator(
-            progress = { animatedProgress },
-            modifier = Modifier
-                .size(36.dp)
-                .alpha(alpha.value),
-            color = color,
-            trackColor = color.copy(alpha = 0.2f),
-        )
-    }
 }
 
 @OptIn(
     ExperimentalFoundationApi::class,
-    ExperimentalMaterial3Api::class,
-    ExperimentalMaterial3ExpressiveApi::class
+    ExperimentalMaterial3Api::class
 )
 @SuppressLint("UnusedBoxWithConstraintsScope", "StringFormatInvalid")
 @Composable
@@ -485,22 +426,7 @@ fun Lyrics(
         }
 
     val mergedLyricsList: List<LyricsListItem> = remember(lines) {
-        val result = mutableListOf<LyricsListItem>()
-        if (lines.isEmpty()) return@remember result
-        lines.forEachIndexed { i, entry ->
-            result.add(LyricsListItem.Line(i, entry))
-            if (i < lines.size - 1) {
-                val hasWordTimings = !entry.words.isNullOrEmpty()
-                if (!hasWordTimings) return@forEachIndexed
-                val currentEnd = (entry.words.last().endTime * 1000).toLong()
-                val nextStart = lines[i + 1].time
-                val gap = nextStart - currentEnd
-                if (gap > 4000L) {
-                    result.add(LyricsListItem.Indicator(i, gap, currentEnd, nextStart, lines[i + 1].agent))
-                }
-            }
-        }
-        result
+        lines.mapIndexed { i, entry -> LyricsListItem.Line(i, entry) }
     }
 
     
@@ -1080,30 +1006,6 @@ fun Lyrics(
                         ) {
                              Box(modifier = Modifier.onSizeChanged { itemHeights[listIndex] = it.height }) {
                                 when (listItem) {
-                                    is LyricsListItem.Indicator -> {
-                                        val effectiveEndMs = listItem.gapEndMs - 650L
-                                        val visible = currentPositionState > 0L &&
-                                            currentPositionState >= listItem.gapStartMs &&
-                                            currentPositionState <= effectiveEndMs
-                                        IntervalIndicator(
-                                            gapStartMs = listItem.gapStartMs,
-                                            gapEndMs = effectiveEndMs,
-                                            currentPositionMs = currentPositionState,
-                                            visible = visible,
-                                            color = expressiveAccent,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = when (lyricsTextPosition) {
-                                                    LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
-                                                    else -> 24.dp
-                                                })
-                                                .wrapContentWidth(when (lyricsTextPosition) {
-                                                    LyricsPosition.LEFT -> Alignment.Start
-                                                    LyricsPosition.RIGHT -> Alignment.End
-                                                    else -> Alignment.CenterHorizontally
-                                                })
-                                        )
-                                    }
                                     is LyricsListItem.Line -> {
                                         val index = listItem.index
                                         val item = listItem.entry
@@ -1184,26 +1086,6 @@ fun Lyrics(
                                             @Composable
                                             fun LyricContent() {
                                                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = agentAlignment) {
-                                                    if (index == 0) {
-                                                        val firstRealLine = lines.getOrNull(1)
-                                                        val prefirstGap = firstRealLine?.time ?: 0L
-                                                        if (prefirstGap > 4000L) {
-                                                            val effectiveEndMs = prefirstGap - 650L
-                                                            val visible = currentPositionState > 0L && currentPositionState <= effectiveEndMs
-                                                            IntervalIndicator(
-                                                                gapStartMs = 0L, gapEndMs = effectiveEndMs, currentPositionMs = currentPositionState,
-                                                                visible = visible, color = expressiveAccent,
-                                                                modifier = Modifier.fillMaxWidth().padding(horizontal = when (lyricsTextPosition) {
-                                                                    LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
-                                                                    else -> 24.dp
-                                                                }).wrapContentWidth(when (lyricsTextPosition) {
-                                                                    LyricsPosition.LEFT -> Alignment.Start
-                                                                    LyricsPosition.RIGHT -> Alignment.End
-                                                                    else -> Alignment.CenterHorizontally
-                                                                })
-                                                            )
-                                                        }
-                                                    }
                                                     val isActiveLine = isActiveByIndex
                                                     val inactiveAlpha = if (item.isBackground) 0.08f else 0.2f
                                                     val activeAlpha = 1f
@@ -1573,23 +1455,22 @@ fun Lyrics(
                         LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp
                     }, vertical = 4.dp)) { TextPlaceholder() } } } }
                 } else {
-                    itemsIndexed(mergedLyricsList, key = { _, item -> when (item) { is LyricsListItem.Line -> "line_${item.index}"; is LyricsListItem.Indicator -> "indicator_${item.afterLineIndex}" } }) { listIndex, item ->
-                        if (item is LyricsListItem.Line) {
-                            val isSel = selectedIndices.contains(item.index)
-                            Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).combinedClickable(
-                                onClick = { if (isSelectionModeActive) { if (isSel) { selectedIndices.remove(item.index); if (selectedIndices.isEmpty()) isSelectionModeActive = false } else { if (selectedIndices.size < maxSelectionLimit) selectedIndices.add(item.index) else showMaxSelectionToast = true } } },
-                                onLongClick = { if (!isSelectionModeActive) { isSelectionModeActive = true; selectedIndices.add(item.index) } }
-                            ).background(if (isSel && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent).padding(
-                                start = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
-                                end = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
-                                top = if (item.entry.isBackground) 2.dp else 12.dp,
-                                bottom = if (item.entry.isBackground) 2.dp else if (mergedLyricsList.getOrNull(listIndex + 1)?.let { it is LyricsListItem.Line && it.entry.isBackground } == true) 4.dp else 12.dp
-                            ), contentAlignment = when (lyricsTextPosition) {
-                                LyricsPosition.LEFT -> Alignment.CenterStart; LyricsPosition.RIGHT -> Alignment.CenterEnd; else -> Alignment.Center
-                            }) { Text(item.entry.text, fontSize = 24.sp, fontWeight = FontWeight.Normal, color = expressiveAccent, textAlign = when (lyricsTextPosition) {
-                                LyricsPosition.LEFT -> TextAlign.Left; LyricsPosition.CENTER -> TextAlign.Center; else -> TextAlign.Right
-                            }) }
-                        }
+                    itemsIndexed(mergedLyricsList, key = { _, item -> (item as LyricsListItem.Line).index }) { listIndex, item ->
+                        val lineItem = item as LyricsListItem.Line
+                        val isSel = selectedIndices.contains(lineItem.index)
+                        Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).combinedClickable(
+                            onClick = { if (isSelectionModeActive) { if (isSel) { selectedIndices.remove(lineItem.index); if (selectedIndices.isEmpty()) isSelectionModeActive = false } else { if (selectedIndices.size < maxSelectionLimit) selectedIndices.add(lineItem.index) else showMaxSelectionToast = true } } },
+                            onLongClick = { if (!isSelectionModeActive) { isSelectionModeActive = true; selectedIndices.add(lineItem.index) } }
+                        ).background(if (isSel && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent).padding(
+                            start = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
+                            end = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
+                            top = if (lineItem.entry.isBackground) 2.dp else 12.dp,
+                            bottom = if (lineItem.entry.isBackground) 2.dp else if (mergedLyricsList.getOrNull(listIndex + 1)?.let { it is LyricsListItem.Line && it.entry.isBackground } == true) 4.dp else 12.dp
+                        ), contentAlignment = when (lyricsTextPosition) {
+                            LyricsPosition.LEFT -> Alignment.CenterStart; LyricsPosition.RIGHT -> Alignment.CenterEnd; else -> Alignment.Center
+                        }) { Text(lineItem.entry.text, fontSize = 24.sp, fontWeight = FontWeight.Normal, color = expressiveAccent, textAlign = when (lyricsTextPosition) {
+                            LyricsPosition.LEFT -> TextAlign.Left; LyricsPosition.CENTER -> TextAlign.Center; else -> TextAlign.Right
+                        }) }
                     }
                 }
             }
