@@ -51,5 +51,6 @@ data class LyricsResponse(
     val content: List<LyricsContent> = emptyList(),
     val elrc: String? = null,
     val elrcMultiPerson: String? = null,
-    val ttmlContent: String? = null
+    val ttmlContent: String? = null,
+    val plain: String? = null
 )

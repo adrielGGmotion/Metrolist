@@ -169,4 +169,50 @@ class TTMLParserTest {
         assertTrue("Timestamp should include offset: [00:11.50] was expected in $lrc", lrc.contains("[00:11.50]"))
         assertTrue("Word data should include offset: 11.5:12.5 was expected", lrc.contains("Hello:11.5:12.5"))
     }
+
+    @Test
+    fun testTranslationAndRomanSpansAreSkipped() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+              <body>
+                <div>
+                  <p begin="00:01.000">
+                    <span begin="00:01.000" end="00:02.000">Main lyric</span>
+                    <span ttm:role="x-roman">Romanization</span>
+                    <span ttm:role="x-translation">Translation</span>
+                  </p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val parsedLines = TTMLParser.parseTTML(ttml)
+        assertEquals(1, parsedLines.size)
+        assertEquals("Main lyric", parsedLines[0].text)
+    }
+
+    @Test
+    fun testSplitSyllableSpansAreMerged() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml">
+              <body>
+                <div>
+                  <p begin="00:01.000">
+                    <span begin="00:01.000" end="00:01.500">hel</span><span begin="00:01.500" end="00:02.000">lo</span>
+                  </p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val parsedLines = TTMLParser.parseTTML(ttml)
+        assertEquals(1, parsedLines.size)
+        val line = parsedLines[0]
+        assertEquals("hello", line.text)
+        assertEquals(1, line.words.size)
+        val word = line.words[0]
+        assertEquals("hello", word.text)
+        assertEquals(1.0, word.startTime, 0.001)
+        assertEquals(2.0, word.endTime, 0.001)
+    }
 }

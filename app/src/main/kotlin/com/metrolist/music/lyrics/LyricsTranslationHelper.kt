@@ -134,7 +134,10 @@ object LyricsTranslationHelper {
         if (lyricsEntity == null || lyricsEntity.translatedLyrics.isNullOrBlank()) return
         
         // Only load if language and mode match
-        if (lyricsEntity.translationLanguage != targetLanguage || lyricsEntity.translationMode != mode) return
+        if (lyricsEntity.translationLanguage != targetLanguage || lyricsEntity.translationMode != mode) {
+            lyrics.forEach { it.translatedTextFlow.value = null }
+            return
+        }
         
         val translatedLines = lyricsEntity.translatedLyrics.split("\n")
         val nonEmptyEntries = lyrics.filter { it.text.isNotBlank() }
@@ -391,7 +394,7 @@ object LyricsTranslationHelper {
                                             _translationSaved.tryEmit(Unit)
                                         }
                                     } catch (e: Exception) {
-                                        timber.log.Timber.e(e, "Failed to save translated lyrics to database")
+                                        Timber.e(e, "Failed to save translated lyrics to database")
                                     }
                                 }
                             }
@@ -419,9 +422,6 @@ object LyricsTranslationHelper {
                                     }
                                     _hasActiveTranslations.value = true
                                     _status.value = TranslationStatus.Success
-                                }
-                                else -> {
-                                    _status.value = TranslationStatus.Error(context.getString(com.metrolist.music.R.string.ai_error_unexpected))
                                 }
                             }
 

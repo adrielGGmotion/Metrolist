@@ -162,16 +162,6 @@ object TTMLParser {
                     }
                 }
                 
-                // If spans were all background but no regular spans, and not already marked, check if we should treat whole p as background
-                if (spanInfos.isEmpty() && backgroundLines.isNotEmpty() && getDirectTextContent(pElement).isBlank()) {
-                    // This case is handled by backgroundLines.addAll(lines) below if we want them as separate lines,
-                    // but for top-level bg we might want to just let it be.
-                }
-
-                // If no regular spans but we have background spans, and they are the only content,
-                // we might want to promote them if they are simple.
-                // But generally paxsenix uses p [agent=v1000] which we already handle in toLRC.
-                
                 // Merge consecutive spans without whitespace between them into single words
                 val words = mergeSpansIntoWords(spanInfos)
                 val lineText = buildString {
