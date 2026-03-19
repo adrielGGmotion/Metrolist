@@ -997,8 +997,8 @@ fun Lyrics(
                             (nextTarget ?: Float.POSITIVE_INFINITY) - (itemHeights[listIndex]?.toFloat() ?: with(density) { 68.dp.toPx() }) - itemGapPx
                         )
 
-                        LaunchedEffect(isAutoScrollEnabled, clampedTarget) {
-                            if (isAutoScrollEnabled) frozenOffset.floatValue = clampedTarget
+                        LaunchedEffect(isAutoScrollEnabled, clampedTarget, isInitialLayout) {
+                            if (isAutoScrollEnabled || isInitialLayout) frozenOffset.floatValue = clampedTarget
                         }
                         val resolvedTarget = if (isAutoScrollEnabled) clampedTarget else frozenOffset.floatValue
                         val animatedOffset by animateFloatAsState(
