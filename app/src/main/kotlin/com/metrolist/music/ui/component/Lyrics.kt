@@ -926,6 +926,38 @@ fun Lyrics(
                 map
             }
 
+            val maxHeightPx = with(density) { maxHeight.toPx() }
+            val anchorY = maxHeightPx * 0.35f
+            val lineHeightPx = with(density) { 68.dp.toPx() }
+
+            val minOffset = remember(positions, itemHeights.toMap(), maxHeightPx, anchorY) {
+                val lastIdx = mergedLyricsList.size - 1
+                if (lastIdx < 0) return@remember -maxHeightPx
+                val lastPos = positions[lastIdx] ?: ((lastIdx - activeListIndex) * lineHeightPx)
+                val lastHeight = itemHeights[lastIdx]?.toFloat() ?: lineHeightPx
+                // anchorY + lastPos + userManualOffset >= padding_top
+                // userManualOffset >= padding_top - anchorY - lastPos - lastHeight
+                val paddingTop = with(density) { 100.dp.toPx() }
+                (paddingTop - anchorY - lastPos - lastHeight)
+            }
+
+            val maxOffset = remember(positions, itemHeights.toMap(), maxHeightPx, anchorY) {
+                val firstPos = positions[0] ?: ((0 - activeListIndex) * lineHeightPx)
+                // anchorY + firstPos + userManualOffset <= maxHeight - padding_bottom
+                // userManualOffset <= maxHeight - padding_bottom - anchorY - firstPos
+                val paddingBottom = with(density) { 150.dp.toPx() }
+                (maxHeightPx - paddingBottom - anchorY - firstPos)
+            }
+
+            var lastPositions by remember { mutableStateOf<Map<Int, Float>>(emptyMap()) }
+            LaunchedEffect(activeListIndex) {
+                if (!isAutoScrollEnabled && lastPositions.isNotEmpty()) {
+                    val shift = lastPositions[activeListIndex] ?: 0f
+                    userManualOffset += shift
+                }
+                lastPositions = positions
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -958,7 +990,7 @@ fun Lyrics(
 
                                 verticalDrag(down.id) { change ->
                                     val dragAmount = change.positionChange().y
-                                    userManualOffset += dragAmount
+                                    userManualOffset = (userManualOffset + dragAmount).coerceIn(minOffset, maxOffset)
                                     velocityTracker.addPosition(change.uptimeMillis, change.position)
                                     change.consume()
                                 }
@@ -969,21 +1001,20 @@ fun Lyrics(
                                         initialValue = userManualOffset,
                                         initialVelocity = velocity
                                     ).animateDecay(decayAnimSpec) {
-                                        userManualOffset = value
+                                        val clamped = value.coerceIn(minOffset, maxOffset)
+                                        userManualOffset = clamped
+                                        if (value != clamped) cancelAnimation()
                                     }
                                 }
                             }
                         }
                     }
             ) {
-                val anchorY = with(density) { this@BoxWithConstraints.maxHeight.toPx() } * 0.35f
-                val lineHeightPx = with(density) { 68.dp.toPx() }
-
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     if (isLyricsProviderShown) {
-                        val providerBase = anchorY + ((0 - activeListIndex) * lineHeightPx) - with(density) { 32.dp.toPx() }
+                        val providerBase = anchorY + (positions[0] ?: 0f) - with(density) { 32.dp.toPx() }
                         Text(
                             text = "Lyrics from ${lyricsEntity.provider}",
                             fontSize = 12.sp,
@@ -1504,7 +1535,7 @@ fun Lyrics(
             LazyColumn(
                 state = lazyListState,
                 verticalArrangement = Arrangement.Top,
-                contentPadding = PaddingValues(top = maxHeight / 2, bottom = maxHeight / 2),
+                contentPadding = PaddingValues(top = 100.dp, bottom = 150.dp),
                 modifier = Modifier.fadingEdge(top = 130.dp, bottom = 160.dp).nestedScroll(remember {
                     object : NestedScrollConnection {
                         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
