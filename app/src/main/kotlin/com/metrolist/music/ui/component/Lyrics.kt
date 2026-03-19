@@ -1327,7 +1327,7 @@ fun Lyrics(
                                                                                 ((wProg - cInW / wLen) * wLen).coerceIn(0.0, 1.0).toFloat()
                                                                             } else 0f
 
-                                                                            if (shouldGlow && wordItem != null) {
+                                                                            if (shouldGlow) {
                                                                                 val sMs = wordItem.startTime * 1000
                                                                                 val eMs = wordItem.endTime * 1000
                                                                                 val dur = eMs - sMs
@@ -1351,7 +1351,7 @@ fun Lyrics(
                                                                                     val baseGlowRadius = 20.dp.toPx() * impactFactor
                                                                                     
                                                                                     drawIntoCanvas { canvas ->
-                                                                                        val paint = Paint().asFrameworkPaint()
+                                                                                        val paint = android.graphics.Paint()
                                                                                         paint.maskFilter = BlurMaskFilter(baseGlowRadius, BlurMaskFilter.Blur.NORMAL)
                                                                                         paint.color = expressiveAccent.copy(alpha = glowAlpha).toArgb()
                                                                                         paint.textSize = lyricStyle.fontSize.toPx()
