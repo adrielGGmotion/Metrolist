@@ -131,10 +131,15 @@ object LyricsTranslationHelper {
         targetLanguage: String,
         mode: String
     ) {
-        if (lyricsEntity == null || lyricsEntity.translatedLyrics.isNullOrBlank()) return
+        if (lyricsEntity == null || lyricsEntity.translatedLyrics.isNullOrBlank()) {
+            _hasActiveTranslations.value = false
+            lyrics.forEach { it.translatedTextFlow.value = null }
+            return
+        }
         
         // Only load if language and mode match
         if (lyricsEntity.translationLanguage != targetLanguage || lyricsEntity.translationMode != mode) {
+            _hasActiveTranslations.value = false
             lyrics.forEach { it.translatedTextFlow.value = null }
             return
         }
