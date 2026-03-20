@@ -607,6 +607,7 @@ fun Lyrics(
             activeLineIndices = emptySet()
             return@LaunchedEffect
         }
+        var lastMainMaxSeen = -1
         while (isActive) {
             delay(8)
             val sliderPosition = sliderPositionProvider()
@@ -618,7 +619,7 @@ fun Lyrics(
             val effectivePosition = position + lyricsOffset
             
             val newActiveIndices = findActiveLineIndices(lines, effectivePosition)
-            val newScrollActiveIndices = findActiveLineIndices(lines, effectivePosition + 300L)
+            val newScrollActiveIndices = findActiveLineIndices(lines, effectivePosition)
 
             val newMax = newScrollActiveIndices
                 .filter { lines.getOrNull(it)?.isBackground == false }
@@ -627,26 +628,51 @@ fun Lyrics(
                 .filter { lines.getOrNull(it)?.isBackground == false }
                 .maxOrNull() ?: (previousScrollActiveIndices.maxOrNull() ?: -1)
 
-            val aLineJustEnded = previousScrollActiveIndices.isNotEmpty() &&
+            if (newMax > lastMainMaxSeen && newMax != -1) {
+                lastMainMaxSeen = newMax
+            }
+
+            val mainLineJustEnded = previousScrollActiveIndices.isNotEmpty() &&
                 previousScrollActiveIndices.any { idx ->
                     idx !in newScrollActiveIndices && lines.getOrNull(idx)?.isBackground == false
                 }
 
-            val anyBgStillActive = newScrollActiveIndices.any { lines.getOrNull(it)?.isBackground == true }
+            val anyStillActive = newScrollActiveIndices.isNotEmpty()
+
+            // True when the last remaining active lines were BG/duet-partner and they just cleared
+            val bgOrPartnerJustEndedAndClear = !mainLineJustEnded &&
+                previousScrollActiveIndices.isNotEmpty() &&
+                newScrollActiveIndices.isEmpty()
 
             val shouldScroll = when {
-                anyBgStillActive && newMax == scrollTargetIndex -> false
-                aLineJustEnded && newMax != scrollTargetIndex -> true
+                // Consecutive main lines: main ended but new main immediately took over
+                mainLineJustEnded && anyStillActive && newMax > prevMax && newMax != scrollTargetIndex -> true
+                // Main ended but BG/partner still singing — wait for them
+                mainLineJustEnded && anyStillActive -> false
+                // Main ended and the whole cluster cleared
+                mainLineJustEnded && !anyStillActive && newMax != scrollTargetIndex -> true
+                // BG/partner just finished (main had already ended in a prior tick)
+                bgOrPartnerJustEndedAndClear -> {
+                    val nextMain = (lastMainMaxSeen + 1 until lines.size).firstOrNull {
+                        lines.getOrNull(it)?.isBackground == false
+                    }
+                    nextMain != null && nextMain != scrollTargetIndex
+                }
+                // New main line activated during an overlapping period
                 newMax > prevMax && newMax != -1 && newMax != scrollTargetIndex -> true
+                // First line of the song starts
                 previousScrollActiveIndices.isEmpty() && newScrollActiveIndices.isNotEmpty() && newMax != scrollTargetIndex -> true
                 else -> false
             }
 
             if (shouldScroll) {
-                val targetToScroll = if (newMax == -1 && aLineJustEnded) {
-                    if (prevMax != -1 && prevMax + 1 < lines.size) prevMax + 1 else scrollTargetIndex
-                } else {
-                    newMax
+                val targetToScroll = when {
+                    (mainLineJustEnded && !anyStillActive) || bgOrPartnerJustEndedAndClear -> {
+                        (lastMainMaxSeen + 1 until lines.size).firstOrNull {
+                            lines.getOrNull(it)?.isBackground == false
+                        } ?: scrollTargetIndex
+                    }
+                    else -> newMax
                 }
                 if (targetToScroll != -1 && targetToScroll != scrollTargetIndex) {
                     scrollTargetIndex = targetToScroll
