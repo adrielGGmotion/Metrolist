@@ -1527,9 +1527,8 @@ fun Lyrics(
 
                                                                                 if (impactFactor > 0.01f) {
                                                                                     // Slightly adjusted alpha and reduced radius to prevent cropping
-                                                                                    val glowAlpha = (0.9f * impactFactor).coerceIn(0f, 0.98f)
-                                                                                    val baseGlowRadius = 20.dp.toPx() * impactFactor
-                                                                                    
+                                                                                    val glowAlpha = (0.35f * impactFactor).coerceIn(0f, 0.4f)
+                                                                                    val baseGlowRadius = 12.dp.toPx() * impactFactor                                                                                    
                                                                                     drawIntoCanvas { canvas ->
                                                                                         val paint = android.graphics.Paint()
                                                                                         paint.maskFilter = BlurMaskFilter(baseGlowRadius, BlurMaskFilter.Blur.NORMAL)
