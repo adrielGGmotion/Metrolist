@@ -595,12 +595,6 @@ fun Lyrics(
         }
     }
 
-    LaunchedEffect(lines) {
-        isSelectionModeActive = false
-        selectedIndices.clear()
-        previousScrollActiveIndices = emptySet()
-    }
-
     LaunchedEffect(lyrics) {
         if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
             activeLineIndices = emptySet()
@@ -687,6 +681,16 @@ fun Lyrics(
     }
 
     var userManualOffset by remember { mutableFloatStateOf(0f) }
+    
+    LaunchedEffect(lines) {
+        isAutoScrollEnabled = true
+        userManualOffset = 0f
+        scrollTargetIndex = -1
+        deferredCurrentLineIndex = 0
+        isSelectionModeActive = false
+        selectedIndices.clear()
+        previousScrollActiveIndices = emptySet()
+    }
     var flingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val velocityTracker = remember { VelocityTracker() }
@@ -752,15 +756,15 @@ fun Lyrics(
         val safeMinOffset = minOf(minOffset, maxOffset - maxHeightPx)
         val safeMaxOffset = maxOf(maxOffset, 0f)
 
-        LaunchedEffect(isAutoScrollEnabled) {
+        LaunchedEffect(isAutoScrollEnabled, lines) {
             if (isAutoScrollEnabled) {
                 val start = userManualOffset
                 val dist = kotlin.math.abs(start)
-                if (dist < 1f) { userManualOffset = 0f; return@LaunchedEffect }
-                
-                isInitialLayout = true
-                withFrameMillis { }
-                
+                if (dist < 1f) {
+                    userManualOffset = 0f
+                    return@LaunchedEffect
+                }
+
                 val duration = (dist / 4f).toInt().coerceIn(200, 600)
                 var lastValue = start
                 val anim = Animatable(start)
@@ -769,7 +773,7 @@ fun Lyrics(
                     userManualOffset += delta
                     lastValue = value
                 }
-                isInitialLayout = false
+                userManualOffset = 0f
             }
         }
 
@@ -1507,13 +1511,22 @@ fun Lyrics(
                 FilledTonalButton(onClick = {
                     flingJob?.cancel()
                     flingJob = null
-                    if (scrollTargetIndex != -1) {
-                        val newActiveListIndex = mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == scrollTargetIndex }.coerceAtLeast(0)
+                    
+                    var target = scrollTargetIndex
+                    if (target == -1) {
+                        // Fallback: try to find the current active line index immediately
+                        val position = currentPositionState + (currentSong?.song?.lyricsOffset ?: 0)
+                        target = findActiveLineIndices(lines, position).maxOrNull() ?: -1
+                    }
+
+                    if (target != -1) {
+                        val newActiveListIndex = mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == target }.coerceAtLeast(0)
                         val itemGapPx = with(density) { 16.dp.toPx() }
                         val lineHeightPx = with(density) { 68.dp.toPx() }
                         val shift = positions[newActiveListIndex] ?: ((newActiveListIndex - activeListIndex) * (lineHeightPx + itemGapPx))
                         userManualOffset += shift
-                        deferredCurrentLineIndex = scrollTargetIndex
+                        deferredCurrentLineIndex = target
+                        scrollTargetIndex = target
                     }
                     isAutoScrollEnabled = true
                 }) {
