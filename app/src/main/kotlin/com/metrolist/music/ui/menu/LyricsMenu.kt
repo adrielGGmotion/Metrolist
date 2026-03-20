@@ -82,6 +82,7 @@ import com.metrolist.music.constants.AiProviderKey
 import com.metrolist.music.constants.TranslateLanguageKey
 import com.metrolist.music.constants.TranslateModeKey
 import com.metrolist.music.constants.RespectAgentPositioningKey
+import com.metrolist.music.constants.ShowIntervalIndicatorKey
 import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.constants.DeeplFormalityKey
@@ -109,6 +110,7 @@ fun LyricsMenu(
     val openRouterModel by rememberPreference(OpenRouterModelKey, "google/gemini-2.5-flash-lite")
     val deeplFormality by rememberPreference(DeeplFormalityKey, "default")
     var respectAgentPositioning by rememberPreference(RespectAgentPositioningKey, true)
+    var showIntervalIndicator by rememberPreference(ShowIntervalIndicatorKey, true)
 
     val hasApiKey = if (aiProvider == "DeepL") deeplApiKey.isNotBlank() else openRouterApiKey.isNotBlank()
     
@@ -558,6 +560,44 @@ fun LyricsMenu(
                                         Icon(
                                             painter = painterResource(
                                                 id = if (respectAgentPositioning) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        uncheckedThumbColor = MaterialTheme.colorScheme.primaryContainer,
+                                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                            }
+                        )
+                    )
+                    
+                    add(
+                        Material3MenuItemData(
+                            title = { Text(stringResource(R.string.show_interval_indicator)) },
+                            description = { Text(stringResource(R.string.show_interval_indicator_desc)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.lyrics),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showIntervalIndicator = !showIntervalIndicator
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = showIntervalIndicator,
+                                    onCheckedChange = { newCheckedState ->
+                                        showIntervalIndicator = newCheckedState
+                                    },
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (showIntervalIndicator) R.drawable.check else R.drawable.close
                                             ),
                                             contentDescription = null,
                                             modifier = Modifier.size(SwitchDefaults.IconSize)

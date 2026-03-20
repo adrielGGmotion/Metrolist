@@ -20,45 +20,50 @@ import timber.log.Timber
 import kotlin.math.abs
 
 object Paxsenix {
+    @Volatile
     private var client: HttpClient? = null
     private var appVersion: String = "Unknown"
 
     fun init(context: Context) {
         if (client != null) return // Already initialized
         
-        appVersion = try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                ?: "Unknown"
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to get app version")
-            "Unknown"
-        }
-        
-        Timber.d("Initializing Paxsenix with version: $appVersion")
-        
-        client = HttpClient(CIO) {
-            install(HttpTimeout) {
-                requestTimeoutMillis = 15000
-                connectTimeoutMillis = 10000
+        synchronized(this) {
+            if (client != null) return
+            
+            appVersion = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                    ?: "Unknown"
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get app version")
+                "Unknown"
             }
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        isLenient = true
-                        ignoreUnknownKeys = true
-                    },
-                )
-            }
+            
+            Timber.d("Initializing Paxsenix with version: $appVersion")
+            
+            client = HttpClient(CIO) {
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 15000
+                    connectTimeoutMillis = 10000
+                }
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            isLenient = true
+                            ignoreUnknownKeys = true
+                        },
+                    )
+                }
 
-            defaultRequest {
-                url("https://lyrics.paxsenix.org")
-                header("User-Agent", "Metrolist/$appVersion")
-            }
+                defaultRequest {
+                    url("https://lyrics.paxsenix.org")
+                    header("User-Agent", "Metrolist/$appVersion")
+                }
 
-            expectSuccess = true
+                expectSuccess = true
+            }
+            
+            Timber.d("Paxsenix HTTP client initialized")
         }
-        
-        Timber.d("Paxsenix HTTP client initialized")
     }
 
     private val httpClient: HttpClient

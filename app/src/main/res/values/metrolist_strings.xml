@@ -109,6 +109,8 @@
     <string name="lyrics_click_change">Change lyrics on click</string>
     <string name="lyrics_from_provider">Lyrics from %s</string>
     <string name="lyrics_auto_scroll">Auto scroll lyrics</string>
+    <string name="hide_status_bar_fullscreen">Hide status bar on fullscreen</string>
+    <string name="hide_status_bar_fullscreen_desc">Hide the status bar when lyrics fullscreen mode is active</string>
     <string name="lyrics_glow_effect">Enable glowing lyrics effect</string>
     <string name="lyrics_glow_effect_desc">Add glowing animation and bounce effect to active lyrics</string>
     <string name="enable_lrclib_desc">Community-driven synchronized lyrics database</string>
@@ -328,7 +330,9 @@
     <string name="lyrics_romanize_title">Romanization</string>
     <string name="lyrics_romanization">Lyrics romanization</string>
     <string name="respect_agent_positioning">Respect agent positioning</string>
-    <string name="respect_agent_positioning_desc">Use agent-defined alignment (left/right) for lyrics if available</string>
+    <string name="respect_agent_positioning_desc">Use agent-defined alignment (left/right, or center for chorus/background lines) for lyrics if available</string>
+    <string name="show_interval_indicator">Interval indicator</string>
+    <string name="show_interval_indicator_desc">Show an animated progress indicator during musical gaps between word-timed lyrics lines</string>
     <string name="lyrics_romanize_japanese">Romanize Japanese lyrics</string>
     <string name="lyrics_romanize_korean">Romanize Korean lyrics</string>
     <string name="lyrics_romanize_chinese">Romanize Chinese lyrics</string>

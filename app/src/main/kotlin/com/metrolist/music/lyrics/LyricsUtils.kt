@@ -770,7 +770,8 @@ object LyricsUtils {
                 if (index + 1 < lines.size) lines[index + 1].time else Long.MAX_VALUE
             }
 
-            if (position <= lineEndMs + 300L) {
+            val graceMs = if (line.words.isNullOrEmpty()) 300L else 0L
+            if (position <= lineEndMs + graceMs) {
                 active.add(index)
             }
         }
