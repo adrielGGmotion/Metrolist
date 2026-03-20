@@ -167,7 +167,7 @@ object TTMLParser {
                 val lineText = buildString {
                     words.forEachIndexed { index, word ->
                         append(word.text)
-                        if (word.hasTrailingSpace && index < words.lastIndex) {
+                        if (word.hasTrailingSpace && !word.text.endsWith('-') && index < words.lastIndex) {
                             append(" ")
                         }
                     }
@@ -260,7 +260,7 @@ object TTMLParser {
         val lineText = buildString {
             words.forEachIndexed { index, word ->
                 append(word.text)
-                if (word.hasTrailingSpace && index < words.lastIndex) {
+                if (word.hasTrailingSpace && !word.text.endsWith('-') && index < words.lastIndex) {
                     append(" ")
                 }
             }
@@ -320,7 +320,8 @@ object TTMLParser {
                 currentEndTime = span.endTime
             } else {
                 val prevSpan = spanInfos[index - 1]
-                if (prevSpan.hasTrailingSpace) {
+                val shouldMerge = !prevSpan.hasTrailingSpace || prevSpan.text.endsWith('-')
+                if (!shouldMerge) {
                     if (currentText.isNotEmpty()) {
                         words.add(
                             ParsedWord(
