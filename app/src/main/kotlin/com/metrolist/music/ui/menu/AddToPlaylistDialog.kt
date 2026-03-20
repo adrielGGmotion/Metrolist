@@ -119,24 +119,28 @@ fun AddToPlaylistDialog(
         mutableStateOf<Set<String>>(emptySet())
     }
 
-    LaunchedEffect(isVisible, playlists) {
+    LaunchedEffect(isVisible) {
         if (!isVisible) {
             songIds = null
             playlistsContainingSong = emptySet()
             return@LaunchedEffect
-            }
-               if (playlists.isNotEmpty() && songIds == null) {
+        }
+        if (playlists.isNotEmpty() && songIds == null) {
             withContext(Dispatchers.IO) {
                 val ids = onGetSong(playlists.first())
                 songIds = ids
-
-                playlistsContainingSong = playlists
-                    .filter { playlist ->
-                        database.playlistDuplicates(playlist.id, ids).isNotEmpty()
-                    }
-                    .map { it.id }
-                    .toSet()
             }
+        }
+    }
+    LaunchedEffect(songIds, playlists) {
+        val ids = songIds ?: return@LaunchedEffect
+        withContext(Dispatchers.IO) {
+            playlistsContainingSong = playlists
+                .filter { playlist ->
+                    database.playlistDuplicates(playlist.id, ids).isNotEmpty()
+                }
+                .map { it.id }
+                .toSet()
         }
     }
 
