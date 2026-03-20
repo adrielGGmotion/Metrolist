@@ -451,22 +451,7 @@ CRITICAL RULES:
 4. Preserve empty lines as empty strings ""
 5. Return EXACTLY {lineCount} items in the array
 6. If uncertain, provide best approximation but maintain line count"""
-val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
-
 val LyricsRomanizeList = stringPreferencesKey("lyricsRomanizeList")
-val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")
-
-enum class LyricsAnimationStyle {
-    NONE,
-    FADE,
-    GLOW,
-    SLIDE,
-    KARAOKE,
-    APPLE,
-}
-
-val LyricsTextSizeKey = floatPreferencesKey("lyricsTextSize")
-val LyricsLineSpacingKey = floatPreferencesKey("lyricsLineSpacing")
 val RespectAgentPositioningKey = booleanPreferencesKey("respectAgentPositioning")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")

@@ -156,10 +156,7 @@ import com.metrolist.music.constants.AiSystemPromptKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DeeplApiKey
 import com.metrolist.music.constants.DeeplFormalityKey
-import com.metrolist.music.constants.LyricsAnimationStyleKey
 import com.metrolist.music.constants.LyricsClickKey
-import com.metrolist.music.constants.LyricsGlowEffectKey
-import com.metrolist.music.constants.LyricsLineSpacingKey
 import com.metrolist.music.constants.LyricsRomanizeAsMainKey
 import com.metrolist.music.constants.LyricsRomanizeChineseKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
@@ -177,7 +174,6 @@ import com.metrolist.music.constants.LyricsRomanizeBulgarianKey
 import com.metrolist.music.constants.LyricsRomanizeBelarusianKey
 import com.metrolist.music.constants.LyricsScrollKey
 import com.metrolist.music.constants.LyricsTextPositionKey
-import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterModelKey
@@ -213,7 +209,6 @@ import com.metrolist.music.ui.component.shimmer.ShimmerHost
 import com.metrolist.music.ui.component.shimmer.TextPlaceholder
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.screens.settings.LyricsPosition
-import com.metrolist.music.ui.screens.settings.LyricsAnimationStyle
 import com.metrolist.music.ui.screens.settings.defaultList
 import com.metrolist.music.ui.utils.fadingEdge
 import com.metrolist.music.utils.ComposeToImage
@@ -261,9 +256,8 @@ fun Lyrics(
     val romanizeLyricsList = rememberPreference(LyricsRomanizeList, "")
     val romanizeAsMain by rememberPreference(LyricsRomanizeAsMainKey, false)
     val romanizeCyrillicByLine by rememberPreference(LyricsRomanizeCyrillicByLineKey, false)
-    val lyricsAnimationStyle by rememberEnumPreference(LyricsAnimationStyleKey, LyricsAnimationStyle.APPLE)
-    val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 24f)
-    val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
+    val lyricsTextSize = 36f
+    val lyricsLineSpacing = 1.3f
     val respectAgentPositioning by rememberPreference(RespectAgentPositioningKey, true)
     val openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     val deeplApiKey by rememberPreference(DeeplApiKey, "")
