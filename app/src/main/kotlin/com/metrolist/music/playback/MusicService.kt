@@ -601,6 +601,7 @@ class MusicService :
         initializeCast()
 
         // Update lyrics provider order preference
+        // Collecting this flow activates the internal map that updates lyricsProviders in LyricsHelper
         lyricsHelper.preferred.collectLatest(scope) {}
 
         // 4. Watch for EQ profile changes

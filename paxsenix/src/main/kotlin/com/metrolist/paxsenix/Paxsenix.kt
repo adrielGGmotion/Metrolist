@@ -289,7 +289,12 @@ object Paxsenix {
             Timber.d("Using elrc as fallback")
             return@runCatching response.elrc
         }
-        
+
+        if (!response.plain.isNullOrBlank()) {
+            Timber.d("Using plain lyrics field")
+            return@runCatching response.plain
+        }
+
         if (response.content.isEmpty()) {
             throw IllegalStateException("No lyrics found")
         }
@@ -358,27 +363,30 @@ object Paxsenix {
 
         var plainFallback: String? = null
 
-        for (query in searchQueries) {
+        var scoredResults: List<Pair<SearchResult, Double>> = emptyList()
+        searchLoop@ for (query in searchQueries) {
             val results = search(query)
             if (results.isEmpty()) continue
 
-            val scoredResults = scoreAndFilterResults(results, title, artist, duration)
-            if (scoredResults.isEmpty()) continue
+            val filtered = scoreAndFilterResults(results, title, artist, duration)
+            if (filtered.isNotEmpty()) {
+                scoredResults = filtered
+                break@searchLoop
+            }
+        }
 
-            for ((result, _) in scoredResults.take(3)) {
-                Timber.d("Trying lyrics for: ${result.displayName}")
-                val (lrc, hasWordTimings) = fetchLyricsForTrackWithType(result.id)
-                if (lrc.isNotEmpty()) {
-                    if (hasWordTimings) {
-                        callback(lrc)
-                        return
-                    } else if (plainFallback == null) {
-                        Timber.d("Storing plain lyrics as fallback from: ${result.displayName}")
-                        plainFallback = lrc
-                    }
+        for ((result, _) in scoredResults.take(3)) {
+            Timber.d("Trying lyrics for: ${result.displayName}")
+            val (lrc, hasWordTimings) = fetchLyricsForTrackWithType(result.id)
+            if (lrc.isNotEmpty()) {
+                if (hasWordTimings) {
+                    callback(lrc)
+                    return
+                } else if (plainFallback == null) {
+                    Timber.d("Storing plain lyrics as fallback from: ${result.displayName}")
+                    plainFallback = lrc
                 }
             }
-            break
         }
 
         // No word-by-word found — offer plain lyrics as fallback option, like other providers do

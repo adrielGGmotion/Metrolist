@@ -573,6 +573,10 @@ fun ContentSettings(
 
     if (showProviderPriorityDialog) {
         val currentOrder = LyricsProviderRegistry.deserializeProviderOrder(lyricsProviderOrder)
+        val defaultOrder = LyricsProviderRegistry.getDefaultProviderOrder()
+        val normalizedOrder = currentOrder.filter { it in defaultOrder } +
+            defaultOrder.filter { it !in currentOrder }
+
         val enabledProviders = setOf(
             "LrcLib".takeIf { enableLrclib },
             "KuGou".takeIf { enableKugou },
@@ -583,8 +587,8 @@ fun ContentSettings(
         val lyricsIcon = painterResource(R.drawable.lyrics)
         val draggableItems = remember { mutableStateListOf<DraggableLyricsProviderItem>() }
 
-        LaunchedEffect(currentOrder, enableLrclib, enableKugou, enableBetterLyrics, enablePaxsenix, enableLyricsPlus) {
-            val orderedEnabledProviders = currentOrder.filter { it in enabledProviders }
+        LaunchedEffect(normalizedOrder, enableLrclib, enableKugou, enableBetterLyrics, enablePaxsenix, enableLyricsPlus) {
+            val orderedEnabledProviders = normalizedOrder.filter { it in enabledProviders }
             draggableItems.clear()
             draggableItems.addAll(
                 orderedEnabledProviders.mapNotNull { providerName ->
@@ -617,7 +621,7 @@ fun ContentSettings(
                         items = draggableItems,
                         onItemsReordered = { reorderedItems ->
                             val enabledOrder = reorderedItems.map { it.id }
-                            val disabledOrder = currentOrder.filter { it !in enabledProviders }
+                            val disabledOrder = normalizedOrder.filter { it !in enabledProviders }
                             onLyricsProviderOrderChange(
                                 LyricsProviderRegistry.serializeProviderOrder(enabledOrder + disabledOrder)
                             )
