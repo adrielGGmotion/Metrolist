@@ -676,8 +676,6 @@ fun Lyrics(
         targetIndex: Int,
         duration: Int = 1500,
     ) {
-        // This function might need rewrite for the new custom scroll engine
-        // but keeping it for now as a feature to be combined/adapted.
         scrollTargetIndex = targetIndex
     }
 

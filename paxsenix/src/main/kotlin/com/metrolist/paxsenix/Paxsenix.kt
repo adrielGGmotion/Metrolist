@@ -64,7 +64,6 @@ object Paxsenix {
     private val httpClient: HttpClient
         get() = client ?: throw IllegalStateException("Paxsenix.init() must be called before using Paxsenix")
 
-    // Patterns to clean from title
     private val titleCleanupPatterns = listOf(
         Regex("""\s*\(.*?(official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit).*?\)""", RegexOption.IGNORE_CASE),
         Regex("""\s*\[.*?(official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit).*?\]""", RegexOption.IGNORE_CASE),
@@ -78,7 +77,6 @@ object Paxsenix {
         Regex("""\s*\([^)]*\d{4}[^)]*\)""", RegexOption.IGNORE_CASE),
     )
 
-    // Patterns to extract primary artist
     private val artistSeparators = listOf(" & ", " and ", ", ", " x ", " X ", " feat. ", " feat ", " ft. ", " ft ", " featuring ", " with ")
 
     private fun cleanTitle(title: String): String {
@@ -91,7 +89,6 @@ object Paxsenix {
 
     private fun cleanArtist(artist: String): String {
         var cleaned = artist.trim()
-        // Get primary artist (first one before any separator)
         for (separator in artistSeparators) {
             if (cleaned.contains(separator, ignoreCase = true)) {
                 cleaned = cleaned.split(separator, ignoreCase = true, limit = 2)[0]
@@ -146,7 +143,6 @@ object Paxsenix {
                 Timber.d("Trying search query: $query")
                 val searchResults = search(query)
                 
-                // If we got results, score and filter them
                 if (searchResults.isNotEmpty()) {
                     allResults = scoreAndFilterResults(searchResults, title, artist, duration)
                 }
@@ -213,7 +209,6 @@ object Paxsenix {
             val resultTitle = result.displayName
             val resultArtist = result.displayArtist
             
-            // 1. Duration check (Strongest filter)
             result.duration?.let { d ->
                 val diff = abs(d - durationMs)
                 when {
@@ -224,7 +219,6 @@ object Paxsenix {
                 }
             }
             
-            // 2. Title Match
             val resultTitleCleaned = resultTitle.replace(cleanupRegex, "").lowercase().trim()
             
             when {
@@ -239,14 +233,12 @@ object Paxsenix {
             if (resultIsMixed && !targetIsMixed) score -= 60
             if (resultIsRemix && !targetIsRemix) score -= 40
             
-            // 3. Artist Match
             val resultArtistLower = resultArtist.lowercase()
             val targetArtistPrimary = cleanedArtist
             
             when {
                 resultArtistLower.contains(targetArtistPrimary) -> score += 50
                 else -> {
-                    // Try matching any word from the artist name
                     val artistWords = targetArtistPrimary.split(Regex("\\s+")).filter { it.length > 2 }
                     if (artistWords.any { resultArtistLower.contains(it) }) {
                         score += 25
@@ -442,7 +434,6 @@ object Paxsenix {
         
         if (results.isEmpty()) return emptyList()
         
-        // Score and take top 5
         val scoredResults = scoreAndFilterResults(results, title, artist, duration)
         
         return scoredResults.take(5).map { (result, _) ->
@@ -456,7 +447,6 @@ object Paxsenix {
                     hasWordSync = wordSync
                 }
             } catch (e: Exception) {
-                // Keep default values
             }
             
             ManualSearchResult(
