@@ -18,6 +18,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
@@ -33,6 +34,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -68,7 +70,9 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -179,6 +183,7 @@ import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.RespectAgentPositioningKey
+import com.metrolist.music.constants.ShowIntervalIndicatorKey
 import com.metrolist.music.constants.TranslateLanguageKey
 import com.metrolist.music.constants.TranslateModeKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
@@ -245,11 +250,66 @@ private const val LYRICS_STAGGER_DELAY_MAX_MS = 350
 
 private sealed class LyricsListItem {
     data class Line(val index: Int, val entry: com.metrolist.music.lyrics.LyricsEntry) : LyricsListItem()
+    data class Indicator(val afterLineIndex: Int, val gapMs: Long, val gapStartMs: Long, val gapEndMs: Long, val nextAgent: String?) : LyricsListItem()
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun IntervalIndicator(
+    gapStartMs: Long,
+    gapEndMs: Long,
+    currentPositionMs: Long,
+    visible: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val alpha = remember { Animatable(0f) }
+    val rowHeightPx = remember { Animatable(0f) }
+
+    LaunchedEffect(visible) {
+        if (visible) {
+            rowHeightPx.animateTo(1f, tween(200))
+            alpha.animateTo(1f, tween(200))
+        } else {
+            alpha.animateTo(0f, tween(200))
+            rowHeightPx.animateTo(0f, tween(200))
+        }
+    }
+
+    val density = LocalDensity.current
+    val targetHeightDp = with(density) { (rowHeightPx.value * 72).dp }
+
+    val progress = if (gapEndMs > gapStartMs) {
+        ((currentPositionMs - gapStartMs).toFloat() / (gapEndMs - gapStartMs).toFloat()).coerceIn(0f, 1f)
+    } else 0f
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 100, easing = LinearEasing),
+        label = "intervalProgress"
+    )
+
+    Box(
+        modifier = modifier
+            .height(targetHeightDp)
+            .padding(top = if (rowHeightPx.value > 0f) 16.dp else 0.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularWavyProgressIndicator(
+            progress = { animatedProgress },
+            modifier = Modifier
+                .size(36.dp)
+                .alpha(alpha.value),
+            color = color,
+            trackColor = color.copy(alpha = 0.2f),
+        )
+    }
 }
 
 @OptIn(
     ExperimentalFoundationApi::class,
-    ExperimentalMaterial3Api::class
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class
 )
 @SuppressLint("UnusedBoxWithConstraintsScope", "StringFormatInvalid")
 @Composable
@@ -275,6 +335,7 @@ fun Lyrics(
     val lyricsTextSize = 36f
     val lyricsLineSpacing = 1.3f
     val respectAgentPositioning by rememberPreference(RespectAgentPositioningKey, true)
+    var showIntervalIndicator by rememberPreference(ShowIntervalIndicatorKey, true)
     val openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     val deeplApiKey by rememberPreference(DeeplApiKey, "")
     val aiProvider by rememberPreference(AiProviderKey, "OpenRouter")
@@ -449,8 +510,23 @@ fun Lyrics(
             !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
         }
 
-    val mergedLyricsList: List<LyricsListItem> = remember(lines) {
-        lines.mapIndexed { i, entry -> LyricsListItem.Line(i, entry) }
+    val mergedLyricsList: List<LyricsListItem> = remember(lines, showIntervalIndicator) {
+        val result = mutableListOf<LyricsListItem>()
+        if (lines.isEmpty()) return@remember result
+        lines.forEachIndexed { i, entry ->
+            result.add(LyricsListItem.Line(i, entry))
+            if (showIntervalIndicator && i < lines.size - 1) {
+                val hasWordTimings = !entry.words.isNullOrEmpty()
+                if (!hasWordTimings) return@forEachIndexed
+                val currentEnd = (entry.words.last().endTime * 1000).toLong()
+                val nextStart = lines[i + 1].time
+                val gap = nextStart - currentEnd
+                if (gap > 4000L) {
+                    result.add(LyricsListItem.Indicator(i, gap, currentEnd, nextStart, lines[i + 1].agent))
+                }
+            }
+        }
+        result
     }
 
     
@@ -1058,6 +1134,30 @@ fun Lyrics(
                         ) {
                              Box(modifier = Modifier.onSizeChanged { itemHeights[listIndex] = it.height }) {
                                 when (listItem) {
+                                    is LyricsListItem.Indicator -> {
+                                        val effectiveEndMs = listItem.gapEndMs - 650L
+                                        val visible = currentPositionState > 0L &&
+                                            currentPositionState >= listItem.gapStartMs &&
+                                            currentPositionState <= effectiveEndMs
+                                        IntervalIndicator(
+                                            gapStartMs = listItem.gapStartMs,
+                                            gapEndMs = effectiveEndMs,
+                                            currentPositionMs = currentPositionState,
+                                            visible = visible,
+                                            color = expressiveAccent,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = when (lyricsTextPosition) {
+                                                    LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
+                                                    else -> 24.dp
+                                                })
+                                                .wrapContentWidth(when (lyricsTextPosition) {
+                                                    LyricsPosition.LEFT -> Alignment.Start
+                                                    LyricsPosition.RIGHT -> Alignment.End
+                                                    else -> Alignment.CenterHorizontally
+                                                })
+                                        )
+                                    }
                                     is LyricsListItem.Line -> {
                                         val index = listItem.index
                                         val item = listItem.entry
@@ -1143,6 +1243,26 @@ fun Lyrics(
                                         }) {
                                             @Composable
                                             fun LyricContent() {
+                                                if (index == 0 && showIntervalIndicator) {
+                                                    val firstRealLine = lines.getOrNull(1)
+                                                    val prefirstGap = firstRealLine?.time ?: 0L
+                                                    if (prefirstGap > 4000L) {
+                                                        val effectiveEndMs = prefirstGap - 650L
+                                                        val visible = currentPositionState > 0L && currentPositionState <= effectiveEndMs
+                                                        IntervalIndicator(
+                                                            gapStartMs = 0L, gapEndMs = effectiveEndMs, currentPositionMs = currentPositionState,
+                                                            visible = visible, color = expressiveAccent,
+                                                            modifier = Modifier.fillMaxWidth().padding(horizontal = when (lyricsTextPosition) {
+                                                                LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
+                                                                else -> 24.dp
+                                                            }).wrapContentWidth(when (lyricsTextPosition) {
+                                                                LyricsPosition.LEFT -> Alignment.Start
+                                                                LyricsPosition.RIGHT -> Alignment.End
+                                                                else -> Alignment.CenterHorizontally
+                                                            })
+                                                        )
+                                                    }
+                                                }
                                                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = agentAlignment) {
                                                     val isActiveLine = isActiveByIndex
                                                     val inactiveAlpha = if (item.isBackground) 0.08f else 0.2f
@@ -1666,22 +1786,50 @@ fun Lyrics(
                         LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp
                     }, vertical = 4.dp)) { TextPlaceholder() } } } }
                 } else {
-                    itemsIndexed(mergedLyricsList, key = { _, item -> (item as LyricsListItem.Line).index }) { listIndex, item ->
-                        val lineItem = item as LyricsListItem.Line
-                        val isSel = selectedIndices.contains(lineItem.index)
-                        Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).combinedClickable(
-                            onClick = { if (isSelectionModeActive) { if (isSel) { selectedIndices.remove(lineItem.index); if (selectedIndices.isEmpty()) isSelectionModeActive = false } else { if (selectedIndices.size < maxSelectionLimit) selectedIndices.add(lineItem.index) else showMaxSelectionToast = true } } },
-                            onLongClick = { if (!isSelectionModeActive) { isSelectionModeActive = true; selectedIndices.add(lineItem.index) } }
-                        ).background(if (isSel && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent).padding(
-                            start = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
-                            end = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
-                            top = if (lineItem.entry.isBackground) 2.dp else 12.dp,
-                            bottom = if (lineItem.entry.isBackground) 2.dp else if (mergedLyricsList.getOrNull(listIndex + 1)?.let { it is LyricsListItem.Line && it.entry.isBackground } == true) 4.dp else 12.dp
-                        ), contentAlignment = when (lyricsTextPosition) {
-                            LyricsPosition.LEFT -> Alignment.CenterStart; LyricsPosition.RIGHT -> Alignment.CenterEnd; else -> Alignment.Center
-                        }) { Text(lineItem.entry.text, fontSize = 24.sp, fontWeight = FontWeight.Normal, color = expressiveAccent, textAlign = when (lyricsTextPosition) {
-                            LyricsPosition.LEFT -> TextAlign.Left; LyricsPosition.CENTER -> TextAlign.Center; else -> TextAlign.Right
-                        }) }
+                    itemsIndexed(mergedLyricsList, key = { _, item -> when (item) { is LyricsListItem.Line -> "line_${item.index}"; is LyricsListItem.Indicator -> "indicator_${item.afterLineIndex}" } }) { listIndex, item ->
+                        when (item) {
+                            is LyricsListItem.Indicator -> {
+                                val effectiveEndMs = item.gapEndMs - 650L
+                                val visible = currentPositionState > 0L &&
+                                    currentPositionState >= item.gapStartMs &&
+                                    currentPositionState <= effectiveEndMs
+                                IntervalIndicator(
+                                    gapStartMs = item.gapStartMs,
+                                    gapEndMs = effectiveEndMs,
+                                    currentPositionMs = currentPositionState,
+                                    visible = visible,
+                                    color = expressiveAccent,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = when (lyricsTextPosition) {
+                                            LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp
+                                            else -> 24.dp
+                                        })
+                                        .wrapContentWidth(when (lyricsTextPosition) {
+                                            LyricsPosition.LEFT -> Alignment.Start
+                                            LyricsPosition.RIGHT -> Alignment.End
+                                            else -> Alignment.CenterHorizontally
+                                        })
+                                )
+                            }
+                            is LyricsListItem.Line -> {
+                                val lineItem = item
+                                val isSel = selectedIndices.contains(lineItem.index)
+                                Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).combinedClickable(
+                                    onClick = { if (isSelectionModeActive) { if (isSel) { selectedIndices.remove(lineItem.index); if (selectedIndices.isEmpty()) isSelectionModeActive = false } else { if (selectedIndices.size < maxSelectionLimit) selectedIndices.add(lineItem.index) else showMaxSelectionToast = true } } },
+                                    onLongClick = { if (!isSelectionModeActive) { isSelectionModeActive = true; selectedIndices.add(lineItem.index) } }
+                                ).background(if (isSel && isSelectionModeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent).padding(
+                                    start = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
+                                    end = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
+                                    top = if (lineItem.entry.isBackground) 2.dp else 12.dp,
+                                    bottom = if (lineItem.entry.isBackground) 2.dp else if (mergedLyricsList.getOrNull(listIndex + 1)?.let { it is LyricsListItem.Line && it.entry.isBackground } == true) 4.dp else 12.dp
+                                ), contentAlignment = when (lyricsTextPosition) {
+                                    LyricsPosition.LEFT -> Alignment.CenterStart; LyricsPosition.RIGHT -> Alignment.CenterEnd; else -> Alignment.Center
+                                }) { Text(lineItem.entry.text, fontSize = 24.sp, fontWeight = FontWeight.Normal, color = expressiveAccent, textAlign = when (lyricsTextPosition) {
+                                    LyricsPosition.LEFT -> TextAlign.Left; LyricsPosition.CENTER -> TextAlign.Center; else -> TextAlign.Right
+                                }) }
+                            }
+                        }
                     }
                 }
             }

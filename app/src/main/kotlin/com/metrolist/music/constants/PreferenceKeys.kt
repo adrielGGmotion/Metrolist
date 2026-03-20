@@ -453,6 +453,7 @@ CRITICAL RULES:
 6. If uncertain, provide best approximation but maintain line count"""
 val LyricsRomanizeList = stringPreferencesKey("lyricsRomanizeList")
 val RespectAgentPositioningKey = booleanPreferencesKey("respectAgentPositioning")
+val ShowIntervalIndicatorKey = booleanPreferencesKey("showIntervalIndicator")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val SleepTimerDefaultKey = floatPreferencesKey("sleepTimerDefault")
