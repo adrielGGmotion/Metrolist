@@ -226,6 +226,14 @@ import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
+private const val LYRICS_ANCHOR_RATIO = 0.35f
+private val LYRICS_ITEM_FALLBACK_HEIGHT_DP = 68.dp
+private val LYRICS_ITEM_GAP_DP = 16.dp
+private val LYRICS_FADE_TOP_DP = 130.dp
+private val LYRICS_FADE_BOTTOM_DP = 160.dp
+private const val LYRICS_STAGGER_DELAY_PER_DISTANCE = 40
+private const val LYRICS_STAGGER_DELAY_MAX_MS = 350
+
 private sealed class LyricsListItem {
     data class Line(val index: Int, val entry: com.metrolist.music.lyrics.LyricsEntry) : LyricsListItem()
 }
@@ -709,20 +717,20 @@ fun Lyrics(
             .padding(bottom = 12.dp)
     ) {
         val maxHeightPx = with(density) { maxHeight.toPx() }
-        val anchorY = maxHeightPx * 0.35f
-        val lineHeightPx = with(density) { 68.dp.toPx() }
+        val anchorY = maxHeightPx * LYRICS_ANCHOR_RATIO
+        val lineHeightPx = with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
 
         val positions = remember(itemHeights.toMap(), activeListIndex) {
             val map = mutableMapOf<Int, Float>()
             if (activeListIndex == -1) return@remember map
             
-            val itemGapPx = with(density) { 16.dp.toPx() }
+            val itemGapPx = with(density) { LYRICS_ITEM_GAP_DP.toPx() }
             map[activeListIndex] = 0f
             
             // Items above
             var currentY = 0f
             for (i in activeListIndex - 1 downTo 0) {
-                val height = itemHeights[i]?.toFloat() ?: with(density) { 68.dp.toPx() }
+                val height = itemHeights[i]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
                 currentY -= (height + itemGapPx)
                 map[i] = currentY
             }
@@ -730,7 +738,7 @@ fun Lyrics(
             // Items below
             currentY = 0f
             for (i in activeListIndex until mergedLyricsList.size - 1) {
-                val height = itemHeights[i]?.toFloat() ?: with(density) { 68.dp.toPx() }
+                val height = itemHeights[i]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
                 currentY += (height + itemGapPx)
                 map[i + 1] = currentY
             }
@@ -904,7 +912,7 @@ fun Lyrics(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .fadingEdge(top = 130.dp, bottom = 160.dp)
+                    .fadingEdge(top = LYRICS_FADE_TOP_DP, bottom = LYRICS_FADE_BOTTOM_DP)
                     .clipToBounds()
                     .nestedScroll(remember {
                         object : NestedScrollConnection {
@@ -979,19 +987,19 @@ fun Lyrics(
 
                     mergedLyricsList.forEachIndexed { listIndex, listItem ->
                         val distance = abs(listIndex - activeListIndex)
-                        val staggerDelay = (distance * 40).coerceAtMost(350)
+                        val staggerDelay = (distance * LYRICS_STAGGER_DELAY_PER_DISTANCE).coerceAtMost(LYRICS_STAGGER_DELAY_MAX_MS)
                         
                         val frozenOffset = remember { mutableFloatStateOf(0f) }
-                        val targetOffset = anchorY + positions.getOrDefault(listIndex, (listIndex - activeListIndex) * (lineHeightPx + with(density) { 16.dp.toPx() }))
+                        val targetOffset = anchorY + positions.getOrDefault(listIndex, (listIndex - activeListIndex) * (lineHeightPx + with(density) { LYRICS_ITEM_GAP_DP.toPx() }))
 
-                        val itemGapPx = with(density) { 16.dp.toPx() }
+                        val itemGapPx = with(density) { LYRICS_ITEM_GAP_DP.toPx() }
                         val prevTarget = positions[listIndex - 1]?.let { anchorY + it }
                         val nextTarget = positions[listIndex + 1]?.let { anchorY + it }
-                        val prevHeight = itemHeights[listIndex - 1]?.toFloat() ?: with(density) { 68.dp.toPx() }
+                        val prevHeight = itemHeights[listIndex - 1]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
                         val clampedTarget = targetOffset.coerceAtLeast(
                             (prevTarget ?: Float.NEGATIVE_INFINITY) + prevHeight + itemGapPx
                         ).coerceAtMost(
-                            (nextTarget ?: Float.POSITIVE_INFINITY) - (itemHeights[listIndex]?.toFloat() ?: with(density) { 68.dp.toPx() }) - itemGapPx
+                            (nextTarget ?: Float.POSITIVE_INFINITY) - (itemHeights[listIndex]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }) - itemGapPx
                         )
 
                         LaunchedEffect(isAutoScrollEnabled, clampedTarget, isInitialLayout) {
@@ -1462,7 +1470,7 @@ fun Lyrics(
                 state = lazyListState,
                 verticalArrangement = Arrangement.Top,
                 contentPadding = PaddingValues(top = 100.dp, bottom = 150.dp),
-                modifier = Modifier.fadingEdge(top = 130.dp, bottom = 160.dp).nestedScroll(remember {
+                modifier = Modifier.fadingEdge(top = LYRICS_FADE_TOP_DP, bottom = LYRICS_FADE_BOTTOM_DP).nestedScroll(remember {
                     object : NestedScrollConnection {
                         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                             if (source == NestedScrollSource.UserInput) isAutoScrollEnabled = false
@@ -1520,8 +1528,8 @@ fun Lyrics(
 
                     if (target != -1) {
                         val newActiveListIndex = mergedLyricsList.indexOfFirst { it is LyricsListItem.Line && it.index == target }.coerceAtLeast(0)
-                        val itemGapPx = with(density) { 16.dp.toPx() }
-                        val lineHeightPx = with(density) { 68.dp.toPx() }
+                        val itemGapPx = with(density) { LYRICS_ITEM_GAP_DP.toPx() }
+                        val lineHeightPx = with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
                         val shift = positions[newActiveListIndex] ?: ((newActiveListIndex - activeListIndex) * (lineHeightPx + itemGapPx))
                         userManualOffset += shift
                         deferredCurrentLineIndex = target
