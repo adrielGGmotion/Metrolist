@@ -138,7 +138,6 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import kotlin.math.abs
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -964,7 +963,7 @@ fun Lyrics(
                     if (isLyricsProviderShown) {
                         val providerBase = anchorY + (positions[0] ?: 0f) - with(density) { 32.dp.toPx() }
                         Text(
-                            text = "Lyrics from ${lyricsEntity.provider}",
+                            text = stringResource(R.string.lyrics_from_provider, lyricsEntity.provider),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Medium,

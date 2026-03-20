@@ -600,6 +600,9 @@ class MusicService :
         // Initialize Google Cast
         initializeCast()
 
+        // Update lyrics provider order preference
+        lyricsHelper.preferred.collectLatest(scope) {}
+
         // 4. Watch for EQ profile changes
         scope.launch {
             eqProfileRepository.activeProfile.collect { profile ->
