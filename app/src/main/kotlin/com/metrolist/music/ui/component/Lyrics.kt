@@ -693,18 +693,33 @@ fun Lyrics(
             return@LaunchedEffect
         }
         var lastMainMaxSeen = -1
+        var tickCount = 0
         while (isActive) {
             delay(8)
+            tickCount++
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
             val position = sliderPosition ?: playerConnection.player.currentPosition
             currentPlaybackPosition.set(position)
-            currentPositionState = position
+            if (tickCount % 2 == 0) {
+                currentPositionState = position
+            }
             val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
             val effectivePosition = position + lyricsOffset
             
-            val newActiveIndices = findActiveLineIndices(lines, effectivePosition)
+            val initialActiveIndices = findActiveLineIndices(lines, effectivePosition)
             val newScrollActiveIndices = findActiveLineIndices(lines, effectivePosition)
+            val newActiveIndices = initialActiveIndices.toMutableSet()
+            for (i in initialActiveIndices) {
+                if (lines.getOrNull(i)?.isBackground == true) {
+                    for (j in i - 1 downTo 0) {
+                        if (lines.getOrNull(j)?.isBackground == false) {
+                            newActiveIndices.add(j)
+                            break
+                        }
+                    }
+                }
+            }
 
             val newMax = newScrollActiveIndices
                 .filter { lines.getOrNull(it)?.isBackground == false }
@@ -731,7 +746,7 @@ fun Lyrics(
 
             val shouldScroll = when {
                 // Consecutive main lines: main ended but new main immediately took over
-                mainLineJustEnded && anyStillActive && newMax > prevMax && newMax != scrollTargetIndex -> true
+                mainLineJustEnded && anyStillActive && newMax != scrollTargetIndex -> true
                 // Main ended but BG/partner still singing — wait for them
                 mainLineJustEnded && anyStillActive -> false
                 // Main ended and the whole cluster cleared
@@ -744,7 +759,7 @@ fun Lyrics(
                     nextMain != null && nextMain != scrollTargetIndex
                 }
                 // New main line activated during an overlapping period
-                newMax > prevMax && newMax != -1 && newMax != scrollTargetIndex -> true
+                newMax > prevMax && newMax != -1 && newMax != scrollTargetIndex && !newScrollActiveIndices.contains(scrollTargetIndex) -> true
                 // First line of the song starts
                 previousScrollActiveIndices.isEmpty() && newScrollActiveIndices.isNotEmpty() && newMax != scrollTargetIndex -> true
                 else -> false
@@ -834,13 +849,16 @@ fun Lyrics(
             if (activeListIndex == -1) return@remember map
             
             val itemGapPx = with(density) { LYRICS_ITEM_GAP_DP.toPx() }
+            val bgGapPx = with(density) { 0.dp.toPx() }
             map[activeListIndex] = 0f
             
             // Items above
             var currentY = 0f
             for (i in activeListIndex - 1 downTo 0) {
                 val height = itemHeights[i]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
-                currentY -= (height + itemGapPx)
+                val isBg = (mergedLyricsList.getOrNull(i) as? LyricsListItem.Line)?.entry?.isBackground == true
+                val gap = if (isBg) bgGapPx else itemGapPx
+                currentY -= (height + gap)
                 map[i] = currentY
             }
             
@@ -848,7 +866,9 @@ fun Lyrics(
             currentY = 0f
             for (i in activeListIndex until mergedLyricsList.size - 1) {
                 val height = itemHeights[i]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
-                currentY += (height + itemGapPx)
+                val isBg = (mergedLyricsList.getOrNull(i + 1) as? LyricsListItem.Line)?.entry?.isBackground == true
+                val gap = if (isBg) bgGapPx else itemGapPx
+                currentY += (height + gap)
                 map[i + 1] = currentY
             }
             map
@@ -893,11 +913,13 @@ fun Lyrics(
             }
         }
 
-        LaunchedEffect(showLyrics) {
-            if (showLyrics) {
+        LaunchedEffect(showLyrics, activeListIndex, mergedLyricsList.size) {
+            if (showLyrics && mergedLyricsList.isNotEmpty()) {
                 isInitialLayout = true
-                snapshotFlow { itemHeights.size }
-                    .first { it >= minOf(mergedLyricsList.size, 5) }
+                val windowStart = (activeListIndex - 8).coerceAtLeast(0)
+                val windowEnd = (activeListIndex + 12).coerceAtMost(mergedLyricsList.size - 1)
+                snapshotFlow { itemHeights.toMap() }
+                    .first { heights -> (windowStart..windowEnd).all { heights.containsKey(it) } }
                 isInitialLayout = false
             }
         }
@@ -1102,13 +1124,17 @@ fun Lyrics(
                         val targetOffset = anchorY + positions.getOrDefault(listIndex, (listIndex - activeListIndex) * (lineHeightPx + with(density) { LYRICS_ITEM_GAP_DP.toPx() }))
 
                         val itemGapPx = with(density) { LYRICS_ITEM_GAP_DP.toPx() }
+                        val bgGapPx = with(density) { 0.dp.toPx() }
+                        val effectiveGap = if ((mergedLyricsList.getOrNull(listIndex) as? LyricsListItem.Line)?.entry?.isBackground == true) bgGapPx else itemGapPx
+                        val nextGap = if ((mergedLyricsList.getOrNull(listIndex + 1) as? LyricsListItem.Line)?.entry?.isBackground == true) bgGapPx else itemGapPx
+
                         val prevTarget = positions[listIndex - 1]?.let { anchorY + it }
                         val nextTarget = positions[listIndex + 1]?.let { anchorY + it }
                         val prevHeight = itemHeights[listIndex - 1]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }
                         val clampedTarget = targetOffset.coerceAtLeast(
-                            (prevTarget ?: Float.NEGATIVE_INFINITY) + prevHeight + itemGapPx
+                            (prevTarget ?: Float.NEGATIVE_INFINITY) + prevHeight + effectiveGap
                         ).coerceAtMost(
-                            (nextTarget ?: Float.POSITIVE_INFINITY) - (itemHeights[listIndex]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }) - itemGapPx
+                            (nextTarget ?: Float.POSITIVE_INFINITY) - (itemHeights[listIndex]?.toFloat() ?: with(density) { LYRICS_ITEM_FALLBACK_HEIGHT_DP.toPx() }) - nextGap
                         )
 
                         LaunchedEffect(isAutoScrollEnabled, clampedTarget, isInitialLayout) {
@@ -1203,8 +1229,8 @@ fun Lyrics(
                                             .padding(
                                                 start = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
                                                 end = when (lyricsTextPosition) { LyricsPosition.LEFT, LyricsPosition.RIGHT -> 11.dp; else -> 24.dp },
-                                                top = if (item.isBackground) (if (bgVisible) 2.dp else 0.dp) else 12.dp,
-                                                bottom = if (item.isBackground) (if (bgVisible) 2.dp else 0.dp) else if (mergedLyricsList.getOrNull(listIndex + 1)?.let { it is LyricsListItem.Line && it.entry.isBackground } == true) 4.dp else 12.dp
+                                                top = if (item.isBackground) 0.dp else 12.dp,
+                                                bottom = if (item.isBackground) 2.dp else if (mergedLyricsList.getOrNull(listIndex + 1)?.let { it is LyricsListItem.Line && it.entry.isBackground } == true) 0.dp else 12.dp
                                             )
                                         
                                         val pairedAgent = if (item.isBackground && pairedMainLineIndex != -1) lines[pairedMainLineIndex].agent else null
@@ -1298,7 +1324,7 @@ fun Lyrics(
                                                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                                                         lineHeightStyle = LineHeightStyle(
                                                             alignment = LineHeightStyle.Alignment.Center,
-                                                            trim = LineHeightStyle.Trim.None
+                                                            trim = LineHeightStyle.Trim.Both
                                                         )
                                                     )
 
@@ -1438,7 +1464,7 @@ fun Lyrics(
                                                             platformStyle = PlatformTextStyle(includeFontPadding = false),
                                                             lineHeightStyle = LineHeightStyle(
                                                                 alignment = LineHeightStyle.Alignment.Center,
-                                                                trim = LineHeightStyle.Trim.None
+                                                                trim = LineHeightStyle.Trim.Both
                                                             )
                                                         )
 
@@ -1717,7 +1743,7 @@ fun Lyrics(
 
                                                                 alignment = LineHeightStyle.Alignment.Center,
 
-                                                                trim = LineHeightStyle.Trim.None
+                                                                trim = LineHeightStyle.Trim.Both
 
                                                             )
 
