@@ -775,7 +775,7 @@ fun Lyrics(
                     else -> newMax
                 }
 
-                val bgPartnerStillActive = (targetToScroll + 1 until lines.size)
+                val bgPartnerStillActive = !mainLineJustEnded && (targetToScroll + 1 until lines.size)
                     .takeWhile { lines.getOrNull(it)?.isBackground == true }
                     .any { newScrollActiveIndices.contains(it) }
 
