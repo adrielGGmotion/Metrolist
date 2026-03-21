@@ -774,7 +774,12 @@ fun Lyrics(
                     }
                     else -> newMax
                 }
-                if (targetToScroll != -1 && targetToScroll != scrollTargetIndex) {
+
+                val bgPartnerStillActive = (targetToScroll + 1 until lines.size)
+                    .takeWhile { lines.getOrNull(it)?.isBackground == true }
+                    .any { newScrollActiveIndices.contains(it) }
+
+                if (targetToScroll != -1 && targetToScroll != scrollTargetIndex && !bgPartnerStillActive) {
                     scrollTargetIndex = targetToScroll
                 }
             }
