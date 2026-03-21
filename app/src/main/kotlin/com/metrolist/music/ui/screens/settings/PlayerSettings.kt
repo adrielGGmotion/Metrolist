@@ -668,7 +668,9 @@ fun PlayerSettings(
             }
         )
 
-        AlarmSettingsSection(showTitle = false)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        AlarmSettingsSection()
 
         Spacer(modifier = Modifier.height(27.dp))
 
