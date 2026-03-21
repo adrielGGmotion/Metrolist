@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,15 +30,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +57,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
@@ -81,6 +86,8 @@ import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerButtonsStyle
 import com.metrolist.music.constants.PlayerButtonsStyleKey
+import com.metrolist.music.constants.PlayerDesign
+import com.metrolist.music.constants.PlayerDesignKey
 import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.SelectedThemeColorKey
 import com.metrolist.music.constants.ShowCachedPlaylistKey
@@ -166,6 +173,16 @@ fun AppearanceSettings(
         UseNewPlayerDesignKey,
         defaultValue = true
     )
+    val (playerDesign, onPlayerDesignChange) = rememberEnumPreference(
+        PlayerDesignKey,
+        defaultValue = PlayerDesign.CLASSIC,
+    )
+
+    LaunchedEffect(Unit) {
+        if (playerDesign == PlayerDesign.CLASSIC && useNewPlayerDesign) {
+            onPlayerDesignChange(PlayerDesign.NEW)
+        }
+    }
     val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
         UseNewMiniPlayerDesignKey,
         defaultValue = true
@@ -310,6 +327,8 @@ fun AppearanceSettings(
     var showPlayerBackgroundDialog by rememberSaveable {
         mutableStateOf(false)
     }
+
+    var showPlayerDesignDialog by rememberSaveable { mutableStateOf(false) }
 
     var showPlayerButtonsStyleDialog by rememberSaveable {
         mutableStateOf(false)
@@ -1034,23 +1053,20 @@ fun AppearanceSettings(
             items = listOf(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),
-                    title = { Text(stringResource(R.string.new_player_design)) },
-                    trailingContent = {
-                        Switch(
-                            checked = useNewPlayerDesign,
-                            onCheckedChange = onUseNewPlayerDesignChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (useNewPlayerDesign) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                    title = { Text(stringResource(R.string.player_design)) },
+                    description = {
+                        Text(
+                            stringResource(
+                                when (playerDesign) {
+                                    PlayerDesign.CLASSIC -> R.string.player_design_classic
+                                    PlayerDesign.NEW -> R.string.player_design_new
+                                    PlayerDesign.EXPRESSIVE -> R.string.player_design_expressive
+                                    PlayerDesign.ANIMATED_CANVAS -> R.string.player_design_animated_canvas
+                                }
+                            )
                         )
                     },
-                    onClick = { onUseNewPlayerDesignChange(!useNewPlayerDesign) }
+                    onClick = { showPlayerDesignDialog = true }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.gradient),
@@ -1174,6 +1190,58 @@ fun AppearanceSettings(
                 )
             ) else emptyList()
         )
+
+        if (showPlayerDesignDialog) {
+            Dialog(onDismissRequest = { showPlayerDesignDialog = false }) {
+                Surface(shape = RoundedCornerShape(28.dp), tonalElevation = 6.dp) {
+                    Column(modifier = Modifier.padding(vertical = 24.dp)) {
+                        Text(
+                            text = stringResource(R.string.player_design),
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .padding(bottom = 16.dp)
+                        )
+                        listOf(
+                            PlayerDesign.CLASSIC,
+                            PlayerDesign.NEW,
+                            PlayerDesign.EXPRESSIVE
+                        ).forEach { design ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onPlayerDesignChange(design)
+                                        showPlayerDesignDialog = false
+                                    }
+                                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                            ) {
+                                RadioButton(
+                                    selected = playerDesign == design,
+                                    onClick = {
+                                        onPlayerDesignChange(design)
+                                        showPlayerDesignDialog = false
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = stringResource(
+                                        when (design) {
+                                            PlayerDesign.CLASSIC -> R.string.player_design_classic
+                                            PlayerDesign.NEW -> R.string.player_design_new
+                                            PlayerDesign.EXPRESSIVE -> R.string.player_design_expressive
+                                            else -> R.string.player_design_classic
+                                        }
+                                    ),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         if (showSensitivityDialog) {
             var tempSensitivity by remember { mutableFloatStateOf(swipeSensitivity) }
