@@ -67,6 +67,7 @@ import com.metrolist.music.constants.EnableHighRefreshRateKey
 import com.metrolist.music.constants.GridItemSize
 import com.metrolist.music.constants.GridItemsSizeKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
+import com.metrolist.music.constants.HideStatusBarOnFullscreenKey
 import com.metrolist.music.constants.LibraryFilter
 import com.metrolist.music.constants.ListenTogetherInTopBarKey
 import com.metrolist.music.constants.LyricsClickKey
@@ -196,6 +197,10 @@ fun AppearanceSettings(
     val (lyricsScroll, onLyricsScrollChange) = rememberPreference(
         LyricsScrollKey,
         defaultValue = true
+    )
+    val (hideStatusBarOnFullscreen, onHideStatusBarOnFullscreenChange) = rememberPreference(
+        HideStatusBarOnFullscreenKey,
+        defaultValue = false
     )
     val (respectAgentPositioning, onRespectAgentPositioningChange) = rememberPreference(RespectAgentPositioningKey, defaultValue = true)
 
@@ -1147,6 +1152,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onLyricsScrollChange(!lyricsScroll) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.hide_status_bar_fullscreen)) },
+                    description = { Text(stringResource(R.string.hide_status_bar_fullscreen_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = hideStatusBarOnFullscreen,
+                            onCheckedChange = onHideStatusBarOnFullscreenChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (hideStatusBarOnFullscreen) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onHideStatusBarOnFullscreenChange(!hideStatusBarOnFullscreen) }
                 )
             )
         )
