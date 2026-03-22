@@ -106,7 +106,8 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.QueueEditLockKey
-import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.constants.PlayerUiStyle
+import com.metrolist.music.constants.PlayerUiStyleKey
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.move
 import com.metrolist.music.extensions.toggleRepeatMode
@@ -124,6 +125,7 @@ import com.metrolist.music.ui.menu.SelectionMediaMetadataMenu
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.makeTimeString
+import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -216,11 +218,7 @@ fun Queue(
 
     var locked by rememberPreference(QueueEditLockKey, defaultValue = true)
 
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) =
-        rememberPreference(
-            UseNewPlayerDesignKey,
-            defaultValue = true,
-        )
+    val playerUiStyle by rememberEnumPreference(PlayerUiStyleKey, defaultValue = PlayerUiStyle.MATERIAL_YOU)
 
     val snackbarHostState = remember { SnackbarHostState() }
     var dismissJob: Job? by remember { mutableStateOf(null) }
@@ -263,7 +261,7 @@ fun Queue(
             Box(Modifier.fillMaxSize().background(Color.Unspecified))
         },
         collapsedContent = {
-            if (useNewPlayerDesign) {
+            if (playerUiStyle != PlayerUiStyle.CLASSIC) {
                 // New design
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),

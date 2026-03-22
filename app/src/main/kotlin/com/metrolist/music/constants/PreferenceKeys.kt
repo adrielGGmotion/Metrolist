@@ -402,6 +402,14 @@ enum class PlayerButtonsStyle {
     TERTIARY,
 }
 
+enum class PlayerUiStyle {
+    CLASSIC,
+    MATERIAL_YOU,
+    EXPRESSIVE,
+}
+
+val PlayerUiStyleKey = stringPreferencesKey("playerUiStyle")
+
 enum class PlayerBackgroundStyle {
     DEFAULT,
     GRADIENT,

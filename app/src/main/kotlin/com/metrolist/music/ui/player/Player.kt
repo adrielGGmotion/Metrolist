@@ -145,7 +145,8 @@ import com.metrolist.music.constants.SliderStyle
 import com.metrolist.music.constants.SliderStyleKey
 import com.metrolist.music.constants.SquigglySliderKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
-import com.metrolist.music.constants.UseNewPlayerDesignKey
+import com.metrolist.music.constants.PlayerUiStyle
+import com.metrolist.music.constants.PlayerUiStyleKey
 import com.metrolist.music.db.entities.LyricsEntity
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.toggleRepeatMode
@@ -204,11 +205,7 @@ fun BottomSheetPlayer(
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) =
-        rememberPreference(
-            UseNewPlayerDesignKey,
-            defaultValue = true,
-        )
+    val playerUiStyle by rememberEnumPreference(PlayerUiStyleKey, defaultValue = PlayerUiStyle.MATERIAL_YOU)
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(HidePlayerThumbnailKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     val playerBackground by rememberEnumPreference(
@@ -1046,7 +1043,7 @@ fun BottomSheetPlayer(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                if (useNewPlayerDesign) {
+                if (playerUiStyle != PlayerUiStyle.CLASSIC) {
                     val shareShape =
                         RoundedCornerShape(
                             topStart = 50.dp,
@@ -1442,7 +1439,7 @@ fun BottomSheetPlayer(
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             ) {
                 Column {
-                    if (useNewPlayerDesign) {
+                    if (playerUiStyle != PlayerUiStyle.CLASSIC) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
