@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -87,10 +88,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -1834,45 +1839,101 @@ fun BottomSheetPlayer(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
                         Modifier
+                            .fillMaxHeight()
                             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                             .padding(bottom = bottomPadding)
                             .animateContentSize(),
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        // Remember lambdas to prevent unnecessary recomposition
-                        val currentSliderPosition by rememberUpdatedState(sliderPosition)
-                        val sliderPositionProvider = remember { { currentSliderPosition } }
-                        val isExpandedProvider = remember(state) { { state.isExpanded } }
-                        AnimatedContent(
-                            targetState = showInlineLyrics,
-                            label = "Lyrics",
-                            transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        ) { showLyrics ->
-                            if (showLyrics) {
-                                InlineLyricsView(
-                                    mediaMetadata = mediaMetadata,
-                                    showLyrics = showLyrics,
-                                    positionProvider = { effectivePosition },
-                                )
-                            } else {
-                                Thumbnail(
-                                    sliderPositionProvider = sliderPositionProvider,
-                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                                    isPlayerExpanded = isExpandedProvider,
-                                    isListenTogetherGuest = isListenTogetherGuest,
-                                )
+                    when (playerUiStyle) {
+                        PlayerUiStyle.EXPRESSIVE -> {
+                            // Expressive: edge-to-edge thumbnail with transparent bottom bleed
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .fillMaxHeight(0.6f)
+                                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
+                            ) {
+                                AnimatedContent(
+                                    targetState = showInlineLyrics,
+                                    label = "Lyrics",
+                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                ) { showLyrics ->
+                                    if (showLyrics) {
+                                        InlineLyricsView(
+                                            mediaMetadata = mediaMetadata,
+                                            showLyrics = showLyrics,
+                                            positionProvider = { effectivePosition },
+                                        )
+                                    } else {
+                                        AsyncImage(
+                                            model = mediaMetadata?.thumbnailUrl,
+                                            contentDescription = null,
+                                            contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.FillWidth,
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxSize()
+                                                    .drawWithContent {
+                                                        drawContent()
+                                                        // Alpha mask: fade bottom 30% of image to transparent
+                                                        drawRect(
+                                                            brush =
+                                                                Brush.verticalGradient(
+                                                                    colors = listOf(Color.Transparent, Color.Black),
+                                                                    startY = size.height * 0.70f,
+                                                                    endY = size.height,
+                                                                ),
+                                                            blendMode = BlendMode.DstOut,
+                                                        )
+                                                    },
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            mediaMetadata?.let { controlsContent(it) }
+                            Spacer(Modifier.height(30.dp))
+                        }
+
+                        else -> {
+                            // CLASSIC and MATERIAL_YOU: existing behavior
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                // Remember lambdas to prevent unnecessary recomposition
+                                val currentSliderPosition by rememberUpdatedState(sliderPosition)
+                                val sliderPositionProvider = remember { { currentSliderPosition } }
+                                val isExpandedProvider = remember(state) { { state.isExpanded } }
+                                AnimatedContent(
+                                    targetState = showInlineLyrics,
+                                    label = "Lyrics",
+                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                ) { showLyrics ->
+                                    if (showLyrics) {
+                                        InlineLyricsView(
+                                            mediaMetadata = mediaMetadata,
+                                            showLyrics = showLyrics,
+                                            positionProvider = { effectivePosition },
+                                        )
+                                    } else {
+                                        Thumbnail(
+                                            sliderPositionProvider = sliderPositionProvider,
+                                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                            isPlayerExpanded = isExpandedProvider,
+                                            isListenTogetherGuest = isListenTogetherGuest,
+                                            hideNowPlayingHeader = false,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
 
-                    mediaMetadata?.let {
-                        controlsContent(it)
+                    if (playerUiStyle != PlayerUiStyle.EXPRESSIVE) {
+                        mediaMetadata?.let { controlsContent(it) }
+                        Spacer(Modifier.height(30.dp))
                     }
-
-                    Spacer(Modifier.height(30.dp))
                 }
             }
         }
