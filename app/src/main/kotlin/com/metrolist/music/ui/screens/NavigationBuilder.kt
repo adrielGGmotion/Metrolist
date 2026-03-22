@@ -76,7 +76,7 @@ fun NavGraphBuilder.navigationBuilder(
         HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
     }
 
-    composable(Screens.Search.route) {
+    composable(Screens.Search.route) { backStackEntry ->
         val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
         val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
         val isSystemInDarkTheme = isSystemInDarkTheme()
@@ -91,6 +91,7 @@ fun NavGraphBuilder.navigationBuilder(
         SearchScreen(
             navController = navController,
             pureBlack = pureBlack,
+            savedStateHandle = backStackEntry.savedStateHandle
         )
     }
 
@@ -175,8 +176,12 @@ fun NavGraphBuilder.navigationBuilder(
         popExitTransition = {
             fadeOut(tween(200))
         },
-    ) {
-        OnlineSearchResult(navController)
+    ) { backStackEntry ->
+        OnlineSearchResult(
+            navController = navController,
+            savedStateHandle = backStackEntry.savedStateHandle
+        )
+
     }
 
     composable(
