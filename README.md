@@ -52,7 +52,7 @@ If you're in a region where YouTube Music is not supported, you won't be able to
 <div align="center">
 <h1>Nightly Build</h1>
 
-<a href="https://nightly.link/MetrolistGroup/Metrolist/workflows/build/main/app-universal-with-Google-Cast.zip">
+<a href="https://nightly.link/MetrolistGroup/Metrolist/workflows/build/main/app-with-Google-Cast.zip">
   <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Get it on GitHub" height="82">
 </a>
 
