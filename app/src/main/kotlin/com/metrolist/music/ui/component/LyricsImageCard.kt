@@ -147,12 +147,6 @@ fun rememberAdjustedFontSize(
     return calculatedFontSize
 }
 
-enum class LyricsBackgroundStyle {
-    SOLID,
-    BLUR,
-    GRADIENT
-}
-
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LyricsImageCard(

@@ -10,10 +10,16 @@ class TTMLParserTest {
     fun testV1000AgentMapping() {
         val ttmlBackground = """
             <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+              <head>
+                <metadata>
+                  <ttm:agent xml:id="v1000" type="group"/>
+                  <ttm:agent xml:id="v1" type="person"/>
+                </metadata>
+              </head>
               <body>
                 <div>
                   <p begin="00:01.500" ttm:agent="v1000">
-                    <span>(Background vocal)</span>
+                    <span>(Group vocal)</span>
                   </p>
                   <p begin="00:02.000" ttm:agent="v1">
                     <span>Main vocal</span>
@@ -26,7 +32,9 @@ class TTMLParserTest {
         val parsedLines = TTMLParser.parseTTML(ttmlBackground)
         val lrc = TTMLParser.toLRC(parsedLines)
         
-        assertTrue("v1000 should be mapped to {bg}", lrc.contains("{bg}(Background vocal)"))
+        // v1 is prioritized, so v1000 becomes v2
+        assertTrue("v1000 should be mapped to agent:v2", lrc.contains("{agent:v2}(Group vocal)"))
+        assertTrue("v1 should be mapped to agent:v1", lrc.contains("{agent:v1}Main vocal"))
     }
 
     @Test
@@ -119,7 +127,7 @@ class TTMLParserTest {
         val parsedLines = TTMLParser.parseTTML(ttml)
         val lrc = TTMLParser.toLRC(parsedLines)
         
-        assertFalse("Should not contain agent:v1 when only one main vocalist exists", lrc.contains("{agent:v1}"))
+        assertTrue("Should contain agent:v1 when background vocals exist to distinguish them", lrc.contains("{agent:v1}"))
         assertTrue("Should contain {bg} for background vocal", lrc.contains("{bg}bg"))
     }
 
@@ -140,7 +148,8 @@ class TTMLParserTest {
         val parsedLines = TTMLParser.parseTTML(ttml)
         val lrc = TTMLParser.toLRC(parsedLines)
         
-        assertTrue("Should contain agent:v2 even if only one, because it's not v1 (implies a part of a larger collaboration)", lrc.contains("{agent:v2}"))
+        // v2 should be preserved
+        assertTrue("Should contain agent:v2 since it was explicitly named", lrc.contains("{agent:v2}"))
     }
 
     @Test
@@ -214,5 +223,111 @@ class TTMLParserTest {
         assertEquals("hello", word.text)
         assertEquals(1.0, word.startTime, 0.001)
         assertEquals(2.0, word.endTime, 0.001)
+    }
+
+    @Test
+    fun testMultipleBackgroundSpansInOneP() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+              <body>
+                <div>
+                  <p begin="00:01.000">
+                    <span begin="00:01.000" end="00:02.000">Main lyric</span>
+                    <span ttm:role="x-bg" begin="00:01.200">
+                      <span begin="00:01.200" end="00:01.500">Bg1</span>
+                    </span>
+                    <span ttm:role="x-bg" begin="00:01.600">
+                      <span begin="00:01.600" end="00:01.900">Bg2</span>
+                    </span>
+                  </p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val parsedLines = TTMLParser.parseTTML(ttml)
+        val lrc = TTMLParser.toLRC(parsedLines)
+        
+        // Should be merged into one {bg} line
+        assertTrue("Should contain merged background line", lrc.contains("{bg}Bg1 Bg2"))
+        assertTrue("Should contain combined word data", lrc.contains("<Bg1:1.2:1.5|Bg2:1.6:1.9>"))
+    }
+
+    @Test
+    fun testV2000AgentMapping() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+              <head>
+                <metadata>
+                  <ttm:agent xml:id="v1" type="person"/>
+                  <ttm:agent xml:id="v2000" type="other"/>
+                </metadata>
+              </head>
+              <body>
+                <div>
+                  <p begin="00:01.000" ttm:agent="v1">
+                    <span>Main vocal</span>
+                  </p>
+                  <p begin="00:02.000" ttm:agent="v2000">
+                    <span>Outro vocal</span>
+                  </p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val parsedLines = TTMLParser.parseTTML(ttml)
+        val lrc = TTMLParser.toLRC(parsedLines)
+        
+        // v1 remains v1, v2000 becomes v2
+        assertTrue("v1 should be mapped to agent:v1", lrc.contains("{agent:v1}Main vocal"))
+        assertTrue("v2000 should be mapped to agent:v2", lrc.contains("{agent:v2}Outro vocal"))
+    }
+
+    @Test
+    fun testSequentialBackgroundDeDuplication() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+              <head>
+                <metadata>
+                  <ttm:agent xml:id="v1" type="person"/>
+                  <ttm:agent xml:id="v2" type="person"/>
+                </metadata>
+              </head>
+              <body>
+                <div>
+                  <p begin="00:01.000" ttm:role="x-bg" ttm:agent="v1">
+                    <span>Line 1</span>
+                  </p>
+                  <p begin="00:02.000" ttm:role="x-bg" ttm:agent="v1">
+                    <span>Line 2</span>
+                  </p>
+                  <p begin="00:03.000" ttm:agent="v1">
+                    <span>Main Line</span>
+                    <span ttm:role="x-bg" begin="00:03.500">
+                      <span>Nested Bg</span>
+                    </span>
+                  </p>
+                  <p begin="00:04.000" ttm:role="x-bg" ttm:agent="v1">
+                    <span>Line 4</span>
+                  </p>
+                  <p begin="00:05.000" ttm:agent="v2">
+                    <span>Line 5</span>
+                  </p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val parsedLines = TTMLParser.parseTTML(ttml)
+        val lrc = TTMLParser.toLRC(parsedLines)
+        val lines = lrc.trim().lines().filter { it.startsWith("[") }
+        
+        assertTrue("First background line should have {bg}", lines[0].contains("{bg}Line 1"))
+        assertFalse("Second background line should NOT have {bg}", lines[1].contains("{bg}"))
+        assertTrue("Main line should have {agent:v1}", lines[2].contains("{agent:v1}Main Line"))
+        assertTrue("Nested background line should have {bg}", lines[3].contains("{bg}Nested Bg"))
+        assertFalse("Line after nested background should NOT have {bg}", lines[4].contains("{bg}"))
+        assertTrue("Line after background should have {agent:v2}", lines[5].contains("{agent:v2}Line 5"))
     }
 }

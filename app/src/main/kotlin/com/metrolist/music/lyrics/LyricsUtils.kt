@@ -14,7 +14,7 @@ import java.util.Locale
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
-    val LINE_REGEX = "((\\[\\d\\d:\\d\\d\\.\\d{2,3}\\] ?)+)(.+)".toRegex()
+    val LINE_REGEX = "((\\[\\d\\d:\\d\\d\\.\\d{2,3}\\] ?)+)(.*)".toRegex()
     val TIME_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\]".toRegex()
 
     fun cleanTitleForSearch(title: String): String {
@@ -43,14 +43,14 @@ object LyricsUtils {
     }
 
     // Regex for rich sync format: [MM:SS.mm]<MM:SS.mm> word <MM:SS.mm> word ...
-    private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.+)".toRegex()
+    private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.*)".toRegex()
     private val RICH_SYNC_WORD_REGEX = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>([^<]+)".toRegex()
 
     // Regex for Paxsenix v1/v2/bg format
     // [00:00.000]v1: <00:00.000>I <00:00.154>promise...
     // [bg: <02:18.078>Yeah<02:19.341>]
-    private val PAXSENIX_AGENT_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](v\\d+):\\s*(.+)".toRegex()
-    private val PAXSENIX_BG_LINE_REGEX = "^\\[bg:\\s*(.+)\\]$".toRegex()
+    private val PAXSENIX_AGENT_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](v\\d+):\\s*(.*)".toRegex()
+    private val PAXSENIX_BG_LINE_REGEX = "^\\[bg:\\s*(.*)\\]$".toRegex()
 
     // Regex for agent and background markers (existing format)
     private val AGENT_REGEX = "\\{agent:([^}]+)\\}".toRegex()
@@ -354,43 +354,78 @@ object LyricsUtils {
     private val HEX_ENTITY_REGEX = "&#x([0-9a-fA-F]+);".toRegex()
     private val DEC_ENTITY_REGEX = "&#(\\d+);".toRegex()
 
-    private fun decodeHtmlEntities(text: String): String =
-        text
-            .replace(HEX_ENTITY_REGEX) { match ->
-                match.groupValues[1].toIntOrNull(16)
-                    ?.takeIf { it in 0..0x10FFFF }
-                    ?.let { String(Character.toChars(it)) }
-                    ?: match.value
+    private fun decodeHtmlEntities(text: String): String {
+        if (!text.contains('&')) return text
+        val sb = StringBuilder(text.length)
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            if (c == '&') {
+                val end = text.indexOf(';', i + 1)
+                if (end != -1 && end - i < 10) {
+                    val entity = text.substring(i, end + 1)
+                    val decoded = when (entity) {
+                        "&apos;" -> "'"
+                        "&quot;" -> "\""
+                        "&lt;" -> "<"
+                        "&gt;" -> ">"
+                        "&nbsp;" -> " "
+                        "&amp;" -> "&"
+                        else -> {
+                            if (entity.startsWith("&#x")) {
+                                entity.substring(3, entity.length - 1).toIntOrNull(16)?.toChar()?.toString()
+                            } else if (entity.startsWith("&#")) {
+                                entity.substring(2, entity.length - 1).toIntOrNull()?.toChar()?.toString()
+                            } else null
+                        }
+                    }
+                    if (decoded != null) {
+                        sb.append(decoded)
+                        i = end + 1
+                        continue
+                    }
+                }
             }
-            .replace(DEC_ENTITY_REGEX) { match ->
-                match.groupValues[1].toIntOrNull()
-                    ?.takeIf { it in 0..0x10FFFF }
-                    ?.let { String(Character.toChars(it)) }
-                    ?: match.value
-            }
-            .replace("&apos;", "'")
-            .replace("&quot;", "\"")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
+            sb.append(c)
+            i++
+        }
+        return sb.toString()
+    }
 
     fun parseLyrics(lyrics: String): List<LyricsEntry> {
-        // Unescape JSON string if needed
-        val unescapedLyrics = lyrics
-            .trim()
-            .removePrefix("\"")
-            .removeSuffix("\"")
-            .replace("\\\\", "\\")
-            .replace("\\n", "\n")
-            .replace("\\r", "\r")
-            .replace("\\t", "\t")
+        if (lyrics.isBlank()) return emptyList()
 
-        // Decode HTML entities (e.g. &#x27; -> ', &amp; -> &)
+        // Fast unescape
+        val unescapedLyrics = if (lyrics.contains('\\') || lyrics.startsWith("\"")) {
+            val s = lyrics.trim().removePrefix("\"").removeSuffix("\"")
+            val sb = StringBuilder(s.length)
+            var j = 0
+            while (j < s.length) {
+                val c = s[j]
+                if (c == '\\' && j + 1 < s.length) {
+                    when (val next = s[j + 1]) {
+                        '\\' -> sb.append('\\')
+                        'n' -> sb.append('\n')
+                        'r' -> sb.append('\r')
+                        't' -> sb.append('\t')
+                        else -> sb.append(c).append(next)
+                    }
+                    j += 2
+                } else {
+                    sb.append(c)
+                    j++
+                }
+            }
+            sb.toString()
+        } else lyrics
+
         val decodedLyrics = decodeHtmlEntities(unescapedLyrics)
 
         val lines = decodedLyrics.lines()
-            .filter { it.isNotBlank() && !it.trim().startsWith("[offset:") }
+            .filter { 
+                it.isNotBlank() || it.trim().startsWith("[") || it.trim().startsWith("<")
+            }
+            .filter { !it.trim().startsWith("[offset:") }
 
         // Check if this is rich sync format (contains <MM:SS.mm> patterns)
         val isRichSync = lines.any { line ->
@@ -432,10 +467,8 @@ object LyricsUtils {
                 // Extract plain text (remove all <MM:SS.mm> tags)
                 val plainText = content.replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), "").trim()
                 
-                if (plainText.isNotBlank()) {
-                    val lineTimeMs = wordTimings?.firstOrNull()?.startTime?.let { (it * 1000).toLong() } ?: 0L
-                    result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = "bg", isBackground = true))
-                }
+                val lineTimeMs = wordTimings?.firstOrNull()?.startTime?.let { (it * 1000).toLong() } ?: 0L
+                result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = "bg", isBackground = true))
                 return@forEachIndexed
             }
             
@@ -463,9 +496,7 @@ object LyricsUtils {
                 // Extract plain text (remove all <MM:SS.mm> tags)
                 val plainText = content.replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), "").trim()
                 
-                if (plainText.isNotBlank()) {
-                    result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = agent, isBackground = false))
-                }
+                result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = agent, isBackground = false))
                 return@forEachIndexed
             }
             
@@ -507,9 +538,7 @@ object LyricsUtils {
                 // Extract plain text (remove all <MM:SS.mm> tags)
                 val plainText = content.replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), "").trim()
 
-                if (plainText.isNotBlank()) {
-                    result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = agent, isBackground = isBackground))
-                }
+                result.add(LyricsEntry(lineTimeMs, plainText, wordTimings, agent = agent, isBackground = isBackground))
             }
         }
 
@@ -699,9 +728,6 @@ object LyricsUtils {
     }
 
     private fun parseLine(line: String, words: List<WordTimestamp>? = null): List<LyricsEntry>? {
-        if (line.isEmpty()) {
-            return null
-        }
         val matchResult = LINE_REGEX.matchEntire(line.trim()) ?: return null
         val times = matchResult.groupValues[1]
         var text = matchResult.groupValues[3]
@@ -738,8 +764,9 @@ object LyricsUtils {
         lines: List<LyricsEntry>,
         position: Long,
     ): Int {
+        val threshold = 100L
         for (index in lines.indices) {
-            if (lines[index].time >= position + 300L) {
+            if (lines[index].time >= position + threshold) {
                 return index - 1
             }
         }
@@ -757,9 +784,11 @@ object LyricsUtils {
         position: Long,
     ): Set<Int> {
         val active = mutableSetOf<Int>()
+        val hasWordTimings = lines.any { !it.words.isNullOrEmpty() }
+
         for (index in lines.indices) {
             val line = lines[index]
-            if (line.time > position + 300L) break // Past current position, stop early
+            if (line.time > position) break // Past current position, stop early
 
             // Determine this line's end time
             val lineEndMs: Long = if (!line.words.isNullOrEmpty()) {
@@ -770,11 +799,19 @@ object LyricsUtils {
                 if (index + 1 < lines.size) lines[index + 1].time else Long.MAX_VALUE
             }
 
-            val graceMs = if (line.words.isNullOrEmpty()) 300L else 0L
-            if (position <= lineEndMs + graceMs) {
+            if (position <= lineEndMs) {
                 active.add(index)
             }
         }
+
+        if (!hasWordTimings && active.size > 1) {
+            val mainActive = active.filter { lines[it].isBackground == false }
+            if (mainActive.size > 1) {
+                val maxTime = mainActive.maxOf { lines[it].time }
+                active.removeAll { it in mainActive && lines[it].time < maxTime }
+            }
+        }
+
         return active
     }
 
@@ -1400,6 +1437,29 @@ object LyricsUtils {
             }
         }
         sb.toString()
+    }
+
+    suspend fun romanize(
+        text: String,
+        line: String,
+        enabledLanguages: List<String>,
+        romanizeCyrillicByLine: Boolean
+    ): String? {
+        val detectionText = if (romanizeCyrillicByLine) line else text
+        return when {
+            "Japanese" in enabledLanguages && isJapanese(detectionText) && !isChinese(detectionText) -> romanizeJapanese(line)
+            "Korean" in enabledLanguages && isKorean(detectionText) -> romanizeKorean(line)
+            "Chinese" in enabledLanguages && isChinese(detectionText) -> romanizeChinese(line)
+            "Hindi" in enabledLanguages && isHindi(detectionText) -> romanizeHindi(line)
+            "Ukrainian" in enabledLanguages && isUkrainian(detectionText) -> romanizeCyrillic(line)
+            "Russian" in enabledLanguages && isRussian(detectionText) -> romanizeCyrillic(line)
+            "Serbian" in enabledLanguages && isSerbian(detectionText) -> romanizeCyrillic(line)
+            "Bulgarian" in enabledLanguages && isBulgarian(detectionText) -> romanizeCyrillic(line)
+            "Belarusian" in enabledLanguages && isBelarusian(detectionText) -> romanizeCyrillic(line)
+            "Kyrgyz" in enabledLanguages && isKyrgyz(detectionText) -> romanizeCyrillic(line)
+            "Macedonian" in enabledLanguages && isMacedonian(detectionText) -> romanizeCyrillic(line)
+            else -> null
+        }
     }
 
     private fun isCyrillicVowel(char: Char): Boolean {

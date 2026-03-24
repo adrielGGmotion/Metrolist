@@ -49,6 +49,7 @@ import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
@@ -273,6 +274,7 @@ constructor(
 
                         // Fetch YouTube playlists asynchronously if enabled
                         if (showYoutubePlaylists) {
+                            @OptIn(DelicateCoroutinesApi::class)
                             GlobalScope.launch(Dispatchers.IO) {
                                try {
                                     val youtubePlaylists = YouTube.home().getOrNull()?.sections
