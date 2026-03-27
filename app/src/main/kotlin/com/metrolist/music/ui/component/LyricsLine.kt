@@ -114,6 +114,7 @@ internal fun LyricsLine(
     romanizeAsMain: Boolean,
     enabledLanguages: List<String>,
     romanizeLyrics: Boolean,
+    karaokeFill: Boolean,
     onSizeChanged: (Int) -> Unit,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -190,9 +191,24 @@ internal fun LyricsLine(
                 val lineColor = expressiveAccent.copy(alpha = if (item.isBackground) focusedAlpha else animatedAlpha)
                 
                 val romanizedTextState by item.romanizedTextFlow.collectAsState()
+                val romanizedWordsState by item.romanizedWordsFlow.collectAsState()
                 val isRomanizedAvailable = romanizedTextState != null
-                val mainTextRaw = if (romanizeAsMain && isRomanizedAvailable) romanizedTextState else item.text
-                val subTextRaw = if (romanizeAsMain && isRomanizedAvailable) item.text else romanizedTextState
+                
+                val mainWords = if (romanizeAsMain && romanizedWordsState != null) romanizedWordsState else item.words
+                val subWords = if (romanizeAsMain && romanizedWordsState != null) item.words else romanizedWordsState
+
+                val mainTextRaw = if (mainWords != null && isSynced) {
+                    mainWords.joinToString(separator = "") { it.text + (if (it.hasTrailingSpace) " " else "") }.trim()
+                } else {
+                    if (romanizeAsMain && isRomanizedAvailable) romanizedTextState else item.text
+                }
+                
+                val subTextRaw = if (subWords != null && isSynced) {
+                    subWords.joinToString(separator = "") { it.text + (if (it.hasTrailingSpace) " " else "") }.trim()
+                } else {
+                    if (romanizeAsMain && isRomanizedAvailable) item.text else romanizedTextState
+                }
+
                 val mainText = if (item.isBackground) mainTextRaw?.removePrefix("(")?.removeSuffix(")") else mainTextRaw
                 val subText = if (item.isBackground) subTextRaw?.removePrefix("(")?.removeSuffix(")") else subTextRaw
 
@@ -210,8 +226,8 @@ internal fun LyricsLine(
                     )
                 )
 
-                val effectiveWords = if (item.words?.isNotEmpty() == true) {
-                    item.words
+                val effectiveMainWords = if (mainWords?.isNotEmpty() == true) {
+                    mainWords
                 } else if (mainText != null) {
                     remember(mainText, item.time) {
                         val words = mainText.split(Regex("\\s+")).filter { it.isNotBlank() }
@@ -229,10 +245,10 @@ internal fun LyricsLine(
                     }
                 } else null
 
-                if (isSynced && effectiveWords != null && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3) && mainText != null) {
+                if (isSynced && karaokeFill && effectiveMainWords != null && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3) && mainText != null) {
                     WordLevelLyrics(
                         mainText = mainText,
-                        words = effectiveWords,
+                        words = effectiveMainWords,
                         isActiveLine = isActiveLine,
                         currentPositionState = currentPositionState,
                         lyricsOffset = lyricsOffset,
@@ -254,14 +270,40 @@ internal fun LyricsLine(
                 
                 if (romanizeLyrics && enabledLanguages.isNotEmpty()) {
                     subText?.let { 
-                        Text(
-                            text = it,
+                        val subTextStyle = TextStyle(
                             fontSize = 18.sp,
                             color = expressiveAccent.copy(alpha = 0.6f),
                             textAlign = agentTextAlign,
                             fontWeight = FontWeight.Normal,
-                            modifier = Modifier.padding(top = 2.dp)
+                            platformStyle = PlatformTextStyle(includeFontPadding = false)
                         )
+
+                        if (isSynced && karaokeFill && subWords != null && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3)) {
+                            Box(modifier = Modifier.padding(top = 4.dp)) {
+                                WordLevelLyrics(
+                                    mainText = it,
+                                    words = subWords,
+                                    isActiveLine = isActiveLine,
+                                    currentPositionState = currentPositionState,
+                                    lyricsOffset = lyricsOffset,
+                                    playerConnection = playerConnection,
+                                    lyricStyle = subTextStyle,
+                                    lineColor = expressiveAccent.copy(alpha = 0.1f),
+                                    expressiveAccent = expressiveAccent.copy(alpha = 0.4f),
+                                    isBackground = item.isBackground,
+                                    focusedAlpha = 0.3f,
+                                    alignment = agentTextAlign
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = it,
+                                style = subTextStyle.copy(color = if (isActiveLine) expressiveAccent.copy(alpha = 0.6f) else expressiveAccent.copy(alpha = 0.2f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
                 
@@ -592,6 +634,13 @@ private fun WordLevelLyrics(
                     }
                     
                     val (sungFactor, wordItem, isWordSung) = if (wordIdx != -1) wordFactors[wordIdx] else Triple(0f, null, false)
+                    
+                    val postSungFactor = if (isWordSung && wordItem != null) {
+                        val wEndMs = (wordItem.endTime * 1000).toLong()
+                        val timeSinceEnd = (smoothPosition - wEndMs).toFloat()
+                        (1f - (timeSinceEnd / 1000f)).coerceIn(0.75f, 1f)
+                    } else 1f
+                    
                     val wobble = if (originalWordIdx != -1) wordWobbles[originalWordIdx] else 0f
                     val wobbleX = wobble * 0.025f
                     val wobbleY = wobble * 0.015f
@@ -691,27 +740,37 @@ private fun WordLevelLyrics(
                                 drawIntoCanvas { canvas ->
                                     val paint = android.graphics.Paint()
                                     paint.maskFilter = BlurMaskFilter(baseGlowRadius, BlurMaskFilter.Blur.NORMAL)
-                                    paint.color = expressiveAccent.copy(alpha = glowAlpha).toArgb()
+                                    paint.color = expressiveAccent.copy(alpha = expressiveAccent.alpha * glowAlpha).toArgb()
                                     paint.textSize = lyricStyle.fontSize.toPx()
                                     paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
                                     canvas.nativeCanvas.drawText(letterLayouts[i].layoutInput.text.text, 0f, letterLayouts[i].firstBaseline, paint)
                                 }
                             }
                         }
-                        val baseAlpha = if (isWordSung || charLp > 0.99f) 1f else (focusedAlpha + (1f - focusedAlpha) * sungFactor)
-                        drawText(letterLayouts[i], color = expressiveAccent.copy(alpha = if (wordIdx == -1) focusedAlpha else baseAlpha))
+                        
+                        val baseAlpha = if (isWordSung) postSungFactor
+                                        else if (charLp > 0.99f) 1f 
+                                        else (focusedAlpha + (1f - focusedAlpha) * sungFactor)
+                        
+                        val targetAlpha = if (wordIdx == -1) focusedAlpha else baseAlpha
+                        drawText(letterLayouts[i], color = expressiveAccent.copy(alpha = expressiveAccent.alpha * targetAlpha))
+                        
                         if (!isWordSung && charLp > 0f && charLp < 1f) {
                             val fXL = charBounds.width * charLp
                             val eW = (charBounds.width * 0.45f).coerceAtLeast(1f)
                             val sWL = (fXL - eW).coerceAtLeast(0f)
                             if (sWL > 0f) {
-                                clipRect(left = 0f, top = 0f, right = sWL, bottom = charBounds.height) { drawText(letterLayouts[i], color = expressiveAccent) }
+                                clipRect(left = 0f, top = 0f, right = sWL, bottom = charBounds.height) { 
+                                    drawText(letterLayouts[i], color = expressiveAccent.copy(alpha = expressiveAccent.alpha)) 
+                                }
                             }
                             for (j in 0 until 12) {
                                 val start = sWL + (j * eW / 12f)
                                 val end = (sWL + ((j + 1) * eW / 12f) + 0.5f).coerceAtMost(fXL)
                                 if (end > start) {
-                                    clipRect(left = start, top = 0f, right = end, bottom = charBounds.height) { drawText(letterLayouts[i], color = expressiveAccent.copy(alpha = 1f - (j + 0.5f) / 12f)) }
+                                    clipRect(left = start, top = 0f, right = end, bottom = charBounds.height) { 
+                                        drawText(letterLayouts[i], color = expressiveAccent.copy(alpha = expressiveAccent.alpha * (1f - (j + 0.5f) / 12f))) 
+                                    }
                                 }
                             }
                         }

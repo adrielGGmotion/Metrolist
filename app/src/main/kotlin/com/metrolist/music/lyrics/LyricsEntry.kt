@@ -19,6 +19,7 @@ data class LyricsEntry(
     val text: String,
     val words: List<WordTimestamp>? = null,
     val romanizedTextFlow: MutableStateFlow<String?> = MutableStateFlow(null),
+    val romanizedWordsFlow: MutableStateFlow<List<WordTimestamp>?> = MutableStateFlow(null),
     val translatedTextFlow: MutableStateFlow<String?> = MutableStateFlow(null),
     val agent: String? = null,
     val isBackground: Boolean = false

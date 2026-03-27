@@ -333,6 +333,8 @@
     <string name="respect_agent_positioning_desc">Use agent-defined alignment (left/right, or center for chorus/background lines) for lyrics if available</string>
     <string name="show_interval_indicator">Interval indicator</string>
     <string name="show_interval_indicator_desc">Show an animated progress indicator during musical gaps between word-timed lyrics lines</string>
+    <string name="karaoke_fill">Karaoke fill</string>
+    <string name="karaoke_fill_desc">Highlight lyrics word by word as they are being sung</string>
     <string name="lyrics_romanize_japanese">Romanize Japanese lyrics</string>
     <string name="lyrics_romanize_korean">Romanize Korean lyrics</string>
     <string name="lyrics_romanize_chinese">Romanize Chinese lyrics</string>

@@ -90,6 +90,7 @@ import com.metrolist.music.constants.AiProviderKey
 import com.metrolist.music.constants.AiSystemPromptKey
 import com.metrolist.music.constants.DeeplApiKey
 import com.metrolist.music.constants.DeeplFormalityKey
+import com.metrolist.music.constants.KaraokeFillKey
 import com.metrolist.music.constants.LyricsClickKey
 import com.metrolist.music.constants.LyricsRomanizeAsMainKey
 import com.metrolist.music.constants.LyricsRomanizeCyrillicByLineKey
@@ -159,6 +160,7 @@ fun Lyrics(
     val romanizeCyrillicByLine by rememberPreference(LyricsRomanizeCyrillicByLineKey, false)
     val respectAgentPositioning by rememberPreference(RespectAgentPositioningKey, true)
     val showIntervalIndicator by rememberPreference(ShowIntervalIndicatorKey, true)
+    val karaokeFill by rememberPreference(KaraokeFillKey, true)
     
     // AI Translation Preferences
     val openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
@@ -694,9 +696,9 @@ fun Lyrics(
                                         respectAgentPositioning = respectAgentPositioning, isAutoScrollEnabled = isAutoScrollEnabled,
                                         displayedCurrentLineIndex = deferredCurrentLineIndex, romanizeAsMain = romanizeAsMain,
                                         enabledLanguages = enabledLanguages, romanizeLyrics = currentSong?.romanizeLyrics == true,
+                                        karaokeFill = karaokeFill,
                                         onSizeChanged = { itemHeights[listIndex] = it },
-                                        onClick = {
-                                            if (isSelectionModeActive) {
+                                        onClick = {                                            if (isSelectionModeActive) {
                                                 if (selectedIndices.contains(index)) {
                                                     selectedIndices.remove(index)
                                                     if (selectedIndices.isEmpty()) isSelectionModeActive = false

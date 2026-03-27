@@ -68,6 +68,7 @@ import com.metrolist.music.constants.GridItemSize
 import com.metrolist.music.constants.GridItemsSizeKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
 import com.metrolist.music.constants.HideStatusBarOnFullscreenKey
+import com.metrolist.music.constants.KaraokeFillKey
 import com.metrolist.music.constants.LibraryFilter
 import com.metrolist.music.constants.ListenTogetherInTopBarKey
 import com.metrolist.music.constants.LyricsClickKey
@@ -216,6 +217,7 @@ fun AppearanceSettings(
         defaultValue = false
     )
     val (respectAgentPositioning, onRespectAgentPositioningChange) = rememberPreference(RespectAgentPositioningKey, defaultValue = true)
+    val (karaokeFill, onKaraokeFillChange) = rememberPreference(KaraokeFillKey, defaultValue = true)
 
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
         SliderStyleKey,
@@ -1159,6 +1161,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onRespectAgentPositioningChange(!respectAgentPositioning) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.karaoke_fill)) },
+                    description = { Text(stringResource(R.string.karaoke_fill_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = karaokeFill,
+                            onCheckedChange = onKaraokeFillChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (karaokeFill) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onKaraokeFillChange(!karaokeFill) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),

@@ -465,6 +465,7 @@ CRITICAL RULES:
 val LyricsRomanizeList = stringPreferencesKey("lyricsRomanizeList")
 val RespectAgentPositioningKey = booleanPreferencesKey("respectAgentPositioning")
 val ShowIntervalIndicatorKey = booleanPreferencesKey("showIntervalIndicator")
+val KaraokeFillKey = booleanPreferencesKey("karaokeFill")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val SleepTimerDefaultKey = floatPreferencesKey("sleepTimerDefault")

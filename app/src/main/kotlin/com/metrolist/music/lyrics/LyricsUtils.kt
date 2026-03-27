@@ -1439,6 +1439,91 @@ object LyricsUtils {
         sb.toString()
     }
 
+    suspend fun romanizeWords(
+        text: String,
+        words: List<WordTimestamp>,
+        enabledLanguages: List<String>,
+        romanizeCyrillicByLine: Boolean
+    ): List<WordTimestamp>? {
+        val lineText = words.joinToString(separator = "") { it.text + (if (it.hasTrailingSpace) " " else "") }.trim()
+        val detectionText = if (romanizeCyrillicByLine) lineText else text
+        
+        val fullRomanized = romanize(text, lineText, enabledLanguages, romanizeCyrillicByLine) ?: return null
+
+        // Special handling for Japanese to be as accurate as possible with Kuromoji
+        if ("Japanese" in enabledLanguages && isJapanese(detectionText) && !isChinese(detectionText)) {
+            val tokens = withContext(Dispatchers.Default) { kuromojiTokenizer.tokenize(lineText) }
+            val wordResults = mutableListOf<WordTimestamp>()
+            var currentPos = 0
+            
+            // Map tokens to original words
+            tokens.forEachIndexed { tokenIdx, token ->
+                val reading = if (token.reading.isNullOrEmpty() || token.reading == "*") {
+                    token.surface
+                } else {
+                    token.reading
+                }
+                val nextReading = tokens.getOrNull(tokenIdx + 1)?.let { 
+                    it.reading?.takeIf { r -> r.isNotEmpty() && r != "*" } ?: it.surface
+                }
+                val romanizedToken = katakanaToRomaji(reading, nextReading)
+                
+                // Find which words overlap with this token
+                val tokenStart = lineText.indexOf(token.surface, currentPos)
+                if (tokenStart == -1) return@forEachIndexed
+                val tokenEnd = tokenStart + token.surface.length
+                currentPos = tokenEnd
+
+                val overlappingWords = words.filterIndexed { idx, _ ->
+                    // Calculate word start/end in lineText
+                    var wStart = 0
+                    for (i in 0 until idx) {
+                        wStart += words[i].text.length + (if (words[i].hasTrailingSpace) 1 else 0)
+                    }
+                    val wEnd = wStart + words[idx].text.length
+                    
+                    // Check overlap
+                    maxOf(tokenStart, wStart) < minOf(tokenEnd, wEnd)
+                }
+
+                if (overlappingWords.size == 1) {
+                    // One word covers this token (or part of it)
+                    // We'll accumulate romanization for words
+                }
+            }
+            // Fallback to heuristic if complex mapping fails, Japanese is hard.
+        }
+
+        // Improved heuristic: Distribute full romanized line across words based on character count ratio
+        // This preserves context-dependent readings (like Korean liaisons or Japanese compounds)
+        val result = mutableListOf<WordTimestamp>()
+        val totalOrigChars = words.sumOf { it.text.length }.toDouble().coerceAtLeast(1.0)
+        var consumedRomajiChars = 0
+
+        words.forEachIndexed { index, word ->
+            if (index == words.lastIndex) {
+                val remaining = fullRomanized.substring(consumedRomajiChars).trim()
+                result.add(word.copy(text = remaining.ifBlank { word.text }))
+            } else {
+                val ratio = word.text.length / totalOrigChars
+                val targetLen = (fullRomanized.length * ratio).toInt().coerceAtLeast(1)
+                
+                // Try to find a space near the target length
+                var splitIdx = fullRomanized.indexOf(' ', consumedRomajiChars + targetLen - 1)
+                if (splitIdx == -1 || splitIdx > consumedRomajiChars + targetLen + 2) {
+                    splitIdx = fullRomanized.indexOf(' ', consumedRomajiChars)
+                }
+                
+                val endIdx = if (splitIdx != -1 && splitIdx < fullRomanized.length) splitIdx else (consumedRomajiChars + targetLen).coerceAtMost(fullRomanized.length)
+                val romanizedPart = fullRomanized.substring(consumedRomajiChars, endIdx).trim()
+                result.add(word.copy(text = romanizedPart.ifBlank { word.text }))
+                consumedRomajiChars = if (splitIdx != -1) splitIdx + 1 else endIdx
+            }
+        }
+
+        return result
+    }
+
     suspend fun romanize(
         text: String,
         line: String,

@@ -70,12 +70,22 @@ class LyricsViewModel : ViewModel() {
                 launch(Dispatchers.Default) {
                     processedLines.forEach { entry ->
                         if (entry == LyricsEntry.HEAD_LYRICS_ENTRY) return@forEach
+                        
                         entry.romanizedTextFlow.value = LyricsUtils.romanize(
                             text = lyrics,
                             line = entry.text,
                             enabledLanguages = enabledLanguages,
                             romanizeCyrillicByLine = romanizeCyrillicByLine
                         )
+
+                        entry.words?.let { words ->
+                            entry.romanizedWordsFlow.value = LyricsUtils.romanizeWords(
+                                text = lyrics,
+                                words = words,
+                                enabledLanguages = enabledLanguages,
+                                romanizeCyrillicByLine = romanizeCyrillicByLine
+                            )
+                        }
                     }
                 }
             }
