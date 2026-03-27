@@ -94,9 +94,7 @@ class LyricsViewModel : ViewModel() {
             }
             if (showIntervalIndicator && i < lines.size - 1) {
                 val nextStart = lines[i + 1].time
-                val currentEnd = if (entry == LyricsEntry.HEAD_LYRICS_ENTRY) {
-                    null // Never show indicator after head entry
-                } else if (!entry.words.isNullOrEmpty()) {
+                val currentEnd = if (!entry.words.isNullOrEmpty()) {
                     (entry.words.last().endTime * 1000).toLong()
                 } else if (entry.text.isBlank()) {
                     entry.time

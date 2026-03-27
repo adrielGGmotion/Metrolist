@@ -649,7 +649,7 @@ fun Lyrics(
                         ) {
                             when (listItem) {
                                 is LyricsListItem.Indicator -> {
-                                    val visible = currentPositionState > 0L && currentPositionState >= listItem.gapStartMs && currentPositionState <= listItem.gapEndMs - 650L
+                                    val visible = currentPositionState >= listItem.gapStartMs && currentPositionState <= listItem.gapEndMs - 650L
                                     IntervalIndicator(listItem.gapStartMs, listItem.gapEndMs - 650L, currentPositionState, visible, expressiveAccent, 
                                         Modifier.fillMaxWidth().onSizeChanged { itemHeights[listIndex] = it.height }.padding(horizontal = 24.dp).wrapContentWidth(Alignment.CenterHorizontally))
                                 }
