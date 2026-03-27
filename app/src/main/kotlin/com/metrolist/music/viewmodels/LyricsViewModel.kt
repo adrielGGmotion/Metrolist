@@ -35,22 +35,29 @@ class LyricsViewModel : ViewModel() {
             val processedLines = withContext(Dispatchers.Default) {
                 if (lyrics == null || lyrics == LYRICS_NOT_FOUND) {
                     emptyList()
-                } else if (lyrics.startsWith("[")) {
+                } else if (lyrics.trim().startsWith("[")) {
                     val parsedLines = LyricsUtils.parseLyrics(lyrics)
-                    parsedLines.map { entry ->
-                        LyricsEntry(
-                            entry.time,
-                            entry.text,
-                            entry.words,
-                            agent = entry.agent,
-                            isBackground = entry.isBackground
-                        )
-                    }.let {
-                        listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
+                    if (parsedLines.isNotEmpty()) {
+                        parsedLines.map { entry ->
+                            LyricsEntry(
+                                entry.time,
+                                entry.text,
+                                entry.words,
+                                agent = entry.agent,
+                                isBackground = entry.isBackground
+                            )
+                        }.let {
+                            listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
+                        }
+                    } else {
+                        // Fallback for metadata-only LRC
+                        lyrics.lines().filter { it.isNotBlank() }.mapIndexed { index, line ->
+                            LyricsEntry(Long.MAX_VALUE / 2 + index, line)
+                        }
                     }
                 } else {
-                    lyrics.lines().mapIndexed { index, line ->
-                        LyricsEntry(index * 100L, line)
+                    lyrics.lines().filter { it.isNotBlank() }.mapIndexed { index, line ->
+                        LyricsEntry(Long.MAX_VALUE / 2 + index, line)
                     }
                 }
             }
@@ -87,12 +94,12 @@ class LyricsViewModel : ViewModel() {
             }
             if (showIntervalIndicator && i < lines.size - 1) {
                 val nextStart = lines[i + 1].time
-                val currentEnd = if (!entry.words.isNullOrEmpty()) {
+                val currentEnd = if (entry == LyricsEntry.HEAD_LYRICS_ENTRY) {
+                    null // Never show indicator after head entry
+                } else if (!entry.words.isNullOrEmpty()) {
                     (entry.words.last().endTime * 1000).toLong()
                 } else if (entry.text.isBlank()) {
                     entry.time
-                } else if (i < lines.size - 1 && lines[i + 1].time - entry.time > 6000L) {
-                    entry.time + 3000L
                 } else {
                     null
                 }

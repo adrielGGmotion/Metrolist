@@ -220,6 +220,7 @@ fun Lyrics(
     }
 
     val isSynced = remember(lyrics) { !lyrics.isNullOrEmpty() && lyrics.startsWith("[") }
+    val hasWordTimings = remember(lines) { lines.any { it.words?.isNotEmpty() == true } }
 
     DisposableEffect(Unit) {
         LyricsTranslationHelper.setCompositionActive(true)
@@ -310,7 +311,7 @@ fun Lyrics(
     }
 
     LaunchedEffect(lyrics, lines) {
-        if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[") || lines.isEmpty()) {
+        if (lyrics.isNullOrEmpty() || lines.isEmpty()) {
             activeLineIndices = emptySet()
             return@LaunchedEffect
         }
@@ -326,7 +327,7 @@ fun Lyrics(
             val effectivePosition = position + lyricsOffset
             
             val initialActiveIndices = findActiveLineIndices(lines, effectivePosition)
-            val scrollActiveIndices = findActiveLineIndices(lines, effectivePosition + 100L)
+            val scrollActiveIndices = findActiveLineIndices(lines, effectivePosition + (if (hasWordTimings) 150L else 450L))
             val newActiveIndices = initialActiveIndices.toMutableSet()
             for (i in initialActiveIndices) {
                 if (lines.getOrNull(i)?.isBackground == true) {
@@ -630,7 +631,13 @@ fun Lyrics(
                         val animatedOffset by animateFloatAsState(
                             targetValue = if (isAutoScrollEnabled) targetOffset else frozenOffset.floatValue,
                             animationSpec = if (isInitialLayout || !isAutoScrollEnabled) snap() 
-                                            else tween(750, (distance * LYRICS_STAGGER_DELAY_PER_DISTANCE).coerceAtMost(LYRICS_STAGGER_DELAY_MAX_MS), FastOutSlowInEasing),
+                                            else {
+                                                if (hasWordTimings) {
+                                                    tween(750, (distance * LYRICS_STAGGER_DELAY_PER_DISTANCE).coerceAtMost(LYRICS_STAGGER_DELAY_MAX_MS), FastOutSlowInEasing)
+                                                } else {
+                                                    tween(500, 0, FastOutSlowInEasing)
+                                                }
+                                            },
                             label = "lyricStaggeredOffset_$listIndex"
                         )
 
@@ -673,7 +680,12 @@ fun Lyrics(
                                                 } else if (selectedIndices.size < maxSelectionLimit) selectedIndices.add(index)
                                                 else showMaxSelectionToast = true
                                             } else if (changeLyrics && !isGuest) {
-                                                playerConnection.seekTo((item.time - (currentSong?.song?.lyricsOffset ?: 0)).coerceAtLeast(0))
+                                                if (item.time < playerConnection.player.duration + 30000L) {
+                                                    playerConnection.seekTo((item.time - (currentSong?.song?.lyricsOffset ?: 0)).coerceAtLeast(0))
+                                                } else {
+                                                    scrollTargetIndex = index
+                                                    deferredCurrentLineIndex = index
+                                                }
                                                 isAutoScrollEnabled = true
                                                 lastPreviewTime = 0L
                                             }
