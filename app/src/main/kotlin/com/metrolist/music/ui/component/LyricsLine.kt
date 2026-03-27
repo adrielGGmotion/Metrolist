@@ -513,10 +513,7 @@ private fun WordLevelLyrics(
                     Triple(sungFactor, word, isWordSung)
                 }
 
-                val lineTotalPushes = FloatArray(layoutResult.lineCount)
-                val wordPushes = FloatArray(words.size)
                 val wordWobbles = FloatArray(words.size)
-                
                 words.forEachIndexed { wordIdx, word ->
                     val startMs = (word.startTime * 1000).toLong()
                     val timeSinceStart = (smoothPosition - startMs).toFloat()
@@ -525,29 +522,68 @@ private fun WordLevelLyrics(
                         else (1f - (timeSinceStart - 125f) / 625f).coerceAtLeast(0f)
                     } else 0f
                     wordWobbles[wordIdx] = wobble
-                    
-                    var wordWidth = 0f
-                    var firstCharIdxInWord = -1
-                    for (i in mainText.indices) {
-                        val effIdx = wordIdxMap[i]
-                        if (effIdx != -1 && effectiveToOriginalIdx[effIdx] == wordIdx) {
-                            if (firstCharIdxInWord == -1) firstCharIdxInWord = i
-                            wordWidth += layoutResult.getBoundingBox(i).width
-                        }
-                    }
-                    if (firstCharIdxInWord != -1) {
-                        val push = wobble * 0.025f * wordWidth
-                        wordPushes[wordIdx] = push
-                        lineTotalPushes[layoutResult.getLineForOffset(firstCharIdxInWord)] += push
-                    }
                 }
 
                 val lineCurrentPushes = FloatArray(layoutResult.lineCount)
-                var lastWordIdxAtLinePos = -2
+                val lineTotalPushes = FloatArray(layoutResult.lineCount)
+                
+                // Pre-calculate total pushes per line to handle alignment correctly
+                for (i in mainText.indices) {
+                    val lineIdx = layoutResult.getLineForOffset(i)
+                    val wordIdx = wordIdxMap[i]
+                    val originalWordIdx = if (wordIdx != -1) effectiveToOriginalIdx[wordIdx] else -1
+                    
+                    val (sungFactor, wordItem, isWordSung) = if (wordIdx != -1) wordFactors[wordIdx] else Triple(0f, null, false)
+                    val wobble = if (originalWordIdx != -1) wordWobbles[originalWordIdx] else 0f
+                    
+                    var crescendoDeltaX = 0f
+                    val groupWord = if (wordIdx != -1) hyphenGroupData[wordIdx] else null
+                    if (groupWord != null) {
+                        val p = sungFactor
+                        val timeSinceEnd = (smoothPosition - groupWord.groupEndMs).toFloat()
+                        val exitDuration = 600f
+                        val pOut = (timeSinceEnd / exitDuration).coerceIn(0f, 1f)
+                        val peakScale = 0.06f
+                        val decay = 2.5f
+                        val freq = 10.0f
+                        val baseScalePerSegment = 0.012f
+                        if (pOut > 0f) {
+                            val baseAtEnd = groupWord.pos * baseScalePerSegment
+                            val totalAtEnd = baseAtEnd + peakScale
+                            crescendoDeltaX = totalAtEnd * exp(-decay * pOut) * cos(freq * pOut * PI.toFloat()) * (1f - pOut)
+                        } else if (groupWord.isLast) {
+                            val base = groupWord.pos * baseScalePerSegment
+                            val springPart = peakScale * (1f - exp(-decay * p) * cos(freq * p * PI.toFloat()) * (1f - p))
+                            crescendoDeltaX = base + springPart
+                        } else {
+                            val boost = if (p > 0f) 0.02f * (1f - p) else 0f
+                            crescendoDeltaX = (groupWord.pos * baseScalePerSegment) + boost
+                        }
+                    }
+
+                    val charLp = if (wordItem != null) {
+                        val sMs = wordItem.startTime * 1000
+                        val dur = (wordItem.endTime * 1000 - wordItem.startTime * 1000).coerceAtLeast(100.0)
+                        val wProg = (smoothPosition.toDouble() - sMs) / dur
+                        val cInW = charInWordMap[i].toDouble()
+                        val wLen = wordLenMap[i].toDouble()
+                        ((wProg - cInW / wLen) * wLen).coerceIn(0.0, 1.0).toFloat()
+                    } else 0f
+
+                    val nudgeScale = if (wordItem != null && !isWordSung && sungFactor > 0f) {
+                        0.038f * sin(charLp * PI.toFloat()) * exp(-3f * charLp)
+                    } else 0f
+
+                    val charScaleX = 1f + (wobble * 0.025f) + crescendoDeltaX + (nudgeScale * 0.3f)
+                    val charBounds = layoutResult.getBoundingBox(i)
+                    lineTotalPushes[lineIdx] += charBounds.width * (charScaleX - 1f)
+                }
+
                 for (i in mainText.indices) {
                     val lineIdx = layoutResult.getLineForOffset(i)
                     val charBounds = layoutResult.getBoundingBox(i)
                     val wordIdx = wordIdxMap[i]
+                    val originalWordIdx = if (wordIdx != -1) effectiveToOriginalIdx[wordIdx] else -1
                     
                     val alignShift = when(alignment) {
                         TextAlign.Center -> -lineTotalPushes[lineIdx] / 2f
@@ -555,21 +591,10 @@ private fun WordLevelLyrics(
                         else -> 0f
                     }
                     
-                    if (wordIdx != lastWordIdxAtLinePos && lastWordIdxAtLinePos >= 0) {
-                        val originalLastWordIdx = effectiveToOriginalIdx[lastWordIdxAtLinePos]
-                        val originalWordIdx = if (wordIdx != -1) effectiveToOriginalIdx[wordIdx] else -1
-                        if (originalWordIdx != originalLastWordIdx) {
-                            lineCurrentPushes[lineIdx] += wordPushes[originalLastWordIdx]
-                        }
-                    }
-                    lastWordIdxAtLinePos = wordIdx
-                    
-                    val originalWordIdx = if (wordIdx != -1) effectiveToOriginalIdx[wordIdx] else -1
-                    val wordPush = if (originalWordIdx != -1) wordPushes[originalWordIdx] else 0f
+                    val (sungFactor, wordItem, isWordSung) = if (wordIdx != -1) wordFactors[wordIdx] else Triple(0f, null, false)
                     val wobble = if (originalWordIdx != -1) wordWobbles[originalWordIdx] else 0f
                     val wobbleX = wobble * 0.025f
                     val wobbleY = wobble * 0.015f
-                    val (sungFactor, wordItem, isWordSung) = if (wordIdx != -1) wordFactors[wordIdx] else Triple(0f, null, false)
                     
                     val charLp = if (wordItem != null) {
                         val sMs = wordItem.startTime * 1000
@@ -582,13 +607,56 @@ private fun WordLevelLyrics(
 
                     val shouldGlow = wordItem != null && !isWordSung && sungFactor > 0.001f
 
+                    var crescendoDeltaX = 0f
+                    var crescendoDeltaY = 0f
+                    val groupWord = if (wordIdx != -1) hyphenGroupData[wordIdx] else null
+                    if (groupWord != null) {
+                        val p = sungFactor
+                        val timeSinceEnd = (smoothPosition - groupWord.groupEndMs).toFloat()
+                        val exitDuration = 600f
+                        val pOut = (timeSinceEnd / exitDuration).coerceIn(0f, 1f)
+                        val peakScale = 0.06f
+                        val decay = 2.5f
+                        val freq = 10.0f
+                        val baseScalePerSegment = 0.012f
+                        if (pOut > 0f) {
+                            val baseAtEnd = groupWord.pos * baseScalePerSegment
+                            val totalAtEnd = baseAtEnd + peakScale
+                            val springOut = totalAtEnd * exp(-decay * pOut) * cos(freq * pOut * PI.toFloat()) * (1f - pOut)
+                            crescendoDeltaX = springOut
+                            crescendoDeltaY = springOut
+                            val oscOut = springOut - (totalAtEnd * (1f - pOut))
+                            crescendoDeltaX += oscOut * 0.15f
+                            crescendoDeltaY -= oscOut * 0.15f
+                        } else if (groupWord.isLast) {
+                            val base = groupWord.pos * baseScalePerSegment
+                            val springPart = peakScale * (1f - exp(-decay * p) * cos(freq * p * PI.toFloat()) * (1f - p))
+                            crescendoDeltaX = base + springPart
+                            crescendoDeltaY = base + springPart
+                            val oscillation = -exp(-decay * p) * cos(freq * p * PI.toFloat()) * (1f - p)
+                            crescendoDeltaX += oscillation * peakScale * 0.15f
+                            crescendoDeltaY -= oscillation * peakScale * 0.15f
+                        } else {
+                            val boost = if (p > 0f) 0.02f * (1f - p) else 0f
+                            val base = (groupWord.pos * baseScalePerSegment) + boost
+                            crescendoDeltaX = base
+                            crescendoDeltaY = base
+                        }
+                    }
+
+                    val nudgeStrength = 0.038f
+                    val nudgeScale = if (wordItem != null && !isWordSung && sungFactor > 0f) {
+                        nudgeStrength * sin(charLp * PI.toFloat()) * exp(-3f * charLp)
+                    } else 0f
+                    
+                    val charScaleX = 1f + wobbleX + crescendoDeltaX + nudgeScale * 0.3f
+                    val charScaleY = 1f + wobbleY + crescendoDeltaY + nudgeScale
+
                     withTransform({
-                        val groupWord = if (wordIdx != -1) hyphenGroupData[wordIdx] else null
                         var waveOffset = 0f
                         if (groupWord != null) {
                             val wallTime = System.currentTimeMillis()
                             val adjSmoothPos = smoothPosition
-                            val groupActive = adjSmoothPos >= groupWord.groupStartMs && adjSmoothPos <= groupWord.groupEndMs
                             val timeInGroup = (adjSmoothPos - groupWord.groupStartMs).toFloat()
                             val timeToGroupEnd = (groupWord.groupEndMs - adjSmoothPos).toFloat()
                             val waveFade = (timeInGroup / 200f).coerceIn(0f, 1f) * (timeToGroupEnd / 200f).coerceIn(0f, 1f)
@@ -600,50 +668,11 @@ private fun WordLevelLyrics(
                             }
                         }
 
-                        translate(left = alignShift + lineCurrentPushes[lineIdx] + wordPush / 2f + charBounds.left, top = charBounds.top + waveOffset)
+                        translate(left = alignShift + lineCurrentPushes[lineIdx] + charBounds.left, top = charBounds.top + waveOffset)
                         if (wordIdx != -1) {
-                            var crescendoDeltaX = 0f
-                            var crescendoDeltaY = 0f
-                            if (groupWord != null) {
-                                val p = sungFactor
-                                val timeSinceEnd = (smoothPosition - groupWord.groupEndMs).toFloat()
-                                val exitDuration = 600f
-                                val pOut = (timeSinceEnd / exitDuration).coerceIn(0f, 1f)
-                                val peakScale = 0.06f
-                                val decay = 2.5f
-                                val freq = 10.0f
-                                val baseScalePerSegment = 0.012f
-                                if (pOut > 0f) {
-                                    val baseAtEnd = groupWord.pos * baseScalePerSegment
-                                    val totalAtEnd = baseAtEnd + peakScale
-                                    val springOut = totalAtEnd * exp(-decay * pOut) * cos(freq * pOut * PI.toFloat()) * (1f - pOut)
-                                    crescendoDeltaX = springOut
-                                    crescendoDeltaY = springOut
-                                    val oscOut = springOut - (totalAtEnd * (1f - pOut))
-                                    crescendoDeltaX += oscOut * 0.15f
-                                    crescendoDeltaY -= oscOut * 0.15f
-                                } else if (groupWord.isLast) {
-                                    val base = groupWord.pos * baseScalePerSegment
-                                    val springPart = peakScale * (1f - exp(-decay * p) * cos(freq * p * PI.toFloat()) * (1f - p))
-                                    crescendoDeltaX = base + springPart
-                                    crescendoDeltaY = base + springPart
-                                    val oscillation = -exp(-decay * p) * cos(freq * p * PI.toFloat()) * (1f - p)
-                                    crescendoDeltaX += oscillation * peakScale * 0.15f
-                                    crescendoDeltaY -= oscillation * peakScale * 0.15f
-                                } else {
-                                    val boost = if (p > 0f) 0.02f * (1f - p) else 0f
-                                    val base = (groupWord.pos * baseScalePerSegment) + boost
-                                    crescendoDeltaX = base
-                                    crescendoDeltaY = base
-                                }
-                            }
-                            val nudgeStrength = 0.038f
-                            val nudgeScale = if (wordItem != null && !isWordSung && sungFactor > 0f) {
-                                nudgeStrength * sin(charLp * PI.toFloat()) * exp(-3f * charLp)
-                            } else 0f
                             scale(
-                                1f + wobbleX + crescendoDeltaX + nudgeScale * 0.3f,
-                                1f + wobbleY + crescendoDeltaY + nudgeScale,
+                                charScaleX,
+                                charScaleY,
                                 pivot = Offset(charBounds.width / 2f, charBounds.height)
                             )
                         }
@@ -687,6 +716,7 @@ private fun WordLevelLyrics(
                             }
                         }
                     }
+                    lineCurrentPushes[lineIdx] += charBounds.width * (charScaleX - 1f)
                 }
             }
         }
