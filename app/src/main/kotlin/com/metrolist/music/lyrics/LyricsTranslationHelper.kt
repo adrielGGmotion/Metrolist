@@ -95,6 +95,14 @@ object LyricsTranslationHelper {
         )
     }
 
+    fun clearInMemoryTranslations(lyrics: List<LyricsEntry>) {
+        lyrics.forEach { 
+            it.translatedTextFlow.value = null
+            it.translatedWordsFlow.value = null
+        }
+        _hasActiveTranslations.value = false
+    }
+
     fun cancelTranslation() {
         translationJob?.cancel()
         if (_status.value is TranslationStatus.Translating) {
@@ -125,7 +133,7 @@ object LyricsTranslationHelper {
         return lines
     }
 
-    fun loadTranslationsFromDatabase(
+    suspend fun loadTranslationsFromDatabase(
         lyrics: List<LyricsEntry>,
         lyricsEntity: LyricsEntity?,
         targetLanguage: String,
@@ -133,14 +141,20 @@ object LyricsTranslationHelper {
     ) {
         if (lyricsEntity == null || lyricsEntity.translatedLyrics.isNullOrBlank()) {
             _hasActiveTranslations.value = false
-            lyrics.forEach { it.translatedTextFlow.value = null }
+            lyrics.forEach { 
+                it.translatedTextFlow.value = null
+                it.translatedWordsFlow.value = null
+            }
             return
         }
         
         // Only load if language and mode match
         if (lyricsEntity.translationLanguage != targetLanguage || lyricsEntity.translationMode != mode) {
             _hasActiveTranslations.value = false
-            lyrics.forEach { it.translatedTextFlow.value = null }
+            lyrics.forEach { 
+                it.translatedTextFlow.value = null
+                it.translatedWordsFlow.value = null
+            }
             return
         }
         
@@ -151,7 +165,16 @@ object LyricsTranslationHelper {
             var transIndex = 0
             lyrics.forEach { entry ->
                 if (entry.text.isNotBlank() && transIndex < translatedLines.size) {
-                    entry.translatedTextFlow.value = translatedLines[transIndex]
+                    val translation = translatedLines[transIndex]
+                    entry.translatedTextFlow.value = translation
+                    
+                    // Distribute timings for word-by-word if available
+                    if (entry.words != null) {
+                        entry.translatedWordsFlow.value = LyricsUtils.distributeTimings(
+                            entry.words, translation, targetLanguage
+                        )
+                    }
+                    
                     transIndex++
                 }
             }
@@ -185,7 +208,10 @@ object LyricsTranslationHelper {
         _status.value = TranslationStatus.Translating
 
         // Clear existing translations to indicate re-translation
-        lyrics.forEach { it.translatedTextFlow.value = null }
+        lyrics.forEach { 
+            it.translatedTextFlow.value = null
+            it.translatedWordsFlow.value = null
+        }
 
         translationJob =
             scope.launch(Dispatchers.IO) {
@@ -221,9 +247,15 @@ object LyricsTranslationHelper {
                     val cachedTranslations = translationCache[cacheKey]
                     if (cachedTranslations != null && cachedTranslations.size >= nonEmptyEntries.size) {
                         // Use cached translations
-                        nonEmptyEntries.forEachIndexed { idx, (originalIndex, _) ->
+                        nonEmptyEntries.forEachIndexed { idx, (originalIndex, entry) ->
                             if (idx < cachedTranslations.size) {
-                                lyrics[originalIndex].translatedTextFlow.value = cachedTranslations[idx]
+                                val translation = cachedTranslations[idx]
+                                lyrics[originalIndex].translatedTextFlow.value = translation
+                                if (entry.words != null) {
+                                    lyrics[originalIndex].translatedWordsFlow.value = LyricsUtils.distributeTimings(
+                                        entry.words, translation, targetLanguage
+                                    )
+                                }
                             }
                         }
                         _hasActiveTranslations.value = true
@@ -326,8 +358,13 @@ object LyricsTranslationHelper {
                                                 // Update lyrics with partial translations as they become available
                                                 partialResult.forEachIndexed { idx, translation ->
                                                     if (idx < nonEmptyEntries.size && translation.isNotBlank()) {
-                                                        val originalIndex = nonEmptyEntries[idx].first
+                                                        val (originalIndex, entry) = nonEmptyEntries[idx]
                                                         lyrics[originalIndex].translatedTextFlow.value = translation
+                                                        if (entry.words != null) {
+                                                            lyrics[originalIndex].translatedWordsFlow.value = LyricsUtils.distributeTimings(
+                                                                entry.words, translation, targetLanguage
+                                                            )
+                                                        }
                                                     }
                                                 }
                                                 _status.value = TranslationStatus.Translating
@@ -410,8 +447,14 @@ object LyricsTranslationHelper {
                             when {
                                 translatedLines.size >= expectedCount -> {
                                     // Perfect match or more - map to non-empty entries
-                                    nonEmptyEntries.forEachIndexed { idx, (originalIndex, _) ->
-                                        lyrics[originalIndex].translatedTextFlow.value = translatedLines[idx]
+                                    nonEmptyEntries.forEachIndexed { idx, (originalIndex, entry) ->
+                                        val translation = translatedLines[idx]
+                                        lyrics[originalIndex].translatedTextFlow.value = translation
+                                        if (entry.words != null) {
+                                            lyrics[originalIndex].translatedWordsFlow.value = LyricsUtils.distributeTimings(
+                                                entry.words, translation, targetLanguage
+                                            )
+                                        }
                                     }
                                     _hasActiveTranslations.value = true
                                     _status.value = TranslationStatus.Success
@@ -421,8 +464,13 @@ object LyricsTranslationHelper {
                                     // Fewer translations than expected - map what we have
                                     translatedLines.forEachIndexed { idx, translation ->
                                         if (idx < nonEmptyEntries.size) {
-                                            val originalIndex = nonEmptyEntries[idx].first
+                                            val (originalIndex, entry) = nonEmptyEntries[idx]
                                             lyrics[originalIndex].translatedTextFlow.value = translation
+                                            if (entry.words != null) {
+                                                lyrics[originalIndex].translatedWordsFlow.value = LyricsUtils.distributeTimings(
+                                                    entry.words, translation, targetLanguage
+                                                )
+                                            }
                                         }
                                     }
                                     _hasActiveTranslations.value = true

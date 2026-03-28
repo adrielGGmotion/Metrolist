@@ -1439,6 +1439,130 @@ object LyricsUtils {
         sb.toString()
     }
 
+    suspend fun distributeTimings(
+        originalWords: List<WordTimestamp>,
+        translatedLine: String,
+        targetLanguage: String
+    ): List<WordTimestamp> {
+        if (originalWords.isEmpty() || translatedLine.isBlank()) return emptyList()
+
+        // 1. Group original syllables into word blocks based on trailing spaces
+        val wordBlocks = mutableListOf<MutableList<WordTimestamp>>()
+        var currentBlock = mutableListOf<WordTimestamp>()
+        originalWords.forEach { word ->
+            currentBlock.add(word)
+            if (word.hasTrailingSpace) {
+                wordBlocks.add(currentBlock)
+                currentBlock = mutableListOf()
+            }
+        }
+        if (currentBlock.isNotEmpty()) wordBlocks.add(currentBlock)
+
+        // 2. Try to split translated line by the delimiter '|'
+        val segments = translatedLine.split("|").map { it.trim() }.filter { it.isNotEmpty() }
+        
+        val result = mutableListOf<WordTimestamp>()
+        
+        if (segments.size == wordBlocks.size) {
+            // HIGH ACCURACY: Map AI segments 1:1 to original word blocks
+            segments.forEachIndexed { blockIdx, segmentText ->
+                val block = wordBlocks[blockIdx]
+                val blockStartTime = block.first().startTime
+                val blockEndTime = block.last().endTime
+                val blockDuration = (blockEndTime - blockStartTime).coerceAtLeast(0.01)
+
+                if (block.size == 1) {
+                    // Single syllable word
+                    result.add(WordTimestamp(
+                        text = segmentText,
+                        startTime = blockStartTime,
+                        endTime = blockEndTime,
+                        hasTrailingSpace = blockIdx < segments.size - 1
+                    ))
+                } else {
+                    // Multi-syllable word: Distribute segment text proportionally to original syllable durations
+                    val originalTotalDur = block.sumOf { it.endTime - it.startTime }.coerceAtLeast(0.01)
+                    val translatedTokens = tokenize(segmentText, targetLanguage)
+                    
+                    if (translatedTokens.size == block.size) {
+                        // Syllable count matches! (Rare but perfect)
+                        translatedTokens.forEachIndexed { sylIdx, sylText ->
+                            result.add(WordTimestamp(
+                                text = sylText,
+                                startTime = block[sylIdx].startTime,
+                                endTime = block[sylIdx].endTime,
+                                hasTrailingSpace = if (sylIdx == translatedTokens.size - 1) blockIdx < segments.size - 1 else false
+                            ))
+                        }
+                    } else {
+                        // Distribute full segment text across the syllables proportionally to their duration
+                        var currentStart = blockStartTime
+                        block.forEachIndexed { sylIdx, originalSyl ->
+                            val sylWeight = (originalSyl.endTime - originalSyl.startTime) / originalTotalDur
+                            val sylDuration = sylWeight * blockDuration
+                            val sylEnd = if (sylIdx == block.size - 1) blockEndTime else currentStart + sylDuration
+                            
+                            // We can't easily split the translated segment into syllables, 
+                            // so we show the full segment but highlight it in chunks matching original syllables.
+                            // To make it look "word-by-word", we only show text on the first syllable of the block?
+                            // Actually, let's distribute the characters of the segment.
+                            val charStart = (segmentText.length * (currentStart - blockStartTime) / blockDuration).toInt().coerceIn(0, segmentText.length)
+                            val charEnd = (segmentText.length * (sylEnd - blockStartTime) / blockDuration).toInt().coerceIn(0, segmentText.length)
+                            
+                            val partText = segmentText.substring(charStart, charEnd).ifEmpty { 
+                                if (sylIdx == 0) segmentText else "" 
+                            }
+
+                            if (partText.isNotEmpty() || sylIdx == 0) {
+                                result.add(WordTimestamp(
+                                    text = if (sylIdx == 0 && partText.isEmpty()) segmentText else partText,
+                                    startTime = currentStart,
+                                    endTime = sylEnd,
+                                    hasTrailingSpace = if (sylIdx == block.size - 1) blockIdx < segments.size - 1 else false
+                                ))
+                            }
+                            currentStart = sylEnd
+                        }
+                    }
+                }
+            }
+        } else {
+            // FALLBACK: Proportional distribution over the whole line (stripping delimiters)
+            val cleanLine = translatedLine.replace("|", " ").trim()
+            val translatedWords = tokenize(cleanLine, targetLanguage)
+            if (translatedWords.isEmpty()) return emptyList()
+
+            val startTime = originalWords.first().startTime
+            val endTime = originalWords.last().endTime
+            val totalDuration = endTime - startTime
+            val totalChars = translatedWords.sumOf { it.length }.toDouble().coerceAtLeast(1.0)
+            
+            var currentStart = startTime
+            translatedWords.forEachIndexed { index, wordText ->
+                val wordDuration = (wordText.length / totalChars) * totalDuration
+                val wordEnd = if (index == translatedWords.size - 1) endTime else currentStart + wordDuration
+                result.add(WordTimestamp(
+                    text = wordText,
+                    startTime = currentStart,
+                    endTime = wordEnd,
+                    hasTrailingSpace = index < translatedWords.size - 1
+                ))
+                currentStart = wordEnd
+            }
+        }
+        return result
+    }
+
+    private suspend fun tokenize(text: String, language: String): List<String> = withContext(Dispatchers.Default) {
+        val lang = language.lowercase(Locale.ROOT)
+        if (lang == "ja" || lang == "japanese" || lang == "jp") {
+            kuromojiTokenizer.tokenize(text).map { it.surface }
+        } else {
+            // Default to space-based tokenization for most languages
+            text.split(Regex("\\s+")).filter { it.isNotBlank() }
+        }
+    }
+
     suspend fun romanizeWords(
         text: String,
         words: List<WordTimestamp>,

@@ -122,7 +122,9 @@ IMPORTANT:
 - Maintain poetic flow and meaning
 - Keep punctuation appropriate for target language
 - Preserve line-by-line structure exactly
-- For song lyrics, prioritize singability
+- For song lyrics, prioritize singability and rhythmic alignment
+- CRITICAL for word-level sync: If the original line has multiple words, separate the translation into the SAME number of segments using the '|' character. 
+  Example: "I love you" (3 words) -> "Je | t'aime | toi" (3 segments)
 
 Input ($lineCount lines):
 $text

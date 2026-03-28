@@ -244,6 +244,11 @@ fun Lyrics(
     }
     
     LaunchedEffect(showLyrics, lines.size) {
+        scope.launch {
+            LyricsTranslationHelper.clearTranslationsTrigger.collect {
+                LyricsTranslationHelper.clearInMemoryTranslations(lines)
+            }
+        }
         LyricsTranslationHelper.manualTrigger.collect {
             val effectiveApiKey = if (aiProvider == "DeepL") deeplApiKey else openRouterApiKey
             if (showLyrics && lines.isNotEmpty() && effectiveApiKey.isNotBlank()) {

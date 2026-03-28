@@ -308,15 +308,42 @@ internal fun LyricsLine(
                 }
                 
                 val transText by item.translatedTextFlow.collectAsState()
+                val transWords by item.translatedWordsFlow.collectAsState()
                 transText?.let { 
-                    Text(
-                        text = it,
+                    val transTextStyle = TextStyle(
                         fontSize = 16.sp,
                         color = expressiveAccent.copy(alpha = 0.5f),
                         textAlign = agentTextAlign,
                         fontWeight = FontWeight.Normal,
-                        modifier = Modifier.padding(top = 4.dp)
+                        platformStyle = PlatformTextStyle(includeFontPadding = false)
                     )
+
+                    if (isSynced && karaokeFill && transWords != null && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3)) {
+                        Box(modifier = Modifier.padding(top = 4.dp)) {
+                            WordLevelLyrics(
+                                mainText = it,
+                                words = transWords!!,
+                                isActiveLine = isActiveLine,
+                                currentPositionState = currentPositionState,
+                                lyricsOffset = lyricsOffset,
+                                playerConnection = playerConnection,
+                                lyricStyle = transTextStyle,
+                                lineColor = expressiveAccent.copy(alpha = 0.1f),
+                                expressiveAccent = expressiveAccent.copy(alpha = 0.4f),
+                                isBackground = item.isBackground,
+                                focusedAlpha = 0.3f,
+                                alignment = agentTextAlign
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = it,
+                            style = transTextStyle.copy(color = if (isActiveLine) expressiveAccent.copy(alpha = 0.5f) else expressiveAccent.copy(alpha = 0.15f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                        )
+                    }
                 }
             }
         }

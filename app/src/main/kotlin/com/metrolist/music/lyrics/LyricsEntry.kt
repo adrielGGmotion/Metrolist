@@ -21,6 +21,7 @@ data class LyricsEntry(
     val romanizedTextFlow: MutableStateFlow<String?> = MutableStateFlow(null),
     val romanizedWordsFlow: MutableStateFlow<List<WordTimestamp>?> = MutableStateFlow(null),
     val translatedTextFlow: MutableStateFlow<String?> = MutableStateFlow(null),
+    val translatedWordsFlow: MutableStateFlow<List<WordTimestamp>?> = MutableStateFlow(null),
     val agent: String? = null,
     val isBackground: Boolean = false
 ) : Comparable<LyricsEntry> {
