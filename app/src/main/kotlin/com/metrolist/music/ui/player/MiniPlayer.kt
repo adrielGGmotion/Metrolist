@@ -288,10 +288,14 @@ private fun NewMiniPlayer(
         MiniPlayerBackgroundStyle.GRADIENT   -> MaterialTheme.colorScheme.surfaceContainer
         MiniPlayerBackgroundStyle.PURE_BLACK -> Color.Black
     }
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val outlineColor = MaterialTheme.colorScheme.outline
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val errorColor = MaterialTheme.colorScheme.error
+    val forceLightColors = !useDarkTheme && (miniPlayerBackground == MiniPlayerBackgroundStyle.PURE_BLACK ||
+            miniPlayerBackground == MiniPlayerBackgroundStyle.BLUR ||
+            miniPlayerBackground == MiniPlayerBackgroundStyle.GRADIENT)
+
+    val primaryColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.primary
+    val outlineColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
+    val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
+    val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
 
     Box(
         modifier =
@@ -452,7 +456,13 @@ private fun NewMiniPlayer(
 
 // Subscribe button - isolated composable
                 mediaMetadata?.artists?.firstOrNull()?.id?.let { artistId ->
-                    SubscribeButton(artistId = artistId, metadata = mediaMetadata!!)
+                    SubscribeButton(
+                        artistId = artistId,
+                        metadata = mediaMetadata!!,
+                        primaryColor = primaryColor,
+                        outlineColor = outlineColor,
+                        onSurfaceColor = onSurfaceColor,
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -469,13 +479,21 @@ private fun NewMiniPlayer(
                                 )
                             }
                         },
+                        outlineColor = outlineColor,
+                        onSurfaceColor = onSurfaceColor,
                     )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
 // Favorite button - isolated composable
-                mediaMetadata?.let { FavoriteButton(songId = it.id) }
+                mediaMetadata?.let { FavoriteButton(
+                    songId = it.id,
+                    errorColor = errorColor,
+                    outlineColor = outlineColor,
+                    onSurfaceColor = onSurfaceColor,
+                )
+                }
             }
         }
     }
@@ -1015,14 +1033,14 @@ private fun LegacyMiniMediaInfo(
 private fun SubscribeButton(
     artistId: String,
     metadata: MediaMetadata,
+    primaryColor: Color,
+    outlineColor: Color,
+    onSurfaceColor: Color,
 ) {
     val database = LocalDatabase.current
     val libraryArtist by database.artist(artistId).collectAsState(initial = null)
     val isSubscribed = libraryArtist?.artist?.bookmarkedAt != null
 
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val outlineColor = MaterialTheme.colorScheme.outline
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
     Box(
         contentAlignment = Alignment.Center,
@@ -1069,9 +1087,11 @@ private fun SubscribeButton(
 @Composable
 private fun AddToPlaylistButton(
     onClick: () -> Unit,
-) {
-    val outlineColor = MaterialTheme.colorScheme.outline
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    outlineColor: Color,
+    onSurfaceColor: Color,
+)
+
+{
     val contentDescription = stringResource(R.string.add_to_playlist_desc)
 
     Box(
@@ -1100,17 +1120,18 @@ private fun AddToPlaylistButton(
 }
 
 @Composable
-private fun FavoriteButton(songId: String) {
+private fun FavoriteButton(
+    songId: String,
+    errorColor: Color,
+    outlineColor: Color,
+    onSurfaceColor: Color,
+) {
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val librarySong by database.song(songId).collectAsState(initial = null)
     // For episodes, show saved state (inLibrary); for songs, show liked state
     val isEpisode = librarySong?.song?.isEpisode == true
     val isLiked = if (isEpisode) librarySong?.song?.inLibrary != null else librarySong?.song?.liked == true
-
-    val errorColor = MaterialTheme.colorScheme.error
-    val outlineColor = MaterialTheme.colorScheme.outline
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
     Box(
         contentAlignment = Alignment.Center,
