@@ -95,7 +95,7 @@
     <string name="similar_content_desc">Otomatis menambahkan lagu serupa saat akhir antrean tercapai</string>
     <string name="percentage_format">%d%%</string>
     <string name="import_online">Impor playlist \"m3u\"</string>
-    <string name="import_csv">Impor playlist \"csv\"</string>
+    <string name="import_csv">Impor daftar putar \"csv\"</string>
     <string name="playlist_add_local_to_synced_note">Catatan: Menambahkan lagu lokal ke playlist yang tersinkron/online tidak didukung. Kombinasi lainnya tetap valid</string>
     <string name="auto_download_on_like">Unduh otomatis saat disukai</string>
     <string name="auto_download_on_like_desc">Unduh lagu secara otomatis saat Anda menyukainya</string>
@@ -593,8 +593,6 @@
     <string name="sleep_timer_friday">Jumat</string>
     <string name="sleep_timer_saturday">Sabtu</string>
     <string name="sleep_timer_sunday">Minggu</string>
-    <string name="sleep_timer_stop_after_current_song">Berhenti di akhir lagu saat ini ketika pengatur waktu selesai</string>
-    <string name="sleep_timer_fade_out">Redam suara di menit terakhir</string>
     <string name="found_in_settings_content">Tersedia di Pengaturan &gt; Konten</string>
     <string name="plays">diputar</string>
     <string name="error_episode_save">Gagal menyimpan episode</string>
@@ -698,4 +696,17 @@
     <string name="delete_uploaded_songs_confirm">Apakah Anda yakin ingin menghapus %1$d lagu yang diunggah? Tindakan ini tidak dapat dibatalkan.</string>
     <string name="deleted_n_songs">%1$d lagu dihapus</string>
     <string name="deleting">Menghapus…</string>
+    <string name="export_playlist">Ekspor playlist</string>
+    <string name="export_as_csv">Ekspor sebagai CSV</string>
+    <string name="export_as_m3u">Ekspor sebagai M3U</string>
+    <string name="export_success">Pengeksporan playlist berhasil</string>
+    <string name="export_failed">Gagal mengekspor playlist</string>
+    <string name="export_option_share">Bagikan</string>
+    <string name="export_option_save">Simpan ke Dokumen</string>
+    <string name="qs_tile_music_recognizer">Mengenali Musik</string>
+    <string name="weekly_most_playlist_name">Pekanan Terpopuler</string>
+    <string name="monthly_most_playlist_name">Bulanan Terpopuler</string>
+    <string name="enable_song_cache">Aktifkan cache lagu</string>
+    <string name="enable_song_cache_desc">Otomatis simpan cache untuk diputar nanti</string>
+    <string name="sleep_timer_stop_after_current_song_title">Berhenti di akhir lagu saat ini</string>
 </resources>

@@ -144,7 +144,7 @@
     <string name="lyrics_romanize_kyrgyz">Romanizar la letra del kirguís</string>
     <string name="lyrics_romanize_serbian">Romanizar letras en serbio</string>
     <string name="lyrics_romanize_bulgarian">Romanizar letras en búlgaro</string>
-    <string name="line_by_line_option_title">EXPERIMENTAL: Detectar el lenguaje línea por línea</string>
+    <string name="line_by_line_option_title">Detectar idioma línea por línea</string>
     <string name="line_by_line_option_desc">El idioma cirílico se detectará línea por línea en lugar de toda la canción.</string>
     <string name="line_by_line_dialog_title">¿Está seguro?</string>
     <string name="line_by_line_dialog_desc">Esta función es experimental y puede tener sus fallos.\n\nPor defecto, el idioma se determina a partir de la canción completa, pero con esta opción activada, se determinará línea por línea. Esto permitirá que las canciones multilingües funcionen, PERO el idioma podría no ser siempre correcto (por ejemplo, si hay una letra en ucraniano que no contiene letras específicas del idioma, podría romanizarse al ruso).\n\nSi no tienes problemas, se recomienda desactivar esta opción.</string>
@@ -693,8 +693,6 @@
     <string name="sleep_timer_friday">Viernes</string>
     <string name="sleep_timer_saturday">Sábado</string>
     <string name="sleep_timer_sunday">Domingo</string>
-    <string name="sleep_timer_stop_after_current_song">Detener al final de la canción actual cuando termine el temporizador</string>
-    <string name="sleep_timer_fade_out">Atenuar el volumen en el último minuto</string>
     <string name="upload_songs">Subir canciones</string>
     <string name="uploading">Subiendo…</string>
     <string name="upload_progress">%1$d de %2$d</string>
@@ -718,4 +716,22 @@
     <string name="export_option_share">Compartir</string>
     <string name="export_option_save">Guardar en Documentos</string>
     <string name="qs_tile_music_recognizer">Identificar música</string>
+    <string name="ai_provider_mistral_help">Visita https://console.mistral.ai/api-keys</string>
+    <string name="weekly_most_playlist_name">Lo más escuchado de la semana</string>
+    <string name="monthly_most_playlist_name">Lo más escuchado del mes</string>
+    <string name="enable_song_cache">Activar caché de canciones</string>
+    <string name="enable_song_cache_desc">Guardar automáticamente las canciones en caché para reproducirlas más tarde</string>
+    <string name="sleep_timer_stop_after_current_song_title">Detener al finalizar la canción actual</string>
+    <string name="sleep_timer_stop_after_current_song_description">Detiene el temporizador de apagado al finalizar la canción que se está reproduciendo</string>
+    <string name="sleep_timer_fade_out_title">Desvanecer</string>
+    <string name="sleep_timer_fade_out_description">Reduce el volumen gradualmente durante el último minuto</string>
+    <string name="sort_ascending">Orden ascendente</string>
+    <string name="sort_descending">Orden descendente</string>
+    <string name="time_transfer_title">Transferencia de tiempo</string>
+    <string name="time_transfer_warning">ADVERTENCIA: No es posible revertir esta acción una vez completada. Se recomienda crear una copia de seguridad antes de continuar. Solo se pueden seleccionar canciones que tengan al menos un evento o reproducción registrada.</string>
+    <string name="time_transfer_source_song">Canción de origen</string>
+    <string name="time_transfer_target_song">Canción de destino</string>
+    <string name="time_transfer_listen_time_label">Tiempo de reproducción:</string>
+    <string name="time_transfer_convert">Convertir</string>
+    <string name="song_dropdown_more_results">Escribe más para acotar los resultados (quedan %d más)</string>
 </resources>
