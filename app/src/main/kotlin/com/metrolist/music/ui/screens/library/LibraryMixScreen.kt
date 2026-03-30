@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -57,7 +58,6 @@ import com.metrolist.music.constants.GridThumbnailHeight
 import com.metrolist.music.constants.LibraryViewType
 import com.metrolist.music.constants.MixSortDescendingKey
 import com.metrolist.music.constants.MixSortType
-import com.metrolist.music.constants.MixSortTypeKey
 import com.metrolist.music.constants.MixSortTypeKey
 import com.metrolist.music.constants.ShowCachedPlaylistKey
 import com.metrolist.music.constants.ShowDownloadedPlaylistKey
@@ -90,7 +90,6 @@ import java.text.Collator
 import java.time.LocalDateTime
 import java.util.Locale
 import java.util.UUID
-import androidx.compose.ui.platform.LocalLocale
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -106,10 +105,11 @@ fun LibraryMixScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
     var viewType by rememberEnumPreference(AlbumViewTypeKey, LibraryViewType.GRID)
-    val (sortType, onSortTypeChange) = rememberEnumPreference(
-        MixSortTypeKey,
-        MixSortType.CREATE_DATE
-    )
+    val (sortType, onSortTypeChange) =
+        rememberEnumPreference(
+            MixSortTypeKey,
+            MixSortType.CREATE_DATE,
+        )
     val (sortDescending, onSortDescendingChange) = rememberPreference(MixSortDescendingKey, true)
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
 
@@ -118,50 +118,55 @@ fun LibraryMixScreen(
     val topSize by viewModel.topValue.collectAsState(initial = 50)
     val likedPlaylist =
         Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.liked)
-            ),
+            playlist =
+                PlaylistEntity(
+                    id = UUID.randomUUID().toString(),
+                    name = stringResource(R.string.liked),
+                ),
             songCount = 0,
             songThumbnails = emptyList(),
         )
 
     val downloadPlaylist =
         Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.offline)
-            ),
+            playlist =
+                PlaylistEntity(
+                    id = UUID.randomUUID().toString(),
+                    name = stringResource(R.string.offline),
+                ),
             songCount = 0,
             songThumbnails = emptyList(),
         )
 
     val topPlaylist =
         Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.my_top) + " $topSize"
-            ),
+            playlist =
+                PlaylistEntity(
+                    id = UUID.randomUUID().toString(),
+                    name = stringResource(R.string.my_top) + " $topSize",
+                ),
             songCount = 0,
             songThumbnails = emptyList(),
         )
 
     val uploadedPlaylist =
         Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.uploaded_playlist)
-            ),
+            playlist =
+                PlaylistEntity(
+                    id = UUID.randomUUID().toString(),
+                    name = stringResource(R.string.uploaded_playlist),
+                ),
             songCount = 0,
             songThumbnails = emptyList(),
         )
 
     val cachedPlaylist =
         Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.cached_playlist)
-            ),
+            playlist =
+                PlaylistEntity(
+                    id = UUID.randomUUID().toString(),
+                    name = stringResource(R.string.cached_playlist),
+                ),
             songCount = 0,
             songThumbnails = emptyList(),
         )
@@ -181,7 +186,7 @@ fun LibraryMixScreen(
     collator.strength = Collator.PRIMARY
     allItems =
         when (sortType) {
-            MixSortType.CREATE_DATE ->
+            MixSortType.CREATE_DATE -> {
                 allItems.sortedBy { item ->
                     when (item) {
                         is Album -> item.album.bookmarkedAt
@@ -190,8 +195,9 @@ fun LibraryMixScreen(
                         else -> LocalDateTime.now()
                     }
                 }
+            }
 
-            MixSortType.NAME ->
+            MixSortType.NAME -> {
                 allItems.sortedWith(
                     compareBy(collator) { item ->
                         when (item) {
@@ -202,8 +208,9 @@ fun LibraryMixScreen(
                         }
                     },
                 )
+            }
 
-            MixSortType.LAST_UPDATED ->
+            MixSortType.LAST_UPDATED -> {
                 allItems.sortedBy { item ->
                     when (item) {
                         is Album -> item.album.lastUpdateTime
@@ -212,6 +219,7 @@ fun LibraryMixScreen(
                         else -> LocalDateTime.now()
                     }
                 }
+            }
         }.reversed(sortDescending)
 
     val coroutineScope = rememberCoroutineScope()
@@ -233,11 +241,11 @@ fun LibraryMixScreen(
     }
 
     LaunchedEffect(Unit) {
-         if (ytmSync) {
-             withContext(Dispatchers.IO) {
-                 viewModel.syncAllLibrary()
-             }
-         }
+        if (ytmSync) {
+            withContext(Dispatchers.IO) {
+                viewModel.syncAllLibrary()
+            }
+        }
     }
 
     val headerContent = @Composable {
@@ -269,12 +277,12 @@ fun LibraryMixScreen(
             ) {
                 Icon(
                     painter =
-                    painterResource(
-                        when (viewType) {
-                            LibraryViewType.LIST -> R.drawable.list
-                            LibraryViewType.GRID -> R.drawable.grid_view
-                        },
-                    ),
+                        painterResource(
+                            when (viewType) {
+                                LibraryViewType.LIST -> R.drawable.list
+                                LibraryViewType.GRID -> R.drawable.grid_view
+                            },
+                        ),
                     contentDescription = null,
                 )
             }
@@ -285,16 +293,17 @@ fun LibraryMixScreen(
     val pullRefreshState = rememberPullToRefreshState()
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pullToRefresh(
-                state = pullRefreshState,
-                isRefreshing = isRefreshing,
-                onRefresh = viewModel::refresh
-            ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pullToRefresh(
+                    state = pullRefreshState,
+                    isRefreshing = isRefreshing,
+                    onRefresh = viewModel::refresh,
+                ),
     ) {
         when (viewType) {
-            LibraryViewType.LIST ->
+            LibraryViewType.LIST -> {
                 LazyColumn(
                     state = lazyListState,
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -322,12 +331,11 @@ fun LibraryMixScreen(
                                 playlist = likedPlaylist,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("auto_playlist/liked")
-                                    }
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("auto_playlist/liked")
+                                        }.animateItem(),
                             )
                         }
                     }
@@ -341,12 +349,11 @@ fun LibraryMixScreen(
                                 playlist = downloadPlaylist,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("auto_playlist/downloaded")
-                                    }
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("auto_playlist/downloaded")
+                                        }.animateItem(),
                             )
                         }
                     }
@@ -360,12 +367,11 @@ fun LibraryMixScreen(
                                 playlist = cachedPlaylist,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("cache_playlist/cached")
-                                    }
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("cache_playlist/cached")
+                                        }.animateItem(),
                             )
                         }
                     }
@@ -379,12 +385,11 @@ fun LibraryMixScreen(
                                 playlist = topPlaylist,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("top_playlist/$topSize")
-                                    }
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("top_playlist/$topSize")
+                                        }.animateItem(),
                             )
                         }
                     }
@@ -402,15 +407,14 @@ fun LibraryMixScreen(
                                         .fillMaxWidth()
                                         .clickable {
                                             navController.navigate("auto_playlist/uploaded")
-                                        }
-                                        .animateItem(),
+                                        }.animateItem(),
                             )
                         }
                     }
 
                     items(
                         items = allItems.distinctBy { it.id },
-                        key = { it.id },
+                        key = { "lib_mix_list_${it.id}" },
                         contentType = { CONTENT_TYPE_PLAYLIST },
                     ) { item ->
                         when (item) {
@@ -436,27 +440,29 @@ fun LibraryMixScreen(
                                         }
                                     },
                                     modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                if (!item.playlist.isEditable && item.songCount == 0 && item.playlist.browseId != null)
-                                                    navController.navigate("online_playlist/${item.playlist.browseId}")
-                                                else
-                                                    navController.navigate("local_playlist/${item.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    PlaylistMenu(
-                                                        playlist = item,
-                                                        coroutineScope = coroutineScope,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        .animateItem(),
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = {
+                                                    if (!item.playlist.isEditable && item.songCount == 0 &&
+                                                        item.playlist.browseId != null
+                                                    ) {
+                                                        navController.navigate("online_playlist/${item.playlist.browseId}")
+                                                    } else {
+                                                        navController.navigate("local_playlist/${item.id}")
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        PlaylistMenu(
+                                                            playlist = item,
+                                                            coroutineScope = coroutineScope,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ).animateItem(),
                                 )
                             }
 
@@ -482,24 +488,23 @@ fun LibraryMixScreen(
                                         }
                                     },
                                     modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                navController.navigate("artist/${item.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    ArtistMenu(
-                                                        originalArtist = item,
-                                                        coroutineScope = coroutineScope,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        .animateItem(),
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = {
+                                                    navController.navigate("artist/${item.id}")
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        ArtistMenu(
+                                                            originalArtist = item,
+                                                            coroutineScope = coroutineScope,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ).animateItem(),
                                 )
                             }
 
@@ -527,24 +532,23 @@ fun LibraryMixScreen(
                                         }
                                     },
                                     modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                navController.navigate("album/${item.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    AlbumMenu(
-                                                        originalAlbum = item,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        .animateItem(),
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = {
+                                                    navController.navigate("album/${item.id}")
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        AlbumMenu(
+                                                            originalAlbum = item,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ).animateItem(),
                                 )
                             }
 
@@ -552,14 +556,15 @@ fun LibraryMixScreen(
                         }
                     }
                 }
+            }
 
-            LibraryViewType.GRID ->
+            LibraryViewType.GRID -> {
                 LazyVerticalGrid(
                     state = lazyGridState,
                     columns =
-                    GridCells.Adaptive(
-                        minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,
-                    ),
+                        GridCells.Adaptive(
+                            minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,
+                        ),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(
@@ -588,14 +593,13 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("auto_playlist/liked")
-                                        },
-                                    )
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                navController.navigate("auto_playlist/liked")
+                                            },
+                                        ).animateItem(),
                             )
                         }
                     }
@@ -610,14 +614,13 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("auto_playlist/downloaded")
-                                        },
-                                    )
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                navController.navigate("auto_playlist/downloaded")
+                                            },
+                                        ).animateItem(),
                             )
                         }
                     }
@@ -632,14 +635,13 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("cache_playlist/cached")
-                                        },
-                                    )
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                navController.navigate("cache_playlist/cached")
+                                            },
+                                        ).animateItem(),
                             )
                         }
                     }
@@ -654,14 +656,13 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("top_playlist/$topSize")
-                                        },
-                                    )
-                                    .animateItem(),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                navController.navigate("top_playlist/$topSize")
+                                            },
+                                        ).animateItem(),
                             )
                         }
                     }
@@ -680,15 +681,14 @@ fun LibraryMixScreen(
                                         .fillMaxWidth()
                                         .clickable {
                                             navController.navigate("auto_playlist/uploaded")
-                                        }
-                                        .animateItem(),
+                                        }.animateItem(),
                             )
                         }
                     }
 
                     items(
                         items = allItems.distinctBy { it.id },
-                        key = { it.id },
+                        key = { "lib_mix_grid_${it.id}" },
                         contentType = { CONTENT_TYPE_PLAYLIST },
                     ) { item ->
                         when (item) {
@@ -697,27 +697,29 @@ fun LibraryMixScreen(
                                     playlist = item,
                                     fillMaxWidth = true,
                                     modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                if (!item.playlist.isEditable && item.songCount == 0 && item.playlist.browseId != null)
-                                                    navController.navigate("online_playlist/${item.playlist.browseId}")
-                                                else
-                                                    navController.navigate("local_playlist/${item.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    PlaylistMenu(
-                                                        playlist = item,
-                                                        coroutineScope = coroutineScope,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        .animateItem(),
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = {
+                                                    if (!item.playlist.isEditable && item.songCount == 0 &&
+                                                        item.playlist.browseId != null
+                                                    ) {
+                                                        navController.navigate("online_playlist/${item.playlist.browseId}")
+                                                    } else {
+                                                        navController.navigate("local_playlist/${item.id}")
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        PlaylistMenu(
+                                                            playlist = item,
+                                                            coroutineScope = coroutineScope,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ).animateItem(),
                                 )
                             }
 
@@ -726,24 +728,23 @@ fun LibraryMixScreen(
                                     artist = item,
                                     fillMaxWidth = true,
                                     modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                navController.navigate("artist/${item.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    ArtistMenu(
-                                                        originalArtist = item,
-                                                        coroutineScope = coroutineScope,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        .animateItem(),
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = {
+                                                    navController.navigate("artist/${item.id}")
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        ArtistMenu(
+                                                            originalArtist = item,
+                                                            coroutineScope = coroutineScope,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ).animateItem(),
                                 )
                             }
 
@@ -755,24 +756,23 @@ fun LibraryMixScreen(
                                     coroutineScope = coroutineScope,
                                     fillMaxWidth = true,
                                     modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                navController.navigate("album/${item.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    AlbumMenu(
-                                                        originalAlbum = item,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        .animateItem(),
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = {
+                                                    navController.navigate("album/${item.id}")
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        AlbumMenu(
+                                                            originalAlbum = item,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ).animateItem(),
                                 )
                             }
 
@@ -780,14 +780,16 @@ fun LibraryMixScreen(
                         }
                     }
                 }
+            }
         }
 
         Indicator(
             isRefreshing = isRefreshing,
             state = pullRefreshState,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
         )
     }
 }

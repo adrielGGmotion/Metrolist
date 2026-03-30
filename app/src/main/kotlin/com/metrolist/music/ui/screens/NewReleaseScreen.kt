@@ -66,7 +66,7 @@ fun NewReleaseScreen(
     ) {
         items(
             items = newReleaseAlbums.distinctBy { it.id },
-            key = { it.id },
+            key = { "newrelease_${it.id}" },
         ) { album ->
             YouTubeGridItem(
                 item = album,
@@ -75,22 +75,22 @@ fun NewReleaseScreen(
                 fillMaxWidth = true,
                 coroutineScope = coroutineScope,
                 modifier =
-                Modifier
-                    .combinedClickable(
-                        onClick = {
-                            navController.navigate("album/${album.id}")
-                        },
-                        onLongClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            menuState.show {
-                                YouTubeAlbumMenu(
-                                    albumItem = album,
-                                    navController = navController,
-                                    onDismiss = menuState::dismiss,
-                                )
-                            }
-                        },
-                    ),
+                    Modifier
+                        .combinedClickable(
+                            onClick = {
+                                navController.navigate("album/${album.id}")
+                            },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                menuState.show {
+                                    YouTubeAlbumMenu(
+                                        albumItem = album,
+                                        navController = navController,
+                                        onDismiss = menuState::dismiss,
+                                    )
+                                }
+                            },
+                        ),
             )
         }
 
