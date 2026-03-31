@@ -270,8 +270,8 @@ dependencies {
     implementation(project(":kizzy"))
     implementation(project(":lastfm"))
     implementation(project(":betterlyrics"))
-    implementation(project(":simpmusic"))
     implementation(project(":shazamkit"))
+    implementation(project(":paxsenix"))
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)

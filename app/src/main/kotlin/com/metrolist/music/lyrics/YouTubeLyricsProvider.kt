@@ -8,6 +8,8 @@ package com.metrolist.music.lyrics
 import android.content.Context
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.WatchEndpoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object YouTubeLyricsProvider : LyricsProvider {
     override val name = "YouTube Music"
@@ -15,12 +17,13 @@ object YouTubeLyricsProvider : LyricsProvider {
     override fun isEnabled(context: Context) = true
 
     override suspend fun getLyrics(
+        context: Context,
         id: String,
         title: String,
         artist: String,
         duration: Int,
         album: String?,
-    ): Result<String> =
+    ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val nextResult = YouTube.next(WatchEndpoint(videoId = id)).getOrThrow()
             YouTube
@@ -29,4 +32,5 @@ object YouTubeLyricsProvider : LyricsProvider {
                         ?: throw IllegalStateException("Lyrics endpoint not found"),
                 ).getOrThrow() ?: throw IllegalStateException("Lyrics unavailable")
         }
+    }
 }

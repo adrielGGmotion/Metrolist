@@ -104,9 +104,9 @@ class CipherWebView private constructor(
 
         val exports = buildList {
             if (sigFuncName != null) {
-                val sigConstArgs = sigInfo?.constantArgs
-                val preprocessFunc = sigInfo?.preprocessFunc
-                val preprocessArgs = sigInfo?.preprocessArgs
+                val sigConstArgs = sigInfo.constantArgs
+                val preprocessFunc = sigInfo.preprocessFunc
+                val preprocessArgs = sigInfo.preprocessArgs
 
                 if (!sigConstArgs.isNullOrEmpty() && preprocessFunc != null && !preprocessArgs.isNullOrEmpty()) {
                     // Full wrapper: JI(48, 1918, f1(1, 6528, sig))
@@ -129,7 +129,7 @@ class CipherWebView private constructor(
                 }
             }
             if (nFuncName != null) {
-                val nConstArgs = nFuncInfo?.constantArgs
+                val nConstArgs = nFuncInfo.constantArgs
                 if (!nConstArgs.isNullOrEmpty()) {
                     // Generate wrapper function for n-functions that require constant args
                     // e.g. GU(6, 6010, n) -> window._nTransformFunc = function(n) { return GU(6, 6010, n); };
