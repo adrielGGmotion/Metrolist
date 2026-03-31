@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -330,6 +331,15 @@ fun LastFMSettings(
                             checked = lastfmScrobbling,
                             onCheckedChange = onlastfmScrobblingChange,
                             enabled = isLoggedIn,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lastfmScrobbling) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                )
+                            }
                         )
                     },
                     enabled = isLoggedIn,
@@ -342,6 +352,15 @@ fun LastFMSettings(
                             checked = useNowPlaying,
                             onCheckedChange = onUseNowPlayingChange,
                             enabled = isLoggedIn && lastfmScrobbling,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (useNowPlaying) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                )
+                            }
                         )
                     },
                     enabled = isLoggedIn && lastfmScrobbling,
@@ -355,6 +374,15 @@ fun LastFMSettings(
                             checked = useSendLikes,
                             onCheckedChange = onUseSendLikes,
                             enabled = isLoggedIn,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (useSendLikes) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                )
+                            }
                         )
                     },
                     enabled = isLoggedIn,

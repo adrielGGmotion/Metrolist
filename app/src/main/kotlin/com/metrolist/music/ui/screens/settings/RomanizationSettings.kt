@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +17,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TriStateCheckbox
@@ -110,6 +112,15 @@ fun RomanizationSettings(
                         Switch(
                             checked = lyricsRomanizeAsMain,
                             onCheckedChange = onLyricsRomanizeAsMainChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsRomanizeAsMain) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                )
+                            }
                         )
                     },
                     icon = painterResource(R.drawable.queue_music)
@@ -120,6 +131,15 @@ fun RomanizationSettings(
                         Switch(
                             checked = lyricsRomanizeCyrillicByLine,
                             onCheckedChange = onLyricsRomanizeCyrillicByLineChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsRomanizeCyrillicByLine) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                )
+                            }
                         )
                     },
                     icon = painterResource(R.drawable.info)

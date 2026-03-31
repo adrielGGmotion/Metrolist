@@ -40,6 +40,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -566,6 +567,15 @@ fun DiscordSettings(
                                 checked = discordRPC,
                                 onCheckedChange = onDiscordRPCChange,
                                 enabled = isLoggedIn,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (discordRPC) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                }
                             )
                         },
                         enabled = isLoggedIn,
@@ -581,6 +591,15 @@ fun DiscordSettings(
                                 checked = useDetails,
                                 onCheckedChange = onUseDetailsChange,
                                 enabled = isLoggedIn && discordRPC,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (useDetails) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                }
                             )
                         },
                         enabled = isLoggedIn && discordRPC,
@@ -598,6 +617,15 @@ fun DiscordSettings(
                                 checked = advancedMode,
                                 onCheckedChange = onAdvancedModeChange,
                                 enabled = isLoggedIn && discordRPC,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (advancedMode) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                }
                             )
                         },
                         enabled = isLoggedIn && discordRPC,
@@ -694,6 +722,15 @@ fun DiscordSettings(
                                     Switch(
                                         checked = button1Visible,
                                         onCheckedChange = { button1Visible = it },
+                                        thumbContent = {
+                                            Icon(
+                                                painter = painterResource(
+                                                    id = if (button1Visible) R.drawable.check else R.drawable.close
+                                                ),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize),
+                                            )
+                                        }
                                     )
                                 },
                                 onClick = { showButton1TextDialog = true },
@@ -707,6 +744,15 @@ fun DiscordSettings(
                                     Switch(
                                         checked = button2Visible,
                                         onCheckedChange = { button2Visible = it },
+                                        thumbContent = {
+                                            Icon(
+                                                painter = painterResource(
+                                                    id = if (button2Visible) R.drawable.check else R.drawable.close
+                                                ),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize),
+                                            )
+                                        }
                                     )
                                 },
                                 onClick = { showButton2TextDialog = true },
