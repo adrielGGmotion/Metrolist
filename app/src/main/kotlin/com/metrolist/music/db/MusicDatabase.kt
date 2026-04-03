@@ -40,9 +40,9 @@ import com.metrolist.music.db.entities.SetVideoIdEntity
 import com.metrolist.music.db.entities.SongAlbumMap
 import com.metrolist.music.db.entities.SongArtistMap
 import com.metrolist.music.db.entities.SongEntity
-import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.db.entities.SortedSongAlbumMap
 import com.metrolist.music.db.entities.SortedSongArtistMap
+import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.extensions.toSQLiteQuery
 import timber.log.Timber
 import java.time.Instant
@@ -108,14 +108,14 @@ class MusicDatabase(
         PlayCountEntity::class,
         RecognitionHistory::class,
         SpeedDialItem::class,
-        PodcastEntity::class
+        PodcastEntity::class,
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 35,
+    version = 36,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -151,6 +151,7 @@ class MusicDatabase(
         AutoMigration(from = 32, to = 33),
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
+        AutoMigration(from = 35, to = 36, spec = Migration35To36::class),
     ],
 )
 @TypeConverters(Converters::class)
@@ -164,32 +165,36 @@ abstract class InternalDatabase : RoomDatabase() {
         fun newInstance(context: Context): MusicDatabase =
             MusicDatabase(
                 delegate =
-                Room
-                    .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(
-                        MIGRATION_1_2,
-                        MIGRATION_21_24,
-                        MIGRATION_22_24,
-                        MIGRATION_24_25,
-                    )
-                    .fallbackToDestructiveMigration(dropAllTables = true)
-                    .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                    .setTransactionExecutor(java.util.concurrent.Executors.newFixedThreadPool(4))
-                    .setQueryExecutor(java.util.concurrent.Executors.newFixedThreadPool(4))
-                    .addCallback(object : RoomDatabase.Callback() {
-                        override fun onOpen(db: SupportSQLiteDatabase) {
-                            super.onOpen(db)
-                            try {
-                                db.query("PRAGMA busy_timeout = 60000").close()
-                                db.query("PRAGMA cache_size = -16000").close()
-                                db.query("PRAGMA wal_autocheckpoint = 1000").close()
-                                db.query("PRAGMA synchronous = NORMAL").close()
-                            } catch (e: Exception) {
-                                Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
-                            }
-                        }
-                    })
-                    .build(),
+                    Room
+                        .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
+                        .addMigrations(
+                            MIGRATION_1_2,
+                            MIGRATION_21_24,
+                            MIGRATION_22_24,
+                            MIGRATION_24_25,
+                        ).fallbackToDestructiveMigration(dropAllTables = true)
+                        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                        .setTransactionExecutor(
+                            java.util.concurrent.Executors
+                                .newFixedThreadPool(4),
+                        ).setQueryExecutor(
+                            java.util.concurrent.Executors
+                                .newFixedThreadPool(4),
+                        ).addCallback(
+                            object : RoomDatabase.Callback() {
+                                override fun onOpen(db: SupportSQLiteDatabase) {
+                                    super.onOpen(db)
+                                    try {
+                                        db.query("PRAGMA busy_timeout = 60000").close()
+                                        db.query("PRAGMA cache_size = -16000").close()
+                                        db.query("PRAGMA wal_autocheckpoint = 1000").close()
+                                        db.query("PRAGMA synchronous = NORMAL").close()
+                                    } catch (e: Exception) {
+                                        Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
+                                    }
+                                }
+                            },
+                        ).build(),
             )
     }
 }
@@ -276,10 +281,16 @@ val MIGRATION_1_2 =
                             title = cursor.getString(1),
                             duration = cursor.getInt(3),
                             liked = cursor.getInt(4) == 1,
-                            createDate = Instant.ofEpochMilli(Date(cursor.getLong(8)).time)
-                                .atZone(ZoneOffset.UTC).toLocalDateTime(),
-                            modifyDate = Instant.ofEpochMilli(Date(cursor.getLong(9)).time)
-                                .atZone(ZoneOffset.UTC).toLocalDateTime(),
+                            createDate =
+                                Instant
+                                    .ofEpochMilli(Date(cursor.getLong(8)).time)
+                                    .atZone(ZoneOffset.UTC)
+                                    .toLocalDateTime(),
+                            modifyDate =
+                                Instant
+                                    .ofEpochMilli(Date(cursor.getLong(9)).time)
+                                    .atZone(ZoneOffset.UTC)
+                                    .toLocalDateTime(),
                         ),
                     )
                     songArtistMaps.add(
@@ -406,7 +417,7 @@ val MIGRATION_21_24 =
     object : Migration(21, 24) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // Combine all changes from 21→22→23→24
-            
+
             // From 21→22: Add columns
             try {
                 db.execSQL("ALTER TABLE song ADD COLUMN libraryAddToken TEXT DEFAULT ''")
@@ -441,7 +452,7 @@ val MIGRATION_21_24 =
                     }
                 }
             }
-            
+
             if (!hasIsUploaded) {
                 db.execSQL("ALTER TABLE `song` ADD COLUMN `isUploaded` INTEGER NOT NULL DEFAULT 0")
             }
@@ -463,7 +474,7 @@ val MIGRATION_22_24 =
                     }
                 }
             }
-            
+
             if (!hasIsUploaded) {
                 db.execSQL("ALTER TABLE `song` ADD COLUMN `isUploaded` INTEGER NOT NULL DEFAULT 0")
             }
@@ -485,7 +496,7 @@ val MIGRATION_22_24 =
     RenameColumn(
         tableName = "song",
         fromColumnName = "download_state",
-        toColumnName = "downloadState"
+        toColumnName = "downloadState",
     ),
     RenameColumn(tableName = "song", fromColumnName = "create_date", toColumnName = "createDate"),
     RenameColumn(tableName = "song", fromColumnName = "modify_date", toColumnName = "modifyDate"),
@@ -495,7 +506,7 @@ class Migration5To6 : AutoMigrationSpec {
         db.query("SELECT id FROM playlist WHERE id NOT LIKE 'LP%'").use { cursor ->
             while (cursor.moveToNext()) {
                 db.execSQL(
-                    "UPDATE playlist SET browseId = '${cursor.getString(0)}' WHERE id = '${cursor.getString(0)}'"
+                    "UPDATE playlist SET browseId = '${cursor.getString(0)}' WHERE id = '${cursor.getString(0)}'",
                 )
             }
         }
@@ -507,7 +518,7 @@ class Migration6To7 : AutoMigrationSpec {
         db.query("SELECT id, createDate FROM song").use { cursor ->
             while (cursor.moveToNext()) {
                 db.execSQL(
-                    "UPDATE song SET inLibrary = ${cursor.getLong(1)} WHERE id = '${cursor.getString(0)}'"
+                    "UPDATE song SET inLibrary = ${cursor.getLong(1)} WHERE id = '${cursor.getString(0)}'",
                 )
             }
         }
@@ -547,13 +558,13 @@ class Migration11To12 : AutoMigrationSpec {
                     table = "album",
                     conflictAlgorithm = SQLiteDatabase.CONFLICT_IGNORE,
                     values =
-                    contentValuesOf(
-                        "id" to albumId,
-                        "title" to albumName,
-                        "songCount" to 0,
-                        "duration" to 0,
-                        "lastUpdateTime" to 0,
-                    ),
+                        contentValuesOf(
+                            "id" to albumId,
+                            "title" to albumName,
+                            "songCount" to 0,
+                            "duration" to 0,
+                            "lastUpdateTime" to 0,
+                        ),
                 )
             }
         }
@@ -571,7 +582,7 @@ class Migration13To14 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
         db.execSQL("UPDATE playlist SET createdAt = '${Converters().dateToTimestamp(LocalDateTime.now())}'")
         db.execSQL(
-            "UPDATE playlist SET lastUpdateTime = '${Converters().dateToTimestamp(LocalDateTime.now())}'"
+            "UPDATE playlist SET lastUpdateTime = '${Converters().dateToTimestamp(LocalDateTime.now())}'",
         )
     }
 }
@@ -604,8 +615,8 @@ class Migration19To20 : AutoMigrationSpec {
 @DeleteColumn.Entries(
     DeleteColumn(
         tableName = "song",
-        columnName = "artistName"
-    )
+        columnName = "artistName",
+    ),
 )
 class Migration20To21 : AutoMigrationSpec
 
@@ -640,7 +651,7 @@ class Migration22To23 : AutoMigrationSpec {
     }
 }
 
-class Migration23To24: AutoMigrationSpec {
+class Migration23To24 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
         var hasIsUploaded = false
         db.query("PRAGMA table_info('song')").use { cursor ->
@@ -714,6 +725,25 @@ class Migration29To30 : AutoMigrationSpec {
         }
         if (!hasProvider) {
             db.execSQL("ALTER TABLE lyrics ADD COLUMN provider TEXT NOT NULL DEFAULT 'Unknown'")
+        }
+    }
+}
+
+class Migration35To36 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        var hasIsCached = false
+        db.query("PRAGMA table_info('song')").use { cursor ->
+            val nameIndex = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                val colName = if (nameIndex >= 0) cursor.getString(nameIndex) else null
+                if (colName == "isCached") {
+                    hasIsCached = true
+                    break
+                }
+            }
+        }
+        if (!hasIsCached) {
+            db.execSQL("ALTER TABLE song ADD COLUMN isCached INTEGER NOT NULL DEFAULT 0")
         }
     }
 }
