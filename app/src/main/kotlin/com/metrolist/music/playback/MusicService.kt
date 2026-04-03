@@ -2783,9 +2783,8 @@ class MusicService :
                 performAggressiveCacheClear(mediaId)
                 delay(RETRY_DELAY_MS)
 
-                val currentPosition = player.currentPosition
                 val currentIndex = player.currentMediaItemIndex
-                player.seekTo(currentIndex, currentPosition)
+                player.stop()
                 player.prepare()
 
                 Timber.tag(TAG).d("Retrying playback for $mediaId after generic IO error")
