@@ -1,0 +1,40 @@
+name: Fork validation - widget and M3U
+
+on:
+  push:
+    branches: [ci/verify-widget-m3u]
+    paths: [.github/workflows/verify-widget-m3u.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    if: github.repository == 'adrielGGmotion/Metrolist'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the exact two-fix commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 775c07bf1ded50d6b6bad6f99edc95d2010484ed
+          persist-credentials: false
+      - name: Verify revision and tree
+        run: |
+          test "$(git rev-parse HEAD)" = 775c07bf1ded50d6b6bad6f99edc95d2010484ed
+          test "$(git rev-parse 'HEAD^{tree}')" = 09ac21cb17216810f9f049acc9dbddab51450c2e
+      - name: Set up Temurin JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+        with:
+          packages: platform-tools
+      - name: Check Android resources, build debug APK and run shared host tests
+        env:
+          SENTRY_IGNORE_ERRORS: 'true'
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --no-configuration-cache --max-workers=3 :androidApp:processDebugResources :androidApp:assembleDebug :shared:testAndroidHostTest
