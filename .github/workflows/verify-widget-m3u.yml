@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: 775c07bf1ded50d6b6bad6f99edc95d2010484ed
+          submodules: recursive
           persist-credentials: false
       - name: Verify revision and tree
         run: |
