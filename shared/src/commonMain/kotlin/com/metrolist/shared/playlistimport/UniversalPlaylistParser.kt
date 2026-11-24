@@ -189,6 +189,24 @@ object UniversalPlaylistParser {
                 ?.takeIf(String::isNotBlank)
         }
 
+    private fun m3uDisplayLabel(extinf: String): String? {
+        var quoted = false
+        var index = "#EXTINF:".length
+        // Extended M3U attributes can contain commas before the display label.
+        while (index < extinf.length) {
+            when (extinf[index]) {
+                '"' -> quoted = !quoted
+                '\\' -> {
+                    val next = extinf.getOrNull(index + 1)
+                    if (quoted && (next == '"' || next == '\\')) index++
+                }
+                ',' -> if (!quoted) return extinf.substring(index + 1).trim().takeIf(String::isNotEmpty)
+            }
+            index++
+        }
+        return null
+    }
+
     private fun parseM3u(
         text: String,
         resolveLocalReference: (String) -> String?,
@@ -205,10 +223,7 @@ object UniversalPlaylistParser {
             if (trimmed.isBlank()) continue
             if (trimmed.startsWith("#EXTINF:", ignoreCase = true)) {
                 pendingInfo =
-                    trimmed
-                        .substringAfter(',')
-                        .trim()
-                        .takeIf { ',' in trimmed && it.isNotBlank() }
+                    m3uDisplayLabel(trimmed)
                         ?.let { label ->
                             if (literalNextLabel) "" to label else splitM3uDisplayLabel(label, artistLength)
                         }
