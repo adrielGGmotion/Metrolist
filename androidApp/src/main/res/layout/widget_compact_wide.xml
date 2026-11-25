@@ -81,8 +81,9 @@
                     android:textSize="13sp" />
             </LinearLayout>
 
+            <!-- Allow room for all three touch targets after dp-to-pixel rounding. -->
             <FrameLayout
-                android:layout_width="124dp"
+                android:layout_width="136dp"
                 android:layout_height="match_parent"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp"
@@ -90,7 +91,7 @@
 
                 <ImageView
                     android:id="@+id/widget_controls_pill_bg"
-                    android:layout_width="124dp"
+                    android:layout_width="136dp"
                     android:layout_height="match_parent"
                     android:layout_gravity="center"
                     android:importantForAccessibility="no"
